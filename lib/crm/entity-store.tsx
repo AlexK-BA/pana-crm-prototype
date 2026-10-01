@@ -111,6 +111,16 @@ interface EntityStoreValue {
    * through a deal. If nothing matches, the case stays an unlinked lead/deal.
    */
   matchCaseToPatient: (caseId: string, actorId: string) => { matched: boolean; patientId?: string }
+  /** Creates or updates the contact profile directly from a case/chat workspace. */
+  saveCaseContactProfile: (input: {
+    caseId: string
+    firstName: string
+    lastName: string
+    pesel?: string
+    phone?: string
+    email?: string
+    actorId: string
+  }) => { patientId: string }
   /** Creates a task to send the patient's current treatment plan (pulled from Medical CRM). */
   sendTreatmentPlanTask: (patientId: string, caseId: string, actorId: string) => Task
   /** Links two engagement cases as duplicates and records both audit entries. */
@@ -162,6 +172,12 @@ let broadcastSeq = 0
 function nextBroadcastId() {
   broadcastSeq += 1
   return `bc-live-${broadcastSeq}`
+}
+
+let patientSeq = 0
+function nextPatientId() {
+  patientSeq += 1
+  return `pat-live-${patientSeq}`
 }
 
 export function EntityStoreProvider({ children }: { children: ReactNode }) {
@@ -586,6 +602,62 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     [addAudit, cases, identities],
   )
 
+  const saveCaseContactProfile = useCallback(
+    (input: { caseId: string; firstName: string; lastName: string; pesel?: string; phone?: string; email?: string; actorId: string }) => {
+      const targetCase = cases.find((item) => item.id === input.caseId)
+      if (!targetCase) throw new Error(`Unknown case ${input.caseId}`)
+
+      const existing = targetCase.patientId ? patients.find((item) => item.id === targetCase.patientId) : undefined
+      const patientId = existing?.id ?? nextPatientId()
+      const clean = {
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+        pesel: input.pesel?.trim() || undefined,
+        phone: input.phone?.trim() || undefined,
+        email: input.email?.trim() || undefined,
+      }
+      const now = iso(0)
+      const provenance = [
+        { field: "firstName", source: "User-entered" as const, value: clean.firstName, updatedAt: now },
+        { field: "lastName", source: "User-entered" as const, value: clean.lastName, updatedAt: now },
+        ...(clean.pesel ? [{ field: "pesel", source: "User-entered" as const, value: clean.pesel, updatedAt: now }] : []),
+      ]
+
+      if (existing) {
+        setPatients((prev) => prev.map((item) => item.id === patientId ? { ...item, firstName: clean.firstName, lastName: clean.lastName, pesel: clean.pesel, provenance: [...item.provenance.filter((field) => !["firstName", "lastName", "pesel"].includes(field.field)), ...provenance] } : item))
+      } else {
+        const patient: Patient = {
+          id: patientId,
+          firstName: clean.firstName,
+          lastName: clean.lastName,
+          pesel: clean.pesel,
+          preferredLanguage: targetCase.attribution.caseCreationTouch.language,
+          primaryClinicId: targetCase.clinicId ?? targetCase.attribution.caseCreationTouch.clinicIntentId,
+          integrationState: "unlinked",
+          contactable: true,
+          provenance,
+        }
+        setPatients((prev) => [...prev, patient])
+        setCases((prev) => prev.map((item) => item.id === input.caseId ? { ...item, patientId } : item))
+      }
+
+      const upsertIdentity = (channel: "phone" | "email", value?: string) => {
+        if (!value) return
+        setIdentities((prev) => {
+          const found = prev.find((item) => item.patientId === patientId && item.channel === channel)
+          if (found) return prev.map((item) => item.id === found.id ? { ...item, value, displayName: `${clean.firstName} ${clean.lastName}` } : item)
+          return [...prev, { id: `ci-${patientId}-${channel}`, patientId, channel, value, isPrimary: channel === "phone", verified: false, displayName: `${clean.firstName} ${clean.lastName}` }]
+        })
+      }
+      upsertIdentity("phone", clean.phone)
+      upsertIdentity("email", clean.email)
+      setIdentities((prev) => prev.map((item) => item.id === targetCase.contactIdentityId ? { ...item, patientId, displayName: `${clean.firstName} ${clean.lastName}` } : item))
+      addAudit({ caseId: input.caseId, patientId, type: "link", actorId: input.actorId, summary: existing ? "Zaktualizowano dane profilu kontaktu" : "Utworzono lokalny profil pacjenta i powiązano go ze sprawą" })
+      return { patientId }
+    },
+    [addAudit, cases, patients],
+  )
+
   const sendTreatmentPlanTask = useCallback(
     (patientId: string, caseId: string, actorId: string) => {
       const task: Task = {
@@ -677,6 +749,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       assignClinicToCase,
       syncPatientWithMedicalCrm,
       matchCaseToPatient,
+      saveCaseContactProfile,
       sendTreatmentPlanTask,
       sendBroadcast,
       linkDuplicateCase,
@@ -705,6 +778,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       assignClinicToCase,
       syncPatientWithMedicalCrm,
       matchCaseToPatient,
+      saveCaseContactProfile,
       sendTreatmentPlanTask,
       sendBroadcast,
       linkDuplicateCase,

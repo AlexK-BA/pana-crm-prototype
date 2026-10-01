@@ -7,7 +7,7 @@
  * unknown contact shows up immediately as its own draft conversation
  * (see EntityStore.createDraftCase) — the "chat as a lead source" scenario.
  */
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Search,
   CheckCheck,
@@ -19,12 +19,15 @@ import {
   User,
   Plus,
   ExternalLink,
+  ContactRound,
+  Save,
 } from "lucide-react"
 import { PageShell } from "@/components/crm/page-shell"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { ConversationThread } from "@/components/crm/conversation-thread"
@@ -62,8 +65,11 @@ export default function InboxPage() {
   const [simChannel, setSimChannel] = useState<ContactChannel>("instagram")
   const [simValue, setSimValue] = useState("")
   const [simText, setSimText] = useState("")
+  const [profileOpen, setProfileOpen] = useState(true)
+  const [profileDraft, setProfileDraft] = useState({ firstName: "", lastName: "", pesel: "", phone: "", email: "" })
+  const [profileSaved, setProfileSaved] = useState(false)
 
-  const { cases, interactions, identities, readAt, createDraftCase } = useEntityStore()
+  const { cases, interactions, identities, patients, readAt, createDraftCase, saveCaseContactProfile } = useEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const meName = ROLE_PROFILES[role].user.name
@@ -80,7 +86,7 @@ export default function InboxPage() {
           (m) => m.direction !== "outgoing" && (!lastReadAt || new Date(m.at).getTime() > new Date(lastReadAt).getTime()),
         ).length
         const identity = getIdentity(c.contactIdentityId) ?? identities.find((i) => i.id === c.contactIdentityId)
-        const patient = getPatient(c.patientId)
+        const patient = patients.find((item) => item.id === c.patientId) ?? getPatient(c.patientId)
         return {
           case: c,
           identity,
@@ -101,12 +107,32 @@ export default function InboxPage() {
       })
       .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime())
     return list
-  }, [cases, interactions, identities, readAt, unreadOnly, clinicFilter, query])
+  }, [cases, interactions, identities, patients, readAt, unreadOnly, clinicFilter, query])
 
   const activeCaseId = selectedCaseId ?? conversations[0]?.case.id ?? null
   const active = conversations.find((c) => c.case.id === activeCaseId)
   const activeClinicTone = getClinicTone(active?.case.clinicId)
   const activeClinic = getClinic(active?.case.clinicId)
+
+  useEffect(() => {
+    if (!active) return
+    const linked = active.patient ? identities.filter((item) => item.patientId === active.patient?.id) : []
+    setProfileDraft({
+      firstName: active.patient?.firstName ?? "",
+      lastName: active.patient?.lastName ?? "",
+      pesel: active.patient?.pesel ?? "",
+      phone: linked.find((item) => item.channel === "phone")?.value ?? (active.identity?.channel === "phone" ? active.identity.value : ""),
+      email: linked.find((item) => item.channel === "email")?.value ?? (active.identity?.channel === "email" ? active.identity.value : ""),
+    })
+    setProfileSaved(false)
+  }, [active?.case.id, active?.patient?.id, identities])
+
+  function handleSaveProfile() {
+    if (!active || !profileDraft.firstName.trim() || !profileDraft.lastName.trim()) return
+    saveCaseContactProfile({ caseId: active.case.id, ...profileDraft, actorId })
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 1800)
+  }
 
   function handleSimulate() {
     if (!simValue.trim() || !simText.trim()) return
@@ -228,18 +254,46 @@ export default function InboxPage() {
                     {active.identity && <span className="text-xs text-muted-foreground">{active.identity.value}</span>}
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => openCase(active.case.id)}>
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Otwórz sprawę
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => openCase(active.case.id)}>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Otwórz sprawę
+                  </Button>
+                  <Button variant={profileOpen ? "secondary" : "outline"} size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => setProfileOpen((value) => !value)}>
+                    <ContactRound className="h-3.5 w-3.5" />
+                    Dane kontaktu
+                  </Button>
+                </div>
               </div>
-              <div className="min-h-0 flex-1 px-4 py-3">
-                <ConversationThread
-                  caseIds={[active.case.id]}
-                  primaryCaseId={active.case.id}
-                  patientId={active.case.patientId}
-                  authorId={actorId}
-                />
+              <div className="flex min-h-0 flex-1">
+                <div className="min-w-0 flex-1 px-4 py-3">
+                  <ConversationThread
+                    caseIds={[active.case.id]}
+                    primaryCaseId={active.case.id}
+                    patientId={active.case.patientId}
+                    authorId={actorId}
+                  />
+                </div>
+                {profileOpen && (
+                  <aside className="w-[310px] shrink-0 overflow-y-auto border-l border-border bg-muted/20 p-4">
+                  <h3 className="text-sm font-semibold">Profil rozmówcy</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Skopiuj dane z rozmowy i uzupełnij profil bez opuszczania czatu.</p>
+                  <div className="mt-4 space-y-3">
+                    {([[
+                      "firstName", "Imię"
+                    ], ["lastName", "Nazwisko"], ["pesel", "PESEL"], ["phone", "Telefon"], ["email", "E-mail"]] as const).map(([field, label]) => (
+                      <div key={field} className="space-y-1.5">
+                        <Label htmlFor={`inbox-${field}`} className="text-xs text-muted-foreground">{label}</Label>
+                        <Input id={`inbox-${field}`} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={label} />
+                      </div>
+                    ))}
+                  </div>
+                  <Button className="mt-4 w-full gap-1.5" disabled={!profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
+                    <Save className="h-3.5 w-3.5" />{profileSaved ? "Zapisano" : active.patient ? "Zapisz zmiany" : "Utwórz profil"}
+                  </Button>
+                  <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">Profil lokalny można później dopasować lub zsynchronizować z Medical CRM. Historia zapisu pozostaje w audycie sprawy.</p>
+                  </aside>
+                )}
               </div>
             </>
           ) : (

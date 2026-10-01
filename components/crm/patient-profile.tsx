@@ -190,6 +190,18 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
         <TabsContent value="overview" className="space-y-4">
           <section className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-foreground">Dane podstawowe</h3>
+              <Badge variant="outline" className="text-[10px]">Patient 360</Badge>
+            </div>
+            <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs text-muted-foreground">Imię i nazwisko</dt><dd className="mt-0.5 font-medium">{name}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">PESEL</dt><dd className="mt-0.5 font-medium">{patient.pesel ?? "Nie uzupełniono"}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Preferowany język</dt><dd className="mt-0.5 font-medium uppercase">{patient.preferredLanguage}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Zgoda na kontakt</dt><dd className="mt-0.5 font-medium">{patient.contactable ? "Tak" : "Nie"}</dd></div>
+            </dl>
+          </section>
+          <section className="rounded-xl border border-border bg-card p-4">
             <h3 className="mb-3 text-sm font-semibold text-foreground">Kanały kontaktu</h3>
             <div className="space-y-2">
               {identities.length === 0 && <p className="text-sm text-muted-foreground">Brak zarejestrowanych kanałów.</p>}

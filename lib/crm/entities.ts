@@ -71,6 +71,8 @@ export interface Patient {
   externalPatientId?: string
   firstName: string
   lastName: string
+  /** Optional national identifier entered locally or synchronized from Medical CRM. */
+  pesel?: string
   preferredLanguage: PreferredLanguage
   primaryClinicId: ClinicId
   integrationState: IntegrationState
