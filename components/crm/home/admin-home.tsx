@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { ArrowRight, Building2, ListChecks, Plug, ShieldCheck, Users } from "lucide-react"
-import { OPERATORS } from "@/lib/crm/data"
 import { ROLE_ORDER, ROLE_PROFILES } from "@/lib/crm/roles"
+import { useUserDirectory } from "@/lib/crm/user-directory"
 import { useEntityStore } from "@/lib/crm/entity-store"
 import { CLINICS } from "@/lib/crm/catalog"
 import { useLanguage } from "@/lib/crm/language-context"
@@ -19,6 +19,7 @@ const ADMIN_SECTIONS = [
 
 export function AdminHome() {
   const { auditEvents, cases, identities } = useEntityStore()
+  const { users } = useUserDirectory()
   const { t } = useLanguage()
   const caseIdentityIds = new Set(cases.map((item) => item.contactIdentityId))
   const channels = new Set(identities.filter((item) => caseIdentityIds.has(item.id)).map((item) => item.channel))
@@ -28,16 +29,16 @@ export function AdminHome() {
     <div className="mx-auto max-w-6xl space-y-6">
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Sprawy w systemie" value={cases.length} />
-        <Stat label="Użytkownicy" value={OPERATORS.length} />
+        <Stat label="Użytkownicy" value={users.length} />
         <Stat label="Kliniki" value={CLINICS.length} />
         <Stat label="Podłączone kanały" value={channels.size} />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-medium text-foreground">Użytkownicy i role</h3>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2"><Users className="h-4 w-4 text-muted-foreground" /><h3 className="text-sm font-medium text-foreground">Użytkownicy i role</h3></div>
+            <Link href="/users" className="text-xs font-medium text-primary hover:underline">Zarządzaj</Link>
           </div>
           <div className="divide-y divide-border">
             {ROLE_ORDER.map((id) => {

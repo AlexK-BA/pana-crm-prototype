@@ -24,6 +24,8 @@ The build is accepted when all critical scenarios (`P0`) pass and no action caus
 | UAT-09 | Patient comments and audit | P1 |
 | UAT-10 | Filters and navigation | P1 |
 | UAT-11 | Patient conversations and channels | P0 |
+| UAT-12 | RBAC route enforcement | P0 |
+| UAT-13 | User lifecycle management | P0 |
 
 ## UAT-01 — role workspaces
 
@@ -202,6 +204,42 @@ Expected:
 - the operator can switch between all conversations of the linked patient without leaving the case drawer;
 - an unlinked contact shows only the current case conversation until a Patient link is created.
 
+## UAT-12 — RBAC route enforcement
+
+1. Switch to Marketing and verify that Inbox, patient records, calls, calendar, audit, settings and users are absent from navigation.
+2. While still in Marketing, enter `/inbox`, `/patients/pat-04`, `/settings` and `/users` directly in the address bar.
+3. Switch to Team Leader and open `/audit` and `/docs`.
+4. Switch to Administrator and open every module.
+
+Expected:
+
+- hiding navigation does not constitute the only protection;
+- direct URL access displays `Brak dostępu` for an unauthorized role;
+- Marketing remains limited to aggregated marketing workspace data;
+- Team Leader can view operational audit/docs but cannot administer users or configuration;
+- Administrator can open user management and configuration.
+
+## UAT-13 — user lifecycle management
+
+1. As Administrator, open `Użytkownicy`.
+2. Search and filter users by status.
+3. Invite a new user with a role and one or more clinics.
+4. Edit their role and clinic scope.
+5. Initiate password reset and revoke sessions.
+6. Deactivate and reactivate the account.
+7. Verify that there is no delete action.
+8. Open Audit Log and verify each security action.
+9. Verify that the current/last Administrator cannot deactivate their own demo account.
+
+Expected:
+
+- a new account starts as `Zaproszony`;
+- no password is generated or displayed in CRM;
+- deactivation revokes sessions and preserves historical references;
+- reactivation does not recreate the user;
+- user administration produces audit entries;
+- physical deletion is unavailable.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.
@@ -211,3 +249,5 @@ Expected:
 - Shared incoming-call ownership demonstrates business behavior in one browser by switching roles; production requires backend realtime events and an atomic claim operation.
 - RBAC enforcement is not part of this UAT yet; role screens are demonstrational until the permission matrix is approved.
 - Automatic workflow tasks for every funnel stage are not included until funnel stages and rules are confirmed by Daniel and the clinic team.
+- Prototype RBAC blocks client routes and actions demonstrationally; production authorization must be repeated by Frappe/FastAPI and the identity provider.
+- Password reset, invitation and session revocation are emulated; the production identity-provider API is not connected.

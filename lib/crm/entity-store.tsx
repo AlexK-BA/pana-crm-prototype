@@ -39,6 +39,7 @@ interface EntityStoreValue {
   identities: ContactIdentity[]
   broadcasts: Broadcast[]
   readAt: Record<string, string>
+  recordAudit: (event: Omit<AuditEvent, "id" | "at">) => void
   completeTask: (taskId: string, outcome: TaskOutcome) => void
   /** Reverts a completed/cancelled task back to an open state (undo a checkbox). */
   reopenTask: (taskId: string) => void
@@ -735,6 +736,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       identities,
       broadcasts,
       readAt,
+      recordAudit: addAudit,
       completeTask,
       reopenTask,
       skipTask,

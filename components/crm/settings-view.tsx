@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { OPERATORS } from "@/lib/crm/data"
+import Link from "next/link"
 import { BOARD_LABEL_KEYS, BOARD_COLUMNS, COLOR_CLASSES } from "@/lib/crm/boards"
 import { CLINICS, PROCEDURES, DOCTORS, CLINIC_TONE } from "@/lib/crm/catalog"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES, ROLE_ORDER } from "@/lib/crm/roles"
 import { useLanguage } from "@/lib/crm/language-context"
+import { useUserDirectory } from "@/lib/crm/user-directory"
 
 interface KbArticle {
   id: string
@@ -59,6 +60,7 @@ const INITIAL_SOURCES = [
 export function SettingsView() {
   const { role, setRole } = useRole()
   const { t } = useLanguage()
+  const { users } = useUserDirectory()
 
   const [botEnabled, setBotEnabled] = useState(true)
   const [botName, setBotName] = useState("PaNa Assistant")
@@ -148,23 +150,19 @@ export function SettingsView() {
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-foreground">{t("settings_team_title")}</h2>
         <div className="space-y-2">
-          {OPERATORS.map((op) => (
-            <div key={op.id} className="flex items-center gap-3 rounded-md px-2 py-1.5">
-              <div
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white",
-                  op.color,
-                )}
-              >
-                {op.initials}
+          {users.slice(0, 5).map((user) => (
+            <div key={user.id} className="flex items-center gap-3 rounded-md px-2 py-1.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-500 text-xs font-semibold text-white">
+                {user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">{op.name}</p>
-                <p className="text-xs text-muted-foreground">{t("contact_center_role")}</p>
+                <p className="text-sm font-medium text-foreground">{user.name}</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
               </div>
-              <Badge variant="secondary">{t("settings_active")}</Badge>
+              <Badge variant="secondary">{user.status}</Badge>
             </div>
           ))}
+          <Button variant="outline" size="sm" className="mt-2 w-full" nativeButton={false} render={<Link href="/users">Zarządzaj użytkownikami i dostępem</Link>} />
         </div>
       </section>
 
