@@ -240,6 +240,25 @@ Expected:
 - user administration produces audit entries;
 - physical deletion is unavailable.
 
+## UAT-14 — clinic data scope
+
+1. As Administrator, assign Weronika only to PaNa Medica.
+2. Switch to Operator and open Board, Records, Inbox, Schedule and Calendar.
+3. Search by command palette for a PaNa Comfort-only case.
+4. Enter the URL of a patient who has no case in PaNa Medica.
+5. Verify that a case with no clinic is still available for triage.
+6. Switch to Clinic Manager and verify that unassigned-clinic cases are hidden.
+7. Deactivate a non-current demo user and open the role switcher.
+
+Expected:
+
+- operational lists expose only cases within the current user's clinic scope;
+- dependent tasks, patients, identities and conversations follow the same scope;
+- global search and direct links do not bypass the scoped store;
+- unassigned cases are visible only to triage-capable roles;
+- inactive, locked and invited users cannot be impersonated through the demo role switcher;
+- production repeats these rules server-side; client filtering alone is explicitly not treated as security.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.

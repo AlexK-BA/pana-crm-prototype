@@ -10,7 +10,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { ChannelIcon } from "@/components/crm/channel-icon"
 import type { ChannelPlatform } from "@/lib/crm/types"
@@ -23,7 +23,7 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const { openCase } = useCasePanel()
-  const { cases, patients, identities } = useEntityStore()
+  const { cases, patients, identities } = useScopedEntityStore()
   const { role } = useRole()
   const canViewCases = hasPermission(role, "case:view")
 

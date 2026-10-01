@@ -3,6 +3,8 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
 import type { ClinicId } from "./entities"
 import type { RoleId } from "./roles"
+import { ROLE_PROFILES } from "./roles"
+import { useRole } from "./role-context"
 import { useEntityStore } from "./entity-store"
 
 export type AppUserStatus = "invited" | "active" | "inactive" | "locked"
@@ -32,6 +34,7 @@ const USERS: AppUser[] = [
 
 interface UserDirectoryValue {
   users: AppUser[]
+  currentUser: AppUser
   createUser: (input: Omit<AppUser, "id" | "status" | "createdAt">) => void
   setActive: (userId: string, active: boolean) => void
   requestPasswordReset: (userId: string) => void
@@ -44,10 +47,13 @@ let userSeq = 0
 
 export function UserDirectoryProvider({ children }: { children: ReactNode }) {
   const { recordAudit } = useEntityStore()
+  const { role } = useRole()
   const [users, setUsers] = useState(USERS)
+  const currentUser = users.find((user) => user.id === ROLE_PROFILES[role].user.id) ?? USERS[0]
   const patch = (id: string, data: Partial<AppUser>) => setUsers((prev) => prev.map((user) => user.id === id ? { ...user, ...data } : user))
   const value = useMemo<UserDirectoryValue>(() => ({
     users,
+    currentUser,
     createUser: (input) => {
       userSeq += 1
       setUsers((prev) => [...prev, { ...input, id: `usr-live-${userSeq}`, status: "invited", createdAt: new Date().toISOString() }])
@@ -70,7 +76,7 @@ export function UserDirectoryProvider({ children }: { children: ReactNode }) {
       patch(id, { roles, clinicIds })
       recordAudit({ type: "assignment_change", actorId: "usr-mk", summary: `Zmieniono role lub zakres klinik użytkownika ${users.find((user) => user.id === id)?.email ?? id}` })
     },
-  }), [recordAudit, users])
+  }), [currentUser, recordAudit, users])
   return <UserDirectoryContext.Provider value={value}>{children}</UserDirectoryContext.Provider>
 }
 

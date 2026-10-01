@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { PopoverContent, PopoverHeader, PopoverTitle, PopoverDescription } from "@/components/ui/popover"
 import { CalendarClock, Loader2 } from "lucide-react"
 import { DOCTORS, getClinic, getDoctor, getProcedure } from "@/lib/crm/catalog"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import type { ClinicId } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
 
@@ -74,7 +74,7 @@ export function AppointmentSlotPicker({
   actorId?: string
   onBooked?: () => void
 }) {
-  const { bookAppointment } = useEntityStore()
+  const { bookAppointment } = useScopedEntityStore()
   const [searching, setSearching] = useState(true)
   const [selected, setSelected] = useState<Slot | null>(null)
   const [confirmed, setConfirmed] = useState(false)

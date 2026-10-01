@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useCall } from "@/lib/crm/call-context"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage, type Language } from "@/lib/crm/language-context"
@@ -55,7 +55,7 @@ const CHANNEL_LABEL: Record<ContactChannel, string> = {
 export function AppTopbar({ title, subtitle }: { title: string; subtitle?: string }) {
   const [showKbd] = useState(true)
   const { simulateIncomingCall } = useCall()
-  const { tasks, cases, createDraftCase, assignClinicToCase } = useEntityStore()
+  const { tasks, cases, createDraftCase, assignClinicToCase } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const { language, setLanguage, t } = useLanguage()

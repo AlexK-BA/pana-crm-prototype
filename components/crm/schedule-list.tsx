@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Calendar } from "lucide-react"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { buildQueueItem, type QueueItem } from "@/lib/crm/entity-selectors"
 import { isActive } from "@/lib/crm/entity-queue"
 import { QueueRow } from "@/components/crm/home/operator-home"
@@ -37,7 +37,7 @@ function groupByDay(items: QueueItem[]) {
 
 export function ScheduleList() {
   const { openCase } = useCasePanel()
-  const { tasks, cases } = useEntityStore()
+  const { tasks, cases } = useScopedEntityStore()
 
   // `now` starts at a fixed, render-stable value so server and client
   // produce identical markup on first paint, then advances client-only.

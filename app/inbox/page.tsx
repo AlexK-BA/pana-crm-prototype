@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { ConversationThread } from "@/components/crm/conversation-thread"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getPatient, getIdentity } from "@/lib/crm/entity-data"
 import { getClinic, getClinicTone, CLINICS } from "@/lib/crm/catalog"
 import { useCasePanel } from "@/lib/crm/panel-context"
@@ -70,7 +70,7 @@ export default function InboxPage() {
   const [profileDraft, setProfileDraft] = useState({ firstName: "", lastName: "", pesel: "", phone: "", email: "" })
   const [profileSaved, setProfileSaved] = useState(false)
 
-  const { cases, interactions, identities, patients, readAt, createDraftCase, saveCaseContactProfile } = useEntityStore()
+  const { cases, interactions, identities, patients, readAt, createDraftCase, saveCaseContactProfile } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const meName = ROLE_PROFILES[role].user.name
