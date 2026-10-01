@@ -10,6 +10,7 @@ export interface RoleProfile {
   descriptionKey: DictionaryKey
   greetingKey: DictionaryKey
   user: {
+    id: string
     name: string
     initials: string
     color: string
@@ -24,7 +25,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_operator_title",
     descriptionKey: "role_operator_desc",
     greetingKey: "role_operator_greet",
-    user: { name: "Weronika Sadowska", initials: "WS", color: "bg-emerald-500" },
+    user: { id: "usr-ws", name: "Weronika Sadowska", initials: "WS", color: "bg-emerald-500" },
   },
   patient_care: {
     id: "patient_care",
@@ -33,7 +34,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_patient_care_title",
     descriptionKey: "role_patient_care_desc",
     greetingKey: "role_patient_care_greet",
-    user: { name: "Ilona Marchenko", initials: "IM", color: "bg-amber-500" },
+    user: { id: "usr-im", name: "Ilona Marchenko", initials: "IM", color: "bg-amber-500" },
   },
   team_leader: {
     id: "team_leader",
@@ -42,7 +43,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_team_leader_title",
     descriptionKey: "role_team_leader_desc",
     greetingKey: "role_team_leader_greet",
-    user: { name: "Daniel Wozniak", initials: "DW", color: "bg-sky-500" },
+    user: { id: "usr-dw", name: "Daniel Wozniak", initials: "DW", color: "bg-sky-500" },
   },
   clinic_manager: {
     id: "clinic_manager",
@@ -51,7 +52,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_clinic_manager_title",
     descriptionKey: "role_clinic_manager_desc",
     greetingKey: "role_clinic_manager_greet",
-    user: { name: "Pavel Rusetski", initials: "PR", color: "bg-violet-500" },
+    user: { id: "usr-pr", name: "Pavel Rusetski", initials: "PR", color: "bg-violet-500" },
   },
   marketing: {
     id: "marketing",
@@ -60,7 +61,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_marketing_title",
     descriptionKey: "role_marketing_desc",
     greetingKey: "role_marketing_greet",
-    user: { name: "Aleh Miranovich", initials: "AM", color: "bg-rose-500" },
+    user: { id: "usr-am", name: "Aleh Miranovich", initials: "AM", color: "bg-rose-500" },
   },
   admin: {
     id: "admin",
@@ -69,7 +70,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_admin_title",
     descriptionKey: "role_admin_desc",
     greetingKey: "role_admin_greet",
-    user: { name: "Marta Kowalik", initials: "MK", color: "bg-slate-500" },
+    user: { id: "usr-mk", name: "Marta Kowalik", initials: "MK", color: "bg-slate-500" },
   },
 }
 

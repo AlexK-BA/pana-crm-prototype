@@ -16,7 +16,7 @@ import {
   PRIORITY_TONE,
   priorityLabel,
 } from "@/lib/crm/entity-selectors"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
@@ -67,7 +67,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
     auditEvents,
     syncPatientWithMedicalCrm,
     sendTreatmentPlanTask,
-  } = useEntityStore()
+  } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const foundPatient = patients.find((item) => item.id === patientId)
   if (!foundPatient) return notFound()

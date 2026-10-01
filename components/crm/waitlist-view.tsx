@@ -9,7 +9,7 @@ import { Search, PhoneCall, Clock } from "lucide-react"
 import { getPatient, getIdentity } from "@/lib/crm/entity-data"
 import { getClinic, getDoctor, getProcedure, CLINICS, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
 import { getOperator } from "@/lib/crm/entity-selectors"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
@@ -23,7 +23,7 @@ export function WaitlistView() {
   const [doctor, setDoctor] = useState<string>("all")
   const [service, setService] = useState<string>("all")
   const [assignee, setAssignee] = useState<string>("all")
-  const { cases, moveCase } = useEntityStore()
+  const { cases, moveCase } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const actorId = OPERATORS.find((o) => o.name === ROLE_PROFILES[role].user.name)?.id ?? "system"

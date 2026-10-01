@@ -89,6 +89,16 @@ Role grants capabilities; scope limits the objects on which they apply.
 - Administrator scope is global in the prototype.
 - Marketing receives a dedicated aggregated projection, not masked fields from the operational record.
 
+Prototype behavior:
+
+- Administrator and Team Leader see all clinics.
+- Operator, Patient Care and Clinic Manager see only cases belonging to clinics assigned to their user account.
+- Cases without a clinic remain visible to Operator, Patient Care and Team Leader so they can be triaged; Clinic Manager does not receive them.
+- Tasks, patients, identities, interactions, audit rows and SMS broadcasts are derived from the visible case set.
+- Command search, drawers and direct patient routes use the same scoped store as lists and boards.
+- An inactive/locked/invited demo user cannot be selected in the role switcher.
+- Marketing dashboard is a UI simulation of an aggregate projection. Production must calculate and return aggregates server-side without returning patient/contact rows.
+
 ## 7. Enforcement points
 
 | Layer | Required behavior |

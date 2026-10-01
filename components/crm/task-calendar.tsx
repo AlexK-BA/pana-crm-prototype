@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, CalendarClock, AlertTriangle } from "lucide-react"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { getClinicTone } from "@/lib/crm/catalog"
@@ -34,7 +34,7 @@ export function TaskCalendar() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
   const [dragOverDay, setDragOverDay] = useState<number | null>(null)
-  const { tasks, cases, rescheduleTask } = useEntityStore()
+  const { tasks, cases, rescheduleTask } = useScopedEntityStore()
   const { openCase } = useCasePanel()
 
   const weekStart = useMemo(() => {

@@ -13,7 +13,7 @@ import { getPatient, getIdentity } from "@/lib/crm/entity-data"
 import { getClinic, getClinicTone, getProcedure, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
 import { getOperator } from "@/lib/crm/entity-selectors"
 import { BOARD_LABELS, BOARD_LABEL_KEYS, BOARD_COLUMNS } from "@/lib/crm/boards"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
@@ -50,7 +50,7 @@ export function RecordsTable() {
   const [broadcastMessage, setBroadcastMessage] = useState("")
   const [justSent, setJustSent] = useState(false)
 
-  const { cases, tasks, broadcasts, sendBroadcast } = useEntityStore()
+  const { cases, tasks, broadcasts, sendBroadcast } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const { t } = useLanguage()

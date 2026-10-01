@@ -13,10 +13,12 @@ import {
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { ROLE_ORDER, ROLE_PROFILES } from "@/lib/crm/roles"
+import { useUserDirectory } from "@/lib/crm/user-directory"
 import { cn } from "@/lib/utils"
 
 export function RoleSwitcher() {
   const { role, setRole } = useRole()
+  const { users } = useUserDirectory()
   const { t, language } = useLanguage()
   const active = ROLE_PROFILES[role]
 
@@ -49,8 +51,10 @@ export function RoleSwitcher() {
           <DropdownMenuSeparator />
           {ROLE_ORDER.map((id) => {
             const profile = ROLE_PROFILES[id]
+            const demoUser = users.find((user) => user.id === profile.user.id)
+            const available = demoUser?.status === "active"
             return (
-              <DropdownMenuItem key={id} onClick={() => setRole(id)} className="flex items-start gap-2 py-2">
+              <DropdownMenuItem key={id} disabled={!available} onClick={() => available && setRole(id)} className="flex items-start gap-2 py-2">
                 <div
                   className={cn(
                     "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white",
@@ -65,6 +69,7 @@ export function RoleSwitcher() {
                     {id === role && <Check className="h-3.5 w-3.5 text-primary" />}
                   </div>
                   <p className="text-[11px] leading-snug text-muted-foreground">{t(profile.descriptionKey)}</p>
+                  {!available && <p className="mt-0.5 text-[10px] font-medium text-amber-700">Konto nieaktywne lub oczekuje na aktywację</p>}
                 </div>
               </DropdownMenuItem>
             )

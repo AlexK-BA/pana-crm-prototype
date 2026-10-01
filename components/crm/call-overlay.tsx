@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { useCall } from "@/lib/crm/call-context"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
 import type { CallDisposition } from "@/lib/crm/entities"
@@ -58,7 +58,7 @@ function defaultLocalDateTime(hoursFromNow: number) {
 
 export function CallOverlay() {
   const { phase, call, elapsedSec, answer, decline, hangUp, submitWrapUp } = useCall()
-  const { cases, identities, patients } = useEntityStore()
+  const { cases, identities, patients } = useScopedEntityStore()
   const { role } = useRole()
   const actorId = ROLE_PROFILES[role].user.name
   const [disposition, setDisposition] = useState<CallDisposition | null>(null)

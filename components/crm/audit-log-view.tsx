@@ -20,7 +20,7 @@ import {
   ListChecks,
   SlidersHorizontal,
 } from "lucide-react"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { OPERATORS } from "@/lib/crm/data"
 import type { AuditEvent, AuditEventType } from "@/lib/crm/entities"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
@@ -73,7 +73,7 @@ function matchesQuery(event: AuditEvent, query: string) {
 }
 
 export function AuditLogView() {
-  const { auditEvents } = useEntityStore()
+  const { auditEvents } = useScopedEntityStore()
   const [query, setQuery] = useState("")
   const [activeType, setActiveType] = useState<AuditEventType | "all">("all")
 

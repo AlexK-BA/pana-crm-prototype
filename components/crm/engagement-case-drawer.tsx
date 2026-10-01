@@ -20,7 +20,7 @@ import { Phone, MessageSquare, Calendar, History, CheckCircle2, Link2, Search, X
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useCall } from "@/lib/crm/call-context"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getCase, getPatient, getIdentity, getTasksForCase, getCommentsForCase, getAuditForCase } from "@/lib/crm/entity-data"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
 import { getOperator, PRIORITY_TEXT_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
@@ -35,7 +35,7 @@ import { hasPermission } from "@/lib/crm/permissions"
 export function EngagementCaseDrawer() {
   const { activeCaseId, closeCase } = useCasePanel()
   const { role } = useRole()
-  const { cases } = useEntityStore()
+  const { cases } = useScopedEntityStore()
   const canViewCases = hasPermission(role, "case:view")
   const isEntityCase = !!activeCaseId && activeCaseId.startsWith("case-")
   const engagementCase = isEntityCase ? cases.find((c) => c.id === activeCaseId) ?? getCase(activeCaseId!) : undefined
@@ -53,7 +53,7 @@ export function EngagementCaseDrawer() {
 }
 
 function DrawerBody({ caseId }: { caseId: string }) {
-  const { tasks, cases, patients, identities, completeTask, reopenTask, skipTask, matchCaseToPatient, saveCaseContactProfile } = useEntityStore()
+  const { tasks, cases, patients, identities, completeTask, reopenTask, skipTask, matchCaseToPatient, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
   const { t } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId) ?? getCase(caseId)!

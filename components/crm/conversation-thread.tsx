@@ -13,7 +13,7 @@ import { Phone, MessageSquare, StickyNote, Send, Smartphone } from "lucide-react
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import type { ContactChannel, InteractionType } from "@/lib/crm/entities"
 import { formatDateTime } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
@@ -93,7 +93,7 @@ export function ConversationThread({
   className?: string
   emptyLabel?: string
 }) {
-  const { interactions, sendMessage, markRead } = useEntityStore()
+  const { interactions, sendMessage, markRead } = useScopedEntityStore()
   const [draft, setDraft] = useState("")
   const [channel, setChannel] = useState<ContactChannel>("website")
   const bottomRef = useRef<HTMLDivElement>(null)
