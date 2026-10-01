@@ -3,6 +3,8 @@
 Status: living architecture document  
 Updated: 2026-10-02
 
+See also: [TRACEABILITY-AND-ARCHITECTURE-ALIGNMENT.md](TRACEABILITY-AND-ARCHITECTURE-ALIGNMENT.md) for mapping to the current Frappe/FastAPI/Yeastar architecture and stakeholder sources.
+
 ## Goal
 
 Keep the CRM reusable for another clinic group without forking the product or rewriting operator workflows. New clinics should be onboarded primarily through tenant configuration, catalog imports and integration adapters.
