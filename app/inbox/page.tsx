@@ -154,7 +154,7 @@ export default function InboxPage() {
                 <CheckCheck className="h-3 w-3" />
                 Nieprzeczytane
               </Button>
-              <Select value={clinicFilter} onValueChange={setClinicFilter}>
+              <Select value={clinicFilter} onValueChange={(value) => setClinicFilter(value ?? "all")}>
                 <SelectTrigger className="h-7 flex-1 text-xs">
                   <SelectValue placeholder="Klinika" />
                 </SelectTrigger>
