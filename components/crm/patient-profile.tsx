@@ -20,7 +20,7 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import type { Call } from "@/lib/crm/entities"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
@@ -90,7 +90,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
   const { role } = useRole()
   const meName = ROLE_PROFILES[role].user.name
-  const actorId = OPERATORS.find((o) => o.name === meName)?.id ?? "system"
+  const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
   const [justSynced, setJustSynced] = useState(false)
   const [planSent, setPlanSent] = useState(false)
   const primaryCase = cases[0]

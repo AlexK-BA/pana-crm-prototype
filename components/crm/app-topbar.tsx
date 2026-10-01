@@ -24,14 +24,14 @@ import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage, type Language } from "@/lib/crm/language-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { CLINICS, getClinicTone } from "@/lib/crm/catalog"
 import { getQueue } from "@/lib/crm/entity-queue"
 import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { formatRelative } from "@/lib/crm/format"
 import type { ContactChannel, ClinicId } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
-import { hasPermission } from "@/lib/crm/permissions"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 
 const DEMO_INCOMING_CALLS = [
   { caseId: "case-1004", taskId: "task-02", label: "Nierozpoznany numer (Scenario 2/17)", unknown: true },
@@ -59,11 +59,12 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const { language, setLanguage, t } = useLanguage()
+  const { hasPermission } = useAuthorization()
   const meName = ROLE_PROFILES[role].user.name
-  const actorId = OPERATORS.find((o) => o.name === meName)?.id ?? "system"
-  const canHandleCalls = hasPermission(role, "call:handle")
-  const canViewTasks = hasPermission(role, "task:view")
-  const canCreateCase = hasPermission(role, "case:edit")
+  const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
+  const canHandleCalls = hasPermission("call:handle")
+  const canViewTasks = hasPermission("task:view")
+  const canCreateCase = hasPermission("case:edit")
 
   const [newCaseOpen, setNewCaseOpen] = useState(false)
   const [newCaseChannel, setNewCaseChannel] = useState<ContactChannel>("phone")

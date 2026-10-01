@@ -15,10 +15,11 @@ import type {
   EngagementCase,
   Interaction,
   Patient,
+  SmsMessage,
   Task,
   TouchPoint,
 } from "./entities"
-import { OPERATORS } from "./data"
+import { INITIAL_USERS } from "./user-catalog"
 
 const HOUR = 1000 * 60 * 60
 // Fixed reference instant (not Date.now()) so every seeded timestamp is
@@ -29,7 +30,7 @@ const HOUR = 1000 * 60 * 60
 const now = new Date("2026-09-25T12:00:00.000Z").getTime()
 export const iso = (offsetHours: number) => new Date(now + offsetHours * HOUR).toISOString()
 
-const [WERONIKA, ILONA, PAVEL, DANIEL, ALEH] = OPERATORS.map((o) => o.id)
+const [WERONIKA, ILONA, PAVEL, DANIEL, ALEH] = INITIAL_USERS.map((o) => o.id)
 
 function touch(partial: Partial<TouchPoint> & Pick<TouchPoint, "type" | "source" | "channel" | "at" | "sourceRecordId">): TouchPoint {
   return {
@@ -715,7 +716,7 @@ export function getTask(id?: string) {
 // ---------------------------------------------------------------------------
 // Interactions & Calls (§2.5 / §2.6)
 // ---------------------------------------------------------------------------
-export const INTERACTIONS: (Interaction | Call)[] = [
+export const INTERACTIONS: (Interaction | Call | SmsMessage)[] = [
   {
     id: "int-01", caseId: "case-1001", patientId: "pat-01", type: "note", at: iso(-2), authorId: WERONIKA,
     text: "Rozmowa z pacjentką, kwestia finansowa — zaproponować raty.",
@@ -778,6 +779,20 @@ export const INTERACTIONS: (Interaction | Call)[] = [
     id: "int-11", caseId: "case-1012", type: "chat", direction: "incoming", at: iso(-0.05),
     text: "Cześć! Piszę pierwszy raz, chciałabym zapytać o ceny wybielania zębów 🦷",
   },
+  {
+    id: "sms-01", caseId: "case-1001", patientId: "pat-01", type: "sms", channel: "phone", direction: "outgoing",
+    at: iso(-20), authorId: WERONIKA, text: "Dzień dobry, przypominamy o kontakcie w sprawie planu leczenia.",
+    recipient: "+48 611 924 357", sender: "PaNaMedica", providerType: "emulator", providerConfigurationId: "sms-pm-emulator",
+    providerMessageId: "emulator-sms-01", deliveryStatus: "delivered", providerStatus: "DELIVERED", partsCount: 1,
+    submittedAt: iso(-20), deliveredAt: iso(-19.99),
+  } as SmsMessage,
+  {
+    id: "sms-02", caseId: "case-1101", patientId: "pat-04", type: "sms", channel: "phone", direction: "outgoing",
+    at: iso(-12), authorId: PAVEL, text: "Potwierdzamy termin konsultacji. W razie potrzeby prosimy o kontakt.",
+    recipient: "+48 500 440 211", sender: "+48 61 000 00 02", providerType: "supervoip", providerConfigurationId: "sms-pc-supervoip",
+    providerMessageId: "supervoip-sms-02", deliveryStatus: "submitted", providerStatus: "ACCEPTED", partsCount: 1,
+    submittedAt: iso(-12),
+  } as SmsMessage,
 ]
 
 export function getInteractionsForCase(caseId: string) {

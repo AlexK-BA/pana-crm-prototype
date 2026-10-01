@@ -19,7 +19,7 @@ const SCREENS: ScreenRow[] = [
   { screen: "Wszystkie rekordy", route: "/records", state: "to_be", note: "Tabela EngagementCase z filtrami i widokami" },
   { screen: "Skrzynka (Inbox)", route: "/inbox", state: "to_be", note: "useEntityStore/Interaction — każda odpowiedź trafia do Case i Audit Log" },
   { screen: "Harmonogram", route: "/schedule", state: "to_be", note: "Widok Task.dueAt z entity-queue, wspólny z Kalendarzem i Queue" },
-  { screen: "Ustawienia", route: "/settings", state: "as_is", note: "Statyczny katalog kliniki/procedur, bez integracji ze store" },
+  { screen: "Ustawienia", route: "/settings", state: "to_be", note: "Konfiguracja dostawców SMS oraz katalog klinik/procedur" },
 ]
 
 export function MigrationDocs() {
@@ -31,21 +31,21 @@ export function MigrationDocs() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">AS-IS — model legacy</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Migracja modelu zakończona</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm leading-relaxed text-foreground">
-              Jeden płaski rekord <code className="rounded bg-muted px-1 py-0.5 text-xs">CrmCase</code> (
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">lib/crm/data.ts</code>) miesza w sobie kontakt, sprawę, zadanie i
-              historię wiadomości. Zasila tylko Skrzynkę i Harmonogram. Zmiana w jednym miejscu nie jest widoczna nigdzie
-              indziej i nie generuje wpisu w audit logu.
+              Płaski model <code className="rounded bg-muted px-1 py-0.5 text-xs">CrmCase</code>, tablica
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">CASES</code> i przybliżony
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">queue.ts</code> zostały usunięte. Aktywne ekrany nie czytają
+              już równoległego zestawu danych.
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">Aktywne ekrany: {asIsCount}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Ekrany pozostające na legacy: {asIsCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">TO-BE — model docelowy</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Aktywny model prototypu</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm leading-relaxed text-foreground">
@@ -110,7 +110,7 @@ export function MigrationDocs() {
         <CardContent>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-              CrmCase (legacy)
+              CrmCase (usunięty)
             </Badge>
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-muted-foreground">rozbicie na encje</span>
@@ -120,10 +120,9 @@ export function MigrationDocs() {
             </Badge>
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
-            Skrzynka i Harmonogram zostały przeniesione na{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">EntityStoreProvider</code> — odpowiedź w Skrzynce tworzy
-            realną Interaction i wpis w Audit Log, a Harmonogram czyta te same Task co Kalendarz i Queue. Pozostaje jedynie
-            statyczny katalog w Ustawieniach.
+            Wszystkie ekrany operacyjne czytają z <code className="rounded bg-muted px-1 py-0.5 text-xs">EntityStoreProvider</code>.
+            Odpowiedź tworzy Interaction i wpis w Audit Log, a Harmonogram, Kalendarz i Queue czytają te same Task. Użytkownicy,
+            role i numery wewnętrzne korzystają ze wspólnych identyfikatorów <code className="rounded bg-muted px-1 py-0.5 text-xs">usr-*</code>.
           </p>
         </CardContent>
       </Card>

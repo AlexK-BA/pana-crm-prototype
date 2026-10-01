@@ -19,6 +19,8 @@ import type {
   InteractionDirection,
   InteractionType,
   Patient,
+  SmsMessage,
+  SmsProviderConfiguration,
   Task,
   TaskOutcome,
   TaskPriority,
@@ -29,6 +31,8 @@ import { AUDIT_EVENTS, BROADCASTS, CONTACT_IDENTITIES, ENGAGEMENT_CASES, INTERAC
 // fallback lookup inside matchCaseToPatient/createDraftCase for identities
 // created earlier in the same session that may not be in local state yet.
 import { BOARD_COLUMNS } from "./boards"
+import { buildAutomaticTask, getWorkflowStageRule } from "./workflow-rules"
+import { calculateSmsParts, INITIAL_SMS_PROVIDER_CONFIGS, selectSmsProvider } from "./sms-service"
 
 interface EntityStoreValue {
   tasks: Task[]
@@ -38,6 +42,7 @@ interface EntityStoreValue {
   patients: Patient[]
   identities: ContactIdentity[]
   broadcasts: Broadcast[]
+  smsProviderConfigurations: SmsProviderConfiguration[]
   readAt: Record<string, string>
   recordAudit: (event: Omit<AuditEvent, "id" | "at">) => void
   completeTask: (taskId: string, outcome: TaskOutcome) => void
@@ -74,6 +79,18 @@ interface EntityStoreValue {
     direction: InteractionDirection
     authorId?: string
   }) => Interaction
+  sendSms: (input: {
+    caseId: string
+    patientId?: string
+    taskId?: string
+    clinicId?: ClinicId
+    recipient: string
+    text: string
+    authorId?: string
+    retryOfId?: string
+  }) => SmsMessage
+  updateSmsProviderConfiguration: (id: string, patch: Partial<SmsProviderConfiguration>) => void
+  testSmsProviderConfiguration: (id: string) => void
   /** Marks a conversation's incoming messages as read (drives unread badges). */
   markRead: (caseId: string) => void
   /**
@@ -190,6 +207,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const [patients, setPatients] = useState<Patient[]>(PATIENTS)
   const [identities, setIdentities] = useState<ContactIdentity[]>(CONTACT_IDENTITIES)
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>(BROADCASTS)
+  const [smsProviderConfigurations, setSmsProviderConfigurations] = useState<SmsProviderConfiguration[]>(INITIAL_SMS_PROVIDER_CONFIGS)
   const [readAt, setReadAt] = useState<Record<string, string>>({})
 
   const patchTask = useCallback((taskId: string, patch: Partial<Task>) => {
@@ -371,8 +389,28 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
         before: beforeLabel,
         after: afterLabel,
       })
+
+      const stageRule = getWorkflowStageRule(before.board, newStatus)
+      if (stageRule?.automaticTask) {
+        const duplicate = tasks.some(
+          (task) => task.caseId === caseId && task.workflowRuleId === stageRule.automaticTask?.id && !["completed", "cancelled", "failed"].includes(task.status),
+        )
+        if (!duplicate) {
+          const generated = buildAutomaticTask(stageRule.automaticTask, before)
+          generated.id = nextTaskId()
+          setTasks((prev) => [...prev, generated])
+          addAudit({
+            caseId,
+            patientId: before.patientId,
+            type: "task_change",
+            actorId: "system",
+            summary: `Automatyzacja ${stageRule.automaticTask.id} · utworzono zadanie: ${generated.title}`,
+            correlationId: `transition:${caseId}:${newStatus}`,
+          })
+        }
+      }
     },
-    [addAudit, cases],
+    [addAudit, cases, tasks],
   )
 
   const sendMessage = useCallback(
@@ -396,6 +434,76 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     },
     [],
   )
+
+  const sendSms = useCallback(
+    (input: { caseId: string; patientId?: string; taskId?: string; clinicId?: ClinicId; recipient: string; text: string; authorId?: string; retryOfId?: string }) => {
+      const provider = selectSmsProvider(smsProviderConfigurations, input.clinicId)
+      const id = nextInteractionId()
+      const message: SmsMessage = {
+        id,
+        caseId: input.caseId,
+        patientId: input.patientId,
+        taskId: input.taskId,
+        type: "sms",
+        channel: "phone",
+        direction: "outgoing",
+        at: iso(0),
+        authorId: input.authorId,
+        text: input.text,
+        recipient: input.recipient,
+        sender: provider?.senderValue ?? "",
+        providerType: provider?.providerType ?? "emulator",
+        providerConfigurationId: provider?.id ?? "missing-provider",
+        deliveryStatus: "queued",
+        partsCount: calculateSmsParts(input.text),
+        retryOfId: input.retryOfId,
+      }
+      setInteractions((prev) => [...prev, message])
+      setReadAt((prev) => ({ ...prev, [input.caseId]: iso(0) }))
+      addAudit({
+        caseId: input.caseId,
+        patientId: input.patientId,
+        type: "task_change",
+        actorId: input.authorId ?? "system",
+        summary: `SMS dodany do kolejki · ${provider?.name ?? "brak konfiguracji"}`,
+      })
+
+      window.setTimeout(() => {
+        setInteractions((prev) => prev.map((item) => {
+          if (item.id !== id || item.type !== "sms") return item
+          const current = item as SmsMessage
+          if (!provider) return { ...current, deliveryStatus: "failed", providerStatus: "CONFIGURATION_MISSING", errorMessage: "Brak aktywnej konfiguracji SMS dla kliniki." }
+          return {
+            ...current,
+            deliveryStatus: "submitted",
+            providerStatus: provider.providerType === "supervoip" ? "ACCEPTED" : "QUEUED",
+            providerMessageId: `${provider.providerType}-${id}`,
+            submittedAt: new Date().toISOString(),
+          }
+        }))
+      }, 700)
+
+      if (provider?.capabilities.deliveryReports) {
+        window.setTimeout(() => {
+          setInteractions((prev) => prev.map((item) => item.id === id && item.type === "sms"
+            ? { ...(item as SmsMessage), deliveryStatus: "delivered", providerStatus: "DELIVERED", deliveredAt: new Date().toISOString() }
+            : item))
+        }, 1800)
+      }
+      return message
+    },
+    [addAudit, smsProviderConfigurations],
+  )
+
+  const updateSmsProviderConfiguration = useCallback((id: string, patch: Partial<SmsProviderConfiguration>) => {
+    setSmsProviderConfigurations((prev) => prev.map((item) => item.id === id ? { ...item, ...patch } : item))
+  }, [])
+
+  const testSmsProviderConfiguration = useCallback((id: string) => {
+    setSmsProviderConfigurations((prev) => prev.map((item) => item.id === id
+      ? { ...item, lastTestAt: new Date().toISOString(), lastTestStatus: item.enabled ? "success" : "failed" }
+      : item))
+  }, [])
 
   const markRead = useCallback((caseId: string) => {
     setReadAt((prev) => ({ ...prev, [caseId]: iso(0) }))
@@ -735,6 +843,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       patients,
       identities,
       broadcasts,
+      smsProviderConfigurations,
       readAt,
       recordAudit: addAudit,
       completeTask,
@@ -747,6 +856,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       moveCase,
       logCall,
       sendMessage,
+      sendSms,
+      updateSmsProviderConfiguration,
+      testSmsProviderConfiguration,
       markRead,
       bookAppointment,
       createDraftCase,
@@ -766,6 +878,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       patients,
       identities,
       broadcasts,
+      smsProviderConfigurations,
       readAt,
       completeTask,
       reopenTask,
@@ -777,6 +890,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       moveCase,
       logCall,
       sendMessage,
+      sendSms,
+      updateSmsProviderConfiguration,
+      testSmsProviderConfiguration,
       markRead,
       createDraftCase,
       assignClinicToCase,

@@ -13,9 +13,11 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import type { CallDisposition } from "./entities"
 import { getCase } from "./entity-data"
 import { ROLE_PROFILES } from "./roles"
+import { getClinic } from "./catalog"
 import { useRole } from "./role-context"
 import { useEntityStore } from "./entity-store"
 import { getNextTaskForCase } from "./entity-queue"
+import { getCatalogUserByName } from "./user-catalog"
 
 export type CallPhase = "idle" | "incoming" | "active" | "wrapup"
 
@@ -47,13 +49,6 @@ interface CallContextValue {
 
 const CallContext = createContext<CallContextValue | null>(null)
 
-const EXTENSION_BY_ACTOR: Record<string, string> = {
-  "Weronika Sadowska": "101",
-  "Ilona Marchenko": "102",
-  "Pavel Rusetski": "103",
-  "Daniel Wozniak": "104",
-}
-
 export function CallProvider({ children }: { children: ReactNode }) {
   const { role } = useRole()
   const { tasks, logCall, completeTask, rescheduleTask, ensureMissedCallTask, linkDuplicateCase } = useEntityStore()
@@ -81,8 +76,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     (input: { caseId: string; taskId?: string; unknown?: boolean; direction: "incoming" | "outgoing" }): ActiveCall | null => {
       const engagementCase = getCase(input.caseId)
       if (!engagementCase) return null
-      const clinicName =
-        engagementCase.clinicId === "pana-medica" ? "PaNa Medica" : engagementCase.clinicId === "pana-comfort" ? "PaNa Comfort" : "PaNa International"
+      const clinicName = getClinic(engagementCase.clinicId)?.name ?? "Nieprzypisana klinika"
       return {
         caseId: input.caseId,
         taskId: input.taskId,
@@ -144,7 +138,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         patientId: call.patientId,
         direction: call.direction,
         actorId,
-        extension: EXTENSION_BY_ACTOR[actorId] ?? "101",
+        extension: getCatalogUserByName(actorId)?.telephonyExtension ?? "101",
         clinicId: getCase(call.caseId)?.clinicId ?? "pana-medica",
         startAt: call.startAt,
         answered: false,
@@ -173,7 +167,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         patientId: call.patientId,
         direction: call.direction,
         actorId,
-        extension: EXTENSION_BY_ACTOR[actorId] ?? "101",
+        extension: getCatalogUserByName(actorId)?.telephonyExtension ?? "101",
         clinicId: getCase(call.caseId)?.clinicId ?? "pana-medica",
         startAt: call.startAt,
         answered: disposition !== "no_answer" && disposition !== "not_reached",

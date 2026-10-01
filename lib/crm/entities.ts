@@ -1,11 +1,9 @@
 /**
  * TO-BE domain model (§2 of the master spec).
  *
- * This file intentionally keeps Patient, ContactIdentity, EngagementCase, Task,
- * Interaction/Call and Comment/AuditEvent as separate entities instead of the
- * single flat `CrmCase` used by the AS-IS prototype (see ./types.ts, which is
- * kept as-is for the legacy board/status vocabulary and is being phased out
- * screen by screen).
+ * Patient, ContactIdentity, EngagementCase, Task, Interaction/Call and
+ * Comment/AuditEvent are separate entities. This is the canonical prototype
+ * domain model; the former flat CrmCase model has been removed.
  */
 
 export type ClinicId = "pana-medica" | "pana-comfort" | "pana-international"
@@ -200,6 +198,8 @@ export interface Task {
   outcome?: TaskOutcome
   skipReason?: string
   callId?: string
+  /** Stable id of the workflow rule that generated the task; used for idempotency and audit. */
+  workflowRuleId?: string
 }
 
 export type InteractionType = "call" | "sms" | "whatsapp" | "email" | "chat" | "social" | "note"
@@ -218,6 +218,55 @@ export interface Interaction {
   at: string
   authorId?: string
   text?: string
+}
+
+export type SmsProviderType = "emulator" | "smsapi" | "supervoip"
+export type SmsDeliveryStatus = "queued" | "submitted" | "delivered" | "failed" | "undelivered" | "received" | "unknown"
+
+export interface SmsProviderCapabilities {
+  outboundSms: boolean
+  inboundSms: boolean
+  deliveryReports: boolean
+  senderName: boolean
+  ownedSenderNumber: boolean
+  twoWayMessaging: boolean
+  multipartMessages: boolean
+  unicodeMessages: boolean
+}
+
+/** Provider-neutral clinic configuration. Secrets are intentionally absent from the frontend prototype. */
+export interface SmsProviderConfiguration {
+  id: string
+  name: string
+  providerType: SmsProviderType
+  clinicId?: ClinicId
+  enabled: boolean
+  isDefault?: boolean
+  senderMode: "sender_name" | "owned_number" | "two_way" | "provider_default"
+  senderValue: string
+  inboundNumber?: string
+  capabilities: SmsProviderCapabilities
+  lastTestAt?: string
+  lastTestStatus?: "success" | "failed"
+}
+
+/** SMS remains an Interaction for the common timeline, while carrying delivery-specific facts. */
+export interface SmsMessage extends Interaction {
+  type: "sms"
+  direction: InteractionDirection
+  channel: "phone"
+  recipient: string
+  sender: string
+  providerType: SmsProviderType
+  providerConfigurationId: string
+  providerMessageId?: string
+  deliveryStatus: SmsDeliveryStatus
+  providerStatus?: string
+  partsCount: number
+  errorMessage?: string
+  submittedAt?: string
+  deliveredAt?: string
+  retryOfId?: string
 }
 
 export type CallTelcoStatus = "ringing" | "answered" | "missed" | "failed" | "voicemail"

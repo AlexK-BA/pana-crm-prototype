@@ -18,7 +18,7 @@ import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import type { CaseBoard, ClinicId } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
@@ -55,7 +55,7 @@ export function RecordsTable() {
   const { role } = useRole()
   const { t } = useLanguage()
   const meName = ROLE_PROFILES[role].user.name
-  const actorId = OPERATORS.find((o) => o.name === meName)?.id ?? "system"
+  const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
 
   const clinics = useMemo(() => {
     const map = new Map<string, string>()
@@ -78,7 +78,7 @@ export function RecordsTable() {
 
   const assignees = useMemo(() => {
     const usedIds = new Set(cases.map((c) => c.responsibleTeamId).filter(Boolean))
-    return OPERATORS.filter((o) => usedIds.has(o.id))
+    return INITIAL_USERS.filter((o) => usedIds.has(o.id))
   }, [cases])
 
   const rows = useMemo(() => {

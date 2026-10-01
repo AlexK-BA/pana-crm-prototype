@@ -12,10 +12,8 @@ import {
 } from "@/components/ui/command"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { ChannelIcon } from "@/components/crm/channel-icon"
-import type { ChannelPlatform } from "@/lib/crm/types"
-import { useRole } from "@/lib/crm/role-context"
-import { canAccessRoute, hasPermission } from "@/lib/crm/permissions"
+import { ChannelIcon, type ChannelPlatform } from "@/components/crm/channel-icon"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 
 const ICON_CHANNELS: ChannelPlatform[] = ["instagram", "telegram", "whatsapp", "website", "phone"]
 
@@ -24,8 +22,8 @@ export function CommandPalette() {
   const router = useRouter()
   const { openCase } = useCasePanel()
   const { cases, patients, identities } = useScopedEntityStore()
-  const { role } = useRole()
-  const canViewCases = hasPermission(role, "case:view")
+  const { hasPermission, canAccessRoute } = useAuthorization()
+  const canViewCases = hasPermission("case:view")
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -45,8 +43,8 @@ export function CommandPalette() {
         <CommandEmpty>Nie znaleziono wyników.</CommandEmpty>
         <CommandGroup heading="Nawigacja">
           <CommandItem onSelect={() => { router.push("/"); setOpen(false) }}>Strona główna</CommandItem>
-          {canAccessRoute(role, "/board") && <CommandItem onSelect={() => { router.push("/board"); setOpen(false) }}>Tablica CRM</CommandItem>}
-          {canAccessRoute(role, "/inbox") && <CommandItem onSelect={() => { router.push("/inbox"); setOpen(false) }}>Skrzynka odbiorcza</CommandItem>}
+          {canAccessRoute("/board") && <CommandItem onSelect={() => { router.push("/board"); setOpen(false) }}>Tablica CRM</CommandItem>}
+          {canAccessRoute("/inbox") && <CommandItem onSelect={() => { router.push("/inbox"); setOpen(false) }}>Skrzynka odbiorcza</CommandItem>}
         </CommandGroup>
         {canViewCases && <CommandGroup heading="Sprawy">
           {cases.slice(0, 12).map((engagementCase) => {

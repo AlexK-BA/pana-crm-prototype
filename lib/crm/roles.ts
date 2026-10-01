@@ -1,4 +1,5 @@
 import type { DictionaryKey } from "./language-context"
+import { getCatalogUserByRole } from "./user-catalog"
 
 export type RoleId = "operator" | "patient_care" | "team_leader" | "clinic_manager" | "marketing" | "admin"
 
@@ -17,6 +18,11 @@ export interface RoleProfile {
   }
 }
 
+function roleUser(role: RoleId): RoleProfile["user"] {
+  const { id, name, initials, color } = getCatalogUserByRole(role)
+  return { id, name, initials, color }
+}
+
 export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
   operator: {
     id: "operator",
@@ -25,7 +31,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_operator_title",
     descriptionKey: "role_operator_desc",
     greetingKey: "role_operator_greet",
-    user: { id: "usr-ws", name: "Weronika Sadowska", initials: "WS", color: "bg-emerald-500" },
+    user: roleUser("operator"),
   },
   patient_care: {
     id: "patient_care",
@@ -34,7 +40,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_patient_care_title",
     descriptionKey: "role_patient_care_desc",
     greetingKey: "role_patient_care_greet",
-    user: { id: "usr-im", name: "Ilona Marchenko", initials: "IM", color: "bg-amber-500" },
+    user: roleUser("patient_care"),
   },
   team_leader: {
     id: "team_leader",
@@ -43,7 +49,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_team_leader_title",
     descriptionKey: "role_team_leader_desc",
     greetingKey: "role_team_leader_greet",
-    user: { id: "usr-dw", name: "Daniel Wozniak", initials: "DW", color: "bg-sky-500" },
+    user: roleUser("team_leader"),
   },
   clinic_manager: {
     id: "clinic_manager",
@@ -52,7 +58,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_clinic_manager_title",
     descriptionKey: "role_clinic_manager_desc",
     greetingKey: "role_clinic_manager_greet",
-    user: { id: "usr-pr", name: "Pavel Rusetski", initials: "PR", color: "bg-violet-500" },
+    user: roleUser("clinic_manager"),
   },
   marketing: {
     id: "marketing",
@@ -61,7 +67,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_marketing_title",
     descriptionKey: "role_marketing_desc",
     greetingKey: "role_marketing_greet",
-    user: { id: "usr-am", name: "Aleh Miranovich", initials: "AM", color: "bg-rose-500" },
+    user: roleUser("marketing"),
   },
   admin: {
     id: "admin",
@@ -70,7 +76,7 @@ export const ROLE_PROFILES: Record<RoleId, RoleProfile> = {
     titleKey: "role_admin_title",
     descriptionKey: "role_admin_desc",
     greetingKey: "role_admin_greet",
-    user: { id: "usr-mk", name: "Marta Kowalik", initials: "MK", color: "bg-slate-500" },
+    user: roleUser("admin"),
   },
 }
 

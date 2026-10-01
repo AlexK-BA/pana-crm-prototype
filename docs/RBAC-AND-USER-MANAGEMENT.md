@@ -35,6 +35,8 @@ Hiding a menu item is not authorization. The backend must repeat every permissio
 
 ## 4. Permission matrix
 
+Roles are permission bundles. The default bundles below are initial tenant configuration, not hard-coded business truth. Authorized administrators may change non-system role bundles; each change is audited and becomes effective consistently across navigation, route checks and protected actions. The system Administrator role remains protected and always retains the full permission catalog.
+
 Legend: `W` view, `E` edit/work, `M` manage/assign, `—` no access.
 
 | Area | Operator | Patient Care | Team Leader | Clinic Manager | Marketing | Admin |
@@ -50,6 +52,21 @@ Legend: `W` view, `E` edit/work, `M` manage/assign, `—` no access.
 | Audit Log | — | — | W | own-clinic subset (future decision) | — | W/M |
 | Configuration | — | — | — | — | — | M |
 | Users and access | — | — | — | — | — | M |
+
+### Atomic permission catalog
+
+The prototype uses stable IDs grouped by domain:
+
+- cases: `case:view`, `case:edit`, `case:move`;
+- tasks: `task:view`, `task:work`, `task:assign`;
+- patient: `patient:view_basic`, `patient:view_medical`, `patient:edit_local`;
+- communication: `communication:view`, `communication:send`;
+- SMS: `sms:send_custom`, `sms:send_template`, `sms:retry`, `sms:match_patient`, `sms:template_manage`, `sms:provider_manage`;
+- telephony: `call:handle`, `call:recording_view`;
+- reporting: `report:view_operational`, `report:view_marketing`;
+- administration: `audit:view`, `configuration:manage`, `users:manage`.
+
+Adding a new permission requires updating the permission catalog, default role bundles, backend policy and relevant acceptance tests. Components must request a permission from the central authorization service rather than import a static role matrix.
 
 ## 5. User lifecycle
 
@@ -115,7 +132,11 @@ Prototype behavior:
 
 Implemented in the prototype:
 
-- canonical permission map;
+- canonical atomic permission catalog;
+- one runtime Authorization Provider used by route, navigation and action checks;
+- administrator UI for changing non-system role permission bundles;
+- immediate permission enforcement during the current session;
+- protected full-access Administrator role and reset-to-default for other roles;
 - route-level access boundary;
 - role-aware navigation;
 - user list, filters and statuses;
@@ -124,7 +145,7 @@ Implemented in the prototype:
 
 Production dependencies:
 
-- Frappe/backend role mapping;
+- persistent versioned role definitions and Frappe/backend policy mapping;
 - identity-provider password and session APIs;
 - server-side policy checks;
 - clinic/team scope stored in the authoritative user directory;
@@ -139,3 +160,6 @@ Production dependencies:
 4. Who may view call recordings: Team Leader, Clinic Manager, Administrator, or a separate permission?
 5. Who may resolve Medical CRM data conflicts?
 6. What is the required inactive-account retention period?
+7. May tenant administrators create entirely new roles, or only clone/edit approved role templates?
+8. Should permission changes apply immediately to active sessions or require re-authentication?
+9. Which role may edit permission bundles below Administrator level?

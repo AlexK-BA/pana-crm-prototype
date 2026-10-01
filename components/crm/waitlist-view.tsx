@@ -13,7 +13,7 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { formatRelative, formatDateTime } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 
@@ -26,7 +26,7 @@ export function WaitlistView() {
   const { cases, moveCase } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const actorId = OPERATORS.find((o) => o.name === ROLE_PROFILES[role].user.name)?.id ?? "system"
+  const actorId = INITIAL_USERS.find((o) => o.name === ROLE_PROFILES[role].user.name)?.id ?? "system"
 
   const waitlisted = useMemo(() => {
     return cases
@@ -106,7 +106,7 @@ export function WaitlistView() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Wszyscy właściciele</SelectItem>
-            {OPERATORS.map((o) => (
+            {INITIAL_USERS.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.name}
               </SelectItem>

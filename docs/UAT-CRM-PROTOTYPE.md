@@ -26,6 +26,9 @@ The build is accepted when all critical scenarios (`P0`) pass and no action caus
 | UAT-11 | Patient conversations and channels | P0 |
 | UAT-12 | RBAC route enforcement | P0 |
 | UAT-13 | User lifecycle management | P0 |
+| UAT-14 | Clinic data scope | P0 |
+| UAT-15 | Provider-neutral SMS history and sending | P0 |
+| UAT-16 | Configurable role permission bundles | P0 |
 
 ## UAT-01 — role workspaces
 
@@ -259,14 +262,89 @@ Expected:
 - inactive, locked and invited users cannot be impersonated through the demo role switcher;
 - production repeats these rules server-side; client filtering alone is explicitly not treated as security.
 
+## UAT-15 — provider-neutral SMS history and sending
+
+1. As Administrator, open Settings and locate `SMS · dostawcy i nadawcy`.
+2. Verify that PaNa Medica, PaNa Comfort and the global fallback may use different providers.
+3. Change a clinic provider between Emulator, SMSAPI and SuperVoIP and run `Testuj`.
+4. Open a patient with a phone identity and select SMS in the conversation composer.
+5. Verify recipient, selected clinic provider, character count and calculated SMS parts.
+6. Send a custom SMS and verify that it first appears as `W kolejce`.
+7. With Emulator or SMSAPI, wait for `Wysłano` and then `Dostarczono`.
+8. With SuperVoIP, verify that the terminal demo status is `Przyjęto przez operatora`, not `Dostarczono`.
+9. Open a contact without a phone identity and verify that sending is blocked with an instruction to complete the profile.
+10. Verify that the sent SMS is visible both in the patient conversation and in the current case history.
+
+Expected:
+
+- no real external API is called;
+- provider credentials are not present in frontend state;
+- provider selection is based on the case clinic, then the global default;
+- changing the active provider does not change historical SMS metadata;
+- sending an SMS records an audit event but does not complete the linked task automatically.
+
+## UAT-16 — configurable role permission bundles
+
+1. As Administrator, open `Użytkownicy` and scroll to `Role i uprawnienia`.
+2. Select Operator and disable `sms:send_custom`.
+3. Switch to Operator, open a patient conversation and select SMS.
+4. Verify that custom SMS composition/sending is disabled while message history remains readable.
+5. Return as Administrator and disable `communication:view` for Operator.
+6. Switch to Operator and verify Inbox disappears and direct `/inbox` shows `Brak dostępu`.
+7. Re-enable the permission or use `Domyślne` and verify access returns.
+8. Select Administrator and verify its permission switches are protected.
+9. Open Audit Log and verify permission bundle changes were recorded.
+
+Expected:
+
+- navigation, direct routes and actions use the same runtime permission bundle;
+- clinic scope remains an additional restriction and is not widened by a role permission;
+- changes to non-system roles apply immediately in the current prototype session;
+- Administrator retains full access and cannot be edited;
+- page reload restores prototype defaults until persistent backend role storage is implemented.
+
+## UAT-17 — merged delivery states for chat and SMS
+
+1. Open a patient conversation and send a website-chat message with `Symuluj błąd wysyłki` disabled.
+2. Verify the message moves deterministically from `Wysyłanie` to `Dostarczono` and receives one simulated patient reply.
+3. Enable `Symuluj błąd wysyłki`, send another chat message and use `Spróbuj ponownie`.
+4. Select SMS and send a message to a patient with a phone identity and active clinic provider.
+5. Verify the SMS uses the provider-neutral SMS status (`W kolejce`, `Wysłano`, `Dostarczono` or provider-specific terminal state), not the generic chat-delivery state.
+6. Verify sending one SMS creates exactly one interaction and does not generate a simulated patient reply.
+7. Disable `sms:send_custom` for the current role and verify SMS sending is blocked while non-SMS channels still follow `communication:send`.
+
+Expected:
+
+- generic channel emulation and SMS-provider emulation remain separate;
+- delivery failures are deterministic and only occur when explicitly enabled for UAT;
+- retry is available for a simulated generic-channel failure and does not replace the SMS provider retry workflow;
+- the merge preserves patient-channel history, runtime RBAC and provider metadata without duplicate messages.
+
+## UAT-18 — canonical entities and user identifiers
+
+1. Open Home, Board, Records, Inbox, Schedule, Calendar, Waitlist and a Patient profile.
+2. Locate the same case and verify status, responsible user, next task and patient identity remain consistent between views.
+3. Reassign a task and verify the owner changes everywhere that task or its queue projection is displayed.
+4. Complete or reschedule the task and verify queue counters and due-date views update without editing the case itself.
+5. Switch roles and verify the current user, audit actor and telephony extension resolve through the same `usr-*` identity.
+6. Search the repository for imports of `lib/crm/data`, `lib/crm/types`, `lib/crm/queue`, `CrmCase`, `CASES` and old `op-*` identifiers.
+
+Expected:
+
+- all operational views read Patient, EngagementCase, Task and Interaction data from EntityStore projections;
+- task mutations are visible across views without synchronizing a second card model;
+- user ownership and audit references use canonical `usr-*` identifiers;
+- no active source file imports the removed flat CRM model or approximate queue;
+- historical migration documentation may name `CrmCase`, but no executable dependency remains.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.
 - Telegram, Instagram, Facebook, WhatsApp, website chat and e-mail sending are also simulated in the prototype.
 - TikTok is displayed only as a potential future channel and is disabled for sending.
 - State is client-side and resets after reload.
+- Role permission changes are session-local; production requires persistent versioned roles and backend enforcement.
 - Shared incoming-call ownership demonstrates business behavior in one browser by switching roles; production requires backend realtime events and an atomic claim operation.
-- RBAC enforcement is not part of this UAT yet; role screens are demonstrational until the permission matrix is approved.
 - Automatic workflow tasks for every funnel stage are not included until funnel stages and rules are confirmed by Daniel and the clinic team.
 - Prototype RBAC blocks client routes and actions demonstrationally; production authorization must be repeated by Frappe/FastAPI and the identity provider.
 - Password reset, invitation and session revocation are emulated; the production identity-provider API is not connected.

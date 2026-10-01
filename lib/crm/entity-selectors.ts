@@ -17,7 +17,7 @@ import {
   AUDIT_EVENTS,
 } from "./entity-data"
 import { getClinic, getDoctor, getProcedure } from "./catalog"
-import { OPERATORS } from "./data"
+import { getCatalogUser } from "./user-catalog"
 import { effectiveStatus, isOverdue, overdueDurationMs } from "./entity-queue"
 
 /** "Action filter" chips for the queue — what kind of hands-on action a task needs. */
@@ -43,8 +43,7 @@ export function getActionKind(task: Task, engagementCase?: EngagementCase, ident
 }
 
 export function getOperator(id?: string) {
-  if (!id) return undefined
-  return OPERATORS.find((o) => o.id === id)
+  return getCatalogUser(id)
 }
 
 export interface QueueItem {
