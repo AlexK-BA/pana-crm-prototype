@@ -122,14 +122,16 @@ export function OperatorHome() {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => skipTask(nextItem.task.id, "Odłożone przez operatora")}
-              >
-                <SkipForward className="h-3.5 w-3.5" /> {t("skip_reason")}
-              </Button>
+              {!nextItem.task.requiresCall && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => skipTask(nextItem.task.id, "Odłożone przez operatora")}
+                >
+                  <SkipForward className="h-3.5 w-3.5" /> {t("skip_reason")}
+                </Button>
+              )}
               <Button size="sm" className="gap-1.5" onClick={() => openCase(nextItem.case.id)}>
                 <PlayCircle className="h-3.5 w-3.5" /> {t("open_start")}
               </Button>
