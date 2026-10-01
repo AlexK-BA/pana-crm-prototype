@@ -15,6 +15,7 @@ import { getCase } from "./entity-data"
 import { ROLE_PROFILES } from "./roles"
 import { useRole } from "./role-context"
 import { useEntityStore } from "./entity-store"
+import { getNextTaskForCase } from "./entity-queue"
 
 export type CallPhase = "idle" | "incoming" | "active" | "wrapup"
 
@@ -158,7 +159,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         extension: EXTENSION_BY_ACTOR[actorId] ?? "101",
         clinicId: getCase(call.caseId)?.clinicId ?? "pana-medica",
         startAt: call.startAt,
-        answered: true,
+        answered: disposition !== "no_answer" && disposition !== "not_reached",
         disposition,
         talkTimeSec: elapsedSec,
         note: opts?.note,
@@ -168,11 +169,14 @@ export function CallProvider({ children }: { children: ReactNode }) {
         linkDuplicateCase(call.caseId, opts.duplicateOfCaseId, actorId)
       }
 
-      const relatedTask = call.taskId ?? tasks.find((t) => t.caseId === call.caseId && t.status !== "completed" && t.status !== "cancelled")?.id
+      const relatedTask = call.taskId ?? getNextTaskForCase(tasks, call.caseId)?.id
+      const requiresRetry = disposition === "call_later" || disposition === "no_answer" || disposition === "not_reached" || disposition === "contact_failed"
 
       if (relatedTask) {
-        if (disposition === "call_later") {
-          rescheduleTask(relatedTask, opts?.rescheduleAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), opts?.note || "Ustalono kolejny kontakt po rozmowie")
+        if (requiresRetry) {
+          if (!opts?.rescheduleAt) return
+          const reason = opts.note || (disposition === "call_later" ? "Ustalono kolejny kontakt po rozmowie" : `Nie udało się skontaktować · ${disposition}`)
+          rescheduleTask(relatedTask, opts.rescheduleAt, reason)
         } else {
           completeTask(relatedTask, disposition)
         }
