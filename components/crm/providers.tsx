@@ -18,8 +18,8 @@ export function CrmProviders({ children }: { children: ReactNode }) {
     <RoleProvider>
       <LanguageProvider>
         <EntityStoreProvider>
-          <UserDirectoryProvider>
-            <AuthorizationProvider>
+          <AuthorizationProvider>
+            <UserDirectoryProvider>
             <TooltipProvider delay={200}>
               <CasePanelProvider>
                 <CallProvider>
@@ -30,8 +30,8 @@ export function CrmProviders({ children }: { children: ReactNode }) {
                 </CallProvider>
               </CasePanelProvider>
             </TooltipProvider>
-            </AuthorizationProvider>
-          </UserDirectoryProvider>
+            </UserDirectoryProvider>
+          </AuthorizationProvider>
         </EntityStoreProvider>
       </LanguageProvider>
     </RoleProvider>

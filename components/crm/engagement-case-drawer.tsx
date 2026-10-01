@@ -52,6 +52,8 @@ export function EngagementCaseDrawer() {
 }
 
 function DrawerBody({ caseId }: { caseId: string }) {
+  const { hasPermission } = useAuthorization()
+  const canViewAudit = hasPermission("audit:view")
   const { tasks, cases, patients, identities, completeTask, reopenTask, skipTask, matchCaseToPatient, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
   const { t } = useLanguage()
@@ -82,12 +84,14 @@ function DrawerBody({ caseId }: { caseId: string }) {
       const author = getOperator(comment.authorId)
       entries.push({ id: comment.id, at: comment.at, kind: "comment", title: comment.text, actor: author?.name })
     }
-    for (const event of audit) {
-      const actor = getOperator(event.actorId)
-      entries.push({ id: event.id, at: event.at, kind: "audit", title: event.summary, actor: actor?.name })
+    if (canViewAudit) {
+      for (const event of audit) {
+        const actor = getOperator(event.actorId)
+        entries.push({ id: event.id, at: event.at, kind: "audit", title: event.summary, actor: actor?.name })
+      }
     }
     return entries.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-  }, [caseTasks, comments, audit, t])
+  }, [caseTasks, comments, audit, canViewAudit, t])
   const [skipReason, setSkipReason] = useState("")
   const [skipTaskId, setSkipTaskId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState(patient ? "timeline" : "profile")
@@ -232,9 +236,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
           <TabsTrigger value="comments" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_comments")}
           </TabsTrigger>
-          <TabsTrigger value="audit" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          {canViewAudit && <TabsTrigger value="audit" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_audit")}
-          </TabsTrigger>
+          </TabsTrigger>}
           <TabsTrigger value="cases" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             <BriefcaseBusiness className="mr-1.5 h-3.5 w-3.5" />Sprawy ({relatedCases.length})
           </TabsTrigger>
@@ -402,7 +406,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             })}
           </TabsContent>
 
-          <TabsContent value="audit" className="mt-0">
+          {canViewAudit && <TabsContent value="audit" className="mt-0">
             <ol className="space-y-3">
               {audit.map((event) => {
                 const actor = getOperator(event.actorId)
@@ -422,7 +426,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
               })}
               {audit.length === 0 && <p className="text-sm text-muted-foreground">{t("no_audit")}</p>}
             </ol>
-          </TabsContent>
+          </TabsContent>}
 
           <TabsContent value="cases" className="mt-0 space-y-2">
             {relatedCases.map((item) => {

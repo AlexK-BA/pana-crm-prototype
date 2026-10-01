@@ -337,6 +337,19 @@ Expected:
 - no active source file imports the removed flat CRM model or approximate queue;
 - historical migration documentation may name `CrmCase`, but no executable dependency remains.
 
+## UAT-19 — AIHub Admin activity access and user lifecycle controls
+
+1. Switch to the Administrator / AIHub Admin role.
+2. Open a case and verify that the Audit/Activity tab is visible and contains status, assignment and task-change history.
+3. Switch to Operator and open the same case.
+4. Verify that the Audit tab is hidden and audit-only events are absent from the combined timeline.
+5. Return to Administrator and open Users.
+6. Start password reset, session revocation and deactivation for another user.
+7. Verify that each action requires confirmation and creates an Audit Log event attributed to the current administrator.
+8. Verify that no Delete User action exists and that the current administrator cannot deactivate or change access for their own account.
+
+**Expected:** `audit:view` is enforced consistently at route and case level; sensitive user operations are confirmed, attributable and non-destructive.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.

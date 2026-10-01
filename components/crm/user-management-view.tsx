@@ -20,12 +20,13 @@ const STATUS_LABEL = { invited: "Zaproszony", active: "Aktywny", inactive: "Niea
 const STATUS_TONE = { invited: "border-sky-200 bg-sky-50 text-sky-700", active: "border-emerald-200 bg-emerald-50 text-emerald-700", inactive: "border-slate-200 bg-slate-50 text-slate-600", locked: "border-red-200 bg-red-50 text-red-700" }
 
 export function UserManagementView() {
-  const { users, createUser, setActive, requestPasswordReset, revokeSessions, updateAccess } = useUserDirectory()
+  const { users, currentUser, createUser, setActive, requestPasswordReset, revokeSessions, updateAccess } = useUserDirectory()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState("all")
   const [editing, setEditing] = useState<AppUser | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [message, setMessage] = useState("")
+  const [pendingAction, setPendingAction] = useState<{ type: "password" | "sessions" | "active"; user: AppUser } | null>(null)
   const [draft, setDraft] = useState({ name: "", email: "", role: "operator" as RoleId, clinics: ["pana-medica"] as ClinicId[] })
 
   const visible = useMemo(() => users.filter((user) => {
@@ -52,6 +53,23 @@ export function UserManagementView() {
 
   function toggleClinic(clinicId: ClinicId) {
     setDraft((prev) => ({ ...prev, clinics: prev.clinics.includes(clinicId) ? prev.clinics.filter((id) => id !== clinicId) : [...prev.clinics, clinicId] }))
+  }
+
+  function confirmAction() {
+    if (!pendingAction) return
+    const { type, user } = pendingAction
+    if (type === "password") {
+      requestPasswordReset(user.id)
+      notify(`Wysłano instrukcję resetu hasła do ${user.email}.`)
+    } else if (type === "sessions") {
+      revokeSessions(user.id)
+      notify(`Aktywne sesje użytkownika ${user.name} zostały zakończone.`)
+    } else {
+      const active = user.status === "inactive"
+      setActive(user.id, active)
+      notify(active ? "Konto aktywowano." : "Konto dezaktywowano, a sesje zakończono.")
+    }
+    setPendingAction(null)
   }
 
   return (
@@ -89,19 +107,19 @@ export function UserManagementView() {
                   <td className="px-3 py-3 text-xs text-muted-foreground">{user.lastLoginAt ? formatRelative(user.lastLoginAt) : "Nigdy"}</td>
                   <td className="px-4 py-3"><div className="flex justify-end gap-1">
                   <Tooltip>
-                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Edytuj role i kliniki" onClick={() => { setEditing(user); setDraft({ name: user.name, email: user.email, role: user.roles[0], clinics: user.clinicIds }) }}><ShieldCheck className="h-3.5 w-3.5" /></Button>} />
+                    <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === currentUser.id} aria-label="Edytuj role i kliniki" onClick={() => { setEditing(user); setDraft({ name: user.name, email: user.email, role: user.roles[0], clinics: user.clinicIds }) }}><ShieldCheck className="h-3.5 w-3.5" /></Button>} />
                     <TooltipContent>Edytuj role i kliniki</TooltipContent>
                   </Tooltip>
                   <Tooltip>
-                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Resetuj hasło" onClick={() => { requestPasswordReset(user.id); notify(`Wysłano instrukcję resetu hasła do ${user.email}.`) }}><KeyRound className="h-3.5 w-3.5" /></Button>} />
+                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Resetuj hasło" onClick={() => setPendingAction({ type: "password", user })}><KeyRound className="h-3.5 w-3.5" /></Button>} />
                     <TooltipContent>Resetuj hasło</TooltipContent>
                   </Tooltip>
                   <Tooltip>
-                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Zakończ sesje" onClick={() => { revokeSessions(user.id); notify(`Aktywne sesje użytkownika ${user.name} zostały zakończone.`) }}><Laptop2 className="h-3.5 w-3.5" /></Button>} />
+                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Zakończ sesje" onClick={() => setPendingAction({ type: "sessions", user })}><Laptop2 className="h-3.5 w-3.5" /></Button>} />
                     <TooltipContent>Zakończ aktywne sesje</TooltipContent>
                   </Tooltip>
                   <Tooltip>
-                    <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === "usr-mk"} aria-label={user.status === "inactive" ? "Aktywuj" : "Dezaktywuj"} onClick={() => { const active = user.status === "inactive"; setActive(user.id, active); notify(active ? "Konto aktywowano." : "Konto dezaktywowano, a sesje zakończono.") }}>{user.status === "inactive" ? <UserCheck className="h-3.5 w-3.5 text-emerald-600" /> : <UserX className="h-3.5 w-3.5 text-amber-600" />}</Button>} />
+                    <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === currentUser.id} aria-label={user.status === "inactive" ? "Aktywuj" : "Dezaktywuj"} onClick={() => setPendingAction({ type: "active", user })}>{user.status === "inactive" ? <UserCheck className="h-3.5 w-3.5 text-emerald-600" /> : <UserX className="h-3.5 w-3.5 text-amber-600" />}</Button>} />
                     <TooltipContent>{user.status === "inactive" ? "Aktywuj konto" : "Dezaktywuj konto"}</TooltipContent>
                   </Tooltip>
                   </div></td>
@@ -117,6 +135,19 @@ export function UserManagementView() {
       <UserDialog open={createOpen || Boolean(editing)} title={editing ? "Edytuj dostęp" : "Dodaj użytkownika"} draft={draft} setDraft={setDraft} toggleClinic={toggleClinic} onClose={() => { setCreateOpen(false); setEditing(null) }} onSave={() => {
         if (editing) { updateAccess(editing.id, [draft.role], draft.clinics); setEditing(null); notify("Zaktualizowano role i zakres klinik.") } else submitCreate()
       }} editing={Boolean(editing)} />
+
+      <Dialog open={Boolean(pendingAction)} onOpenChange={(open) => !open && setPendingAction(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Potwierdź operację bezpieczeństwa</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {pendingAction?.type === "password" && `System wyśle jednorazowy link resetu hasła do ${pendingAction.user.email}.`}
+            {pendingAction?.type === "sessions" && `Wszystkie aktywne sesje użytkownika ${pendingAction.user.name} zostaną zakończone.`}
+            {pendingAction?.type === "active" && (pendingAction.user.status === "inactive" ? `Konto użytkownika ${pendingAction.user.name} zostanie ponownie aktywowane.` : `Konto użytkownika ${pendingAction?.user.name} zostanie dezaktywowane, bez usuwania historii i przypisanych danych.`)}
+          </p>
+          <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">Operacja zostanie zapisana w dzienniku audytowym wraz z wykonującym ją administratorem.</p>
+          <DialogFooter><Button variant="ghost" onClick={() => setPendingAction(null)}>Anuluj</Button><Button onClick={confirmAction}>Potwierdź</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
