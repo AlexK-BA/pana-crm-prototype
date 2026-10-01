@@ -152,6 +152,7 @@ Implemented in the prototype:
 - current-user attribution for permission and user-lifecycle audit events;
 - self-account protection for role/scope changes and deactivation;
 - case-level Audit/Activity visibility enforced through `audit:view`;
+- case-workspace actions react to the runtime permission matrix: call handling, communication history, local patient editing, patient matching, appointment entry and task work are disabled when their atomic permission is removed;
 - no delete action.
 
 Production dependencies:

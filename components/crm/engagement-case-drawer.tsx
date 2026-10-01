@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
 import { AppointmentSlotPicker } from "@/components/crm/appointment-slot-picker"
 import { useAuthorization } from "@/lib/crm/authorization-context"
+import { useUserDirectory } from "@/lib/crm/user-directory"
 
 export function EngagementCaseDrawer() {
   const { activeCaseId, closeCase } = useCasePanel()
@@ -53,7 +54,12 @@ export function EngagementCaseDrawer() {
 
 function DrawerBody({ caseId }: { caseId: string }) {
   const { hasPermission } = useAuthorization()
+  const { currentUser } = useUserDirectory()
   const canViewAudit = hasPermission("audit:view")
+  const canHandleCalls = hasPermission("call:handle")
+  const canViewCommunication = hasPermission("communication:view")
+  const canEditPatient = hasPermission("patient:edit_local")
+  const canWorkTasks = hasPermission("task:work")
   const { tasks, cases, patients, identities, completeTask, reopenTask, skipTask, matchCaseToPatient, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
   const { t } = useLanguage()
@@ -111,17 +117,19 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const relatedCases = patient ? cases.filter((item) => item.patientId === patient.id) : [engagementCase]
 
   const handleCall = () => {
+    if (!canHandleCalls) return
     startOutgoingCall({ caseId, taskId: nextTask?.id })
   }
 
   const handleMatchPatient = () => {
-    const result = matchCaseToPatient(caseId, "current-user")
+    if (!canEditPatient) return
+    const result = matchCaseToPatient(caseId, currentUser.id)
     setMatchResult(result.matched ? "matched" : "none")
   }
 
   const handleSaveProfile = () => {
-    if (!profileDraft.firstName.trim() || !profileDraft.lastName.trim()) return
-    saveCaseContactProfile({ caseId, ...profileDraft, actorId: "current-user" })
+    if (!canEditPatient || !profileDraft.firstName.trim() || !profileDraft.lastName.trim()) return
+    saveCaseContactProfile({ caseId, ...profileDraft, actorId: currentUser.id })
     setProfileSaved(true)
     setTimeout(() => setProfileSaved(false), 1800)
   }
@@ -166,18 +174,18 @@ function DrawerBody({ caseId }: { caseId: string }) {
         </div>
 
         <div className="flex gap-2">
-          <Button size="sm" className="flex-1 gap-1.5" onClick={handleCall}>
+          <Button size="sm" className="flex-1 gap-1.5" disabled={!canHandleCalls} onClick={handleCall}>
             <Phone className="h-3.5 w-3.5" />
             {t("call")}
           </Button>
-          <Button size="sm" variant="secondary" className="flex-1 gap-1.5" onClick={() => setActiveTab("history")}>
+          <Button size="sm" variant="secondary" className="flex-1 gap-1.5" disabled={!canViewCommunication} onClick={() => setActiveTab("history")}>
             <MessageSquare className="h-3.5 w-3.5" />
             {t("message")}
           </Button>
           <Popover>
             <PopoverTrigger
               render={
-                <Button size="sm" variant="secondary" className="flex-1 gap-1.5">
+                <Button size="sm" variant="secondary" className="flex-1 gap-1.5" disabled={!canWorkTasks}>
                   <Calendar className="h-3.5 w-3.5" />
                   {t("book_appointment")}
                 </Button>
@@ -205,7 +213,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
                   : t("not_linked_note")}
             </p>
             {matchResult !== "matched" && (
-              <Button size="sm" variant="outline" className="h-7 shrink-0 gap-1.5 text-xs" onClick={handleMatchPatient}>
+              <Button size="sm" variant="outline" disabled={!canEditPatient} className="h-7 shrink-0 gap-1.5 text-xs" onClick={handleMatchPatient}>
                 <Link2 className="h-3 w-3" />
                 {t("check_in_crm")}
               </Button>
@@ -230,9 +238,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          {canViewCommunication && <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_history")}
-          </TabsTrigger>
+          </TabsTrigger>}
           <TabsTrigger value="comments" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_comments")}
           </TabsTrigger>
@@ -260,13 +268,13 @@ function DrawerBody({ caseId }: { caseId: string }) {
                 ] as const).map(([field, label]) => (
                   <div key={field} className="space-y-1.5">
                     <Label htmlFor={`profile-${field}`} className="text-xs text-muted-foreground">{label}</Label>
-                    <Input id={`profile-${field}`} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={`Uzupełnij: ${label.toLowerCase()}`} />
+                    <Input id={`profile-${field}`} disabled={!canEditPatient} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={`Uzupełnij: ${label.toLowerCase()}`} />
                   </div>
                 ))}
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">Pola zapisane ręcznie otrzymują źródło „User-entered” i są widoczne w historii zmian.</p>
-                <Button size="sm" className="gap-1.5" disabled={!profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
+                <Button size="sm" className="gap-1.5" disabled={!canEditPatient || !profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
                   <Save className="h-3.5 w-3.5" />{profileSaved ? "Zapisano" : patient ? "Zapisz zmiany" : "Utwórz profil"}
                 </Button>
               </div>
@@ -314,8 +322,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
                   <div className="flex items-start gap-2.5">
                     <Checkbox
                       checked={done}
-                      disabled={requiresCall}
+                      disabled={!canWorkTasks || requiresCall}
                       onCheckedChange={(checked) => {
+                        if (!canWorkTasks) return
                         if (checked) completeTask(task.id, "done")
                         else reopenTask(task.id)
                       }}
@@ -341,6 +350,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
                       <Button
                         size="sm"
                         className="h-7 shrink-0 gap-1 px-2 text-xs"
+                        disabled={!canHandleCalls}
                         onClick={() => startOutgoingCall({ caseId, taskId: task.id })}
                       >
                         <Phone className="h-3 w-3" />
@@ -351,6 +361,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
                         variant="ghost"
                         size="sm"
                         className="h-7 shrink-0 px-2 text-xs"
+                        disabled={!canWorkTasks}
                         onClick={() => setSkipTaskId(skipTaskId === task.id ? null : task.id)}
                       >
                         {t("skip")}
@@ -369,6 +380,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
                         size="sm"
                         className="h-8 text-xs"
                         onClick={() => {
+                          if (!canWorkTasks) return
                           skipTask(task.id, skipReason || "Brak powodu")
                           setSkipTaskId(null)
                           setSkipReason("")
@@ -383,13 +395,13 @@ function DrawerBody({ caseId }: { caseId: string }) {
             })}
           </TabsContent>
 
-          <TabsContent value="history" className="-mx-5 -my-4 mt-0 h-full">
+          {canViewCommunication && <TabsContent value="history" className="-mx-5 -my-4 mt-0 h-full">
             <PatientConversationWorkspace
               patientId={patient?.id}
               currentCaseId={caseId}
-              authorId="current-user"
+              authorId={currentUser.id}
             />
-          </TabsContent>
+          </TabsContent>}
 
           <TabsContent value="comments" className="mt-0 space-y-3">
             {comments.length === 0 && <p className="text-sm text-muted-foreground">{t("no_comments")}</p>}

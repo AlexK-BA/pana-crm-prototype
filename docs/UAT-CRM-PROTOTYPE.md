@@ -361,6 +361,15 @@ Expected:
 
 **Expected:** UI visibility and command execution use the same permission; call history never stores a display name as the actor identifier.
 
+## UAT-21 — runtime permissions inside the case workspace
+
+1. As AIHub Admin, remove one permission at a time from a test role: `call:handle`, `communication:view`, `patient:edit_local`, `task:work`.
+2. Switch to that role and reopen the same case after each change.
+3. Verify call buttons, conversation history, profile editing/patient matching and task controls respectively become unavailable.
+4. Restore the default role bundle and verify the actions return without reloading seed data.
+
+**Expected:** changing the runtime matrix affects protected case actions consistently, not only sidebar navigation.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.
