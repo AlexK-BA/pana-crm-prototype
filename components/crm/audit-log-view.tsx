@@ -21,7 +21,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import type { AuditEvent, AuditEventType } from "@/lib/crm/entities"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
@@ -50,17 +50,17 @@ const TYPE_ORDER: AuditEventType[] = [
 
 function actorName(actorId: string) {
   if (actorId === "system") return "System"
-  return OPERATORS.find((o) => o.id === actorId)?.name ?? actorId
+  return INITIAL_USERS.find((o) => o.id === actorId)?.name ?? actorId
 }
 
 function actorInitials(actorId: string) {
   if (actorId === "system") return "SY"
-  return OPERATORS.find((o) => o.id === actorId)?.initials ?? actorId.slice(0, 2).toUpperCase()
+  return INITIAL_USERS.find((o) => o.id === actorId)?.initials ?? actorId.slice(0, 2).toUpperCase()
 }
 
 function actorColor(actorId: string) {
   if (actorId === "system") return "bg-slate-400"
-  return OPERATORS.find((o) => o.id === actorId)?.color ?? "bg-slate-400"
+  return INITIAL_USERS.find((o) => o.id === actorId)?.color ?? "bg-slate-400"
 }
 
 function matchesQuery(event: AuditEvent, query: string) {

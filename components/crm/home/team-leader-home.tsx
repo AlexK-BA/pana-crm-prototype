@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { ChannelIcon } from "@/components/crm/channel-icon"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { formatRelative } from "@/lib/crm/format"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
@@ -29,9 +29,8 @@ const STATUS_CYCLE = [
 const PRIORITIES: TaskPriority[] = ["P0", "P1", "P2", "P3", "P4"]
 
 /**
- * §3 fix: this view previously computed its own priority/overdue counts from
- * legacy `CASES` (`approximatePriority`, `queue.ts`), disagreeing with the
- * Task-based counters shown on the Operator home and Queue. All counters here
+ * This view uses the same task-based counters shown on the Operator home and
+ * Queue. All counters here
  * now read from the same `getQueueCounters`/`getQueue` selectors over the
  * shared `tasks` array, scoped to "team" (every task, not just mine).
  */
@@ -65,7 +64,7 @@ export function TeamLeaderHome() {
   const leadsConverted = cases.filter((c) => c.status === "converted" || c.status === "completed").length
   const conversion = leadsTotal ? Math.round((leadsConverted / leadsTotal) * 100) : 0
 
-  const team = OPERATORS.map((op, i) => {
+  const team = INITIAL_USERS.map((op, i) => {
     const status = STATUS_CYCLE[i % STATUS_CYCLE.length]
     const load = tasks.filter((t) => t.ownerId === op.id && t.status !== "completed" && t.status !== "cancelled" && t.status !== "failed").length
     const currentTask = teamQueue.find((t) => t.ownerId === op.id)
@@ -122,12 +121,12 @@ export function TeamLeaderHome() {
                       }
                     />
                     <DropdownMenuContent align="end">
-                      {OPERATORS.map((op) => (
+                      {INITIAL_USERS.map((op) => (
                         <DropdownMenuItem
                           key={op.id}
                           onClick={() => {
                             setReassigned((r) => ({ ...r, [item.task.id]: op.name }))
-                            assignTask(item.task.id, op.id, "op-dl")
+                            assignTask(item.task.id, op.id, "usr-dw")
                           }}
                         >
                           {op.name}

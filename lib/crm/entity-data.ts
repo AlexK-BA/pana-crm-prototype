@@ -19,7 +19,7 @@ import type {
   Task,
   TouchPoint,
 } from "./entities"
-import { OPERATORS } from "./data"
+import { INITIAL_USERS } from "./user-catalog"
 
 const HOUR = 1000 * 60 * 60
 // Fixed reference instant (not Date.now()) so every seeded timestamp is
@@ -30,7 +30,7 @@ const HOUR = 1000 * 60 * 60
 const now = new Date("2026-09-25T12:00:00.000Z").getTime()
 export const iso = (offsetHours: number) => new Date(now + offsetHours * HOUR).toISOString()
 
-const [WERONIKA, ILONA, PAVEL, DANIEL, ALEH] = OPERATORS.map((o) => o.id)
+const [WERONIKA, ILONA, PAVEL, DANIEL, ALEH] = INITIAL_USERS.map((o) => o.id)
 
 function touch(partial: Partial<TouchPoint> & Pick<TouchPoint, "type" | "source" | "channel" | "at" | "sourceRecordId">): TouchPoint {
   return {

@@ -4,6 +4,8 @@ These files are the functional source of truth for product development. They des
 
 Architecture/stakeholder mapping is maintained in [../TRACEABILITY-AND-ARCHITECTURE-ALIGNMENT.md](../TRACEABILITY-AND-ARCHITECTURE-ALIGNMENT.md). It must be checked before treating a prototype model as a production backend design.
 
+Canonical prototype ownership and the production mapping guardrail are defined in [../ENTITY-MODEL-SOURCE-OF-TRUTH.md](../ENTITY-MODEL-SOURCE-OF-TRUTH.md).
+
 ## Documentation rules
 
 - Product logic belongs to a domain module; UI is one consumer of that logic.

@@ -24,7 +24,7 @@ import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage, type Language } from "@/lib/crm/language-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { CLINICS, getClinicTone } from "@/lib/crm/catalog"
 import { getQueue } from "@/lib/crm/entity-queue"
 import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
@@ -61,7 +61,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
   const { language, setLanguage, t } = useLanguage()
   const { hasPermission } = useAuthorization()
   const meName = ROLE_PROFILES[role].user.name
-  const actorId = OPERATORS.find((o) => o.name === meName)?.id ?? "system"
+  const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
   const canHandleCalls = hasPermission("call:handle")
   const canViewTasks = hasPermission("task:view")
   const canCreateCase = hasPermission("case:edit")

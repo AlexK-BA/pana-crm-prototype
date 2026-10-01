@@ -6,36 +6,14 @@ import type { RoleId } from "./roles"
 import { ROLE_PROFILES } from "./roles"
 import { useRole } from "./role-context"
 import { useEntityStore } from "./entity-store"
+import { INITIAL_USERS, type AppUser } from "./user-catalog"
 
-export type AppUserStatus = "invited" | "active" | "inactive" | "locked"
-
-export interface AppUser {
-  id: string
-  name: string
-  email: string
-  roles: RoleId[]
-  clinicIds: ClinicId[]
-  status: AppUserStatus
-  createdAt: string
-  lastLoginAt?: string
-  deactivatedAt?: string
-  passwordResetRequestedAt?: string
-  sessionsRevokedAt?: string
-}
-
-const USERS: AppUser[] = [
-  { id: "usr-ws", name: "Weronika Sadowska", email: "weronika@pa-na.pl", roles: ["operator"], clinicIds: ["pana-medica"], status: "active", createdAt: "2026-01-15T09:00:00Z", lastLoginAt: "2026-10-01T11:40:00Z" },
-  { id: "usr-im", name: "Ilona Marchenko", email: "ilona@pa-na.pl", roles: ["patient_care"], clinicIds: ["pana-medica", "pana-comfort"], status: "active", createdAt: "2026-01-15T09:00:00Z", lastLoginAt: "2026-10-01T10:55:00Z" },
-  { id: "usr-dw", name: "Daniel Wozniak", email: "daniel@pa-na.pl", roles: ["team_leader"], clinicIds: ["pana-medica", "pana-comfort", "pana-international"], status: "active", createdAt: "2026-01-10T09:00:00Z", lastLoginAt: "2026-10-01T12:04:00Z" },
-  { id: "usr-pr", name: "Pavel Rusetski", email: "pavel@pa-na.pl", roles: ["clinic_manager"], clinicIds: ["pana-medica", "pana-comfort"], status: "active", createdAt: "2026-01-10T09:00:00Z" },
-  { id: "usr-am", name: "Aleh Miranovich", email: "aleh@pa-na.pl", roles: ["marketing"], clinicIds: [], status: "active", createdAt: "2026-03-01T09:00:00Z", lastLoginAt: "2026-09-30T14:20:00Z" },
-  { id: "usr-mk", name: "Marta Kowalik", email: "marta@pa-na.pl", roles: ["admin"], clinicIds: ["pana-medica", "pana-comfort", "pana-international"], status: "active", createdAt: "2025-12-01T09:00:00Z", lastLoginAt: "2026-10-01T12:10:00Z" },
-]
+export type { AppUser, AppUserStatus } from "./user-catalog"
 
 interface UserDirectoryValue {
   users: AppUser[]
   currentUser: AppUser
-  createUser: (input: Omit<AppUser, "id" | "status" | "createdAt">) => void
+  createUser: (input: Omit<AppUser, "id" | "status" | "createdAt" | "initials" | "color" | "telephonyExtension">) => void
   setActive: (userId: string, active: boolean) => void
   requestPasswordReset: (userId: string) => void
   revokeSessions: (userId: string) => void
@@ -48,15 +26,15 @@ let userSeq = 0
 export function UserDirectoryProvider({ children }: { children: ReactNode }) {
   const { recordAudit } = useEntityStore()
   const { role } = useRole()
-  const [users, setUsers] = useState(USERS)
-  const currentUser = users.find((user) => user.id === ROLE_PROFILES[role].user.id) ?? USERS[0]
+  const [users, setUsers] = useState(INITIAL_USERS)
+  const currentUser = users.find((user) => user.id === ROLE_PROFILES[role].user.id) ?? INITIAL_USERS[0]
   const patch = (id: string, data: Partial<AppUser>) => setUsers((prev) => prev.map((user) => user.id === id ? { ...user, ...data } : user))
   const value = useMemo<UserDirectoryValue>(() => ({
     users,
     currentUser,
     createUser: (input) => {
       userSeq += 1
-      setUsers((prev) => [...prev, { ...input, id: `usr-live-${userSeq}`, status: "invited", createdAt: new Date().toISOString() }])
+      setUsers((prev) => [...prev, { ...input, initials: input.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(), color: "bg-slate-500", id: `usr-live-${userSeq}`, status: "invited", createdAt: new Date().toISOString() }])
       recordAudit({ type: "assignment_change", actorId: "usr-mk", summary: `Zaproszono użytkownika ${input.email} · rola: ${input.roles.join(", ")}` })
     },
     setActive: (id, active) => {

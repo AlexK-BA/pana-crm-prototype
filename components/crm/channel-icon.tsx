@@ -1,6 +1,8 @@
 import { Phone, Globe, MessageCircle, Send, User } from "lucide-react"
-import type { ChannelPlatform } from "@/lib/crm/types"
+import type { ContactChannel } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
+
+export type ChannelPlatform = Extract<ContactChannel, "instagram" | "telegram" | "whatsapp" | "website" | "phone"> | "internal"
 
 const CONFIG: Record<ChannelPlatform, { icon: typeof Phone; className: string }> = {
   instagram: { icon: MessageCircle, className: "bg-gradient-to-br from-fuchsia-500 via-pink-500 to-amber-400 text-white" },

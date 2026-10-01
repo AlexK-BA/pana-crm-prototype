@@ -320,6 +320,23 @@ Expected:
 - retry is available for a simulated generic-channel failure and does not replace the SMS provider retry workflow;
 - the merge preserves patient-channel history, runtime RBAC and provider metadata without duplicate messages.
 
+## UAT-18 — canonical entities and user identifiers
+
+1. Open Home, Board, Records, Inbox, Schedule, Calendar, Waitlist and a Patient profile.
+2. Locate the same case and verify status, responsible user, next task and patient identity remain consistent between views.
+3. Reassign a task and verify the owner changes everywhere that task or its queue projection is displayed.
+4. Complete or reschedule the task and verify queue counters and due-date views update without editing the case itself.
+5. Switch roles and verify the current user, audit actor and telephony extension resolve through the same `usr-*` identity.
+6. Search the repository for imports of `lib/crm/data`, `lib/crm/types`, `lib/crm/queue`, `CrmCase`, `CASES` and old `op-*` identifiers.
+
+Expected:
+
+- all operational views read Patient, EngagementCase, Task and Interaction data from EntityStore projections;
+- task mutations are visible across views without synchronizing a second card model;
+- user ownership and audit references use canonical `usr-*` identifiers;
+- no active source file imports the removed flat CRM model or approximate queue;
+- historical migration documentation may name `CrmCase`, but no executable dependency remains.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.

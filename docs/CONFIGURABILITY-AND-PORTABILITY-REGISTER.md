@@ -32,12 +32,13 @@ Estimated adaptation today:
 | CFG-07 | Identity matching | Patient match rules are currently simplified around phone/email. | Different data quality and identifiers create false matches. | Configurable match policy with confidence thresholds and manual approval queue. | P0 | Partially implemented |
 | CFG-08 | Branding | App title, sidebar label, colors and copy contain PaNa branding. | White-label deployment requires code changes. | Tenant theme, product name, logo, locales and clinic color configuration. | P1 | Open |
 | CFG-09 | Languages/content | Many interface and demo strings are inline Polish text. | New locale/market requires component changes. | Complete i18n extraction and tenant-specific content. | P1 | Partial i18n only |
-| CFG-10 | Roles | Role profiles exist in code, while permissions are only partly atomic. | Clinics with different teams cannot model access safely. | Permission catalog + configurable roles + backend enforcement. | P0 | Foundation exists |
+| CFG-10 | Roles | Atomic permissions and runtime-editable role bundles exist only in prototype state. | Clinics cannot persist or centrally enforce their own access model yet. | Persist versioned permission bundles and enforce them in Frappe/FastAPI. | P0 | Prototype foundation implemented |
 | CFG-11 | Data scope | Frontend provides prototype clinic filtering, not a security boundary. | Multi-clinic deployment risks data leakage without backend enforcement. | Tenant/clinic row-level authorization on every query, mutation, event and export. | P0 | Prototype only |
 | CFG-12 | Communications | Channels share a generic composer but provider accounts and routing are not modeled for each channel. | WhatsApp/social/email onboarding may require custom UI changes. | `CommunicationAccount` + channel adapters + routing by tenant/clinic. | P1 | Open |
 | CFG-13 | Forms/sources | Lead source values and several intake defaults are code-defined. | New forms and campaigns require releases. | Source registry, form mapping and configurable normalization rules. | P1 | Open |
 | CFG-14 | Reporting | Metrics are derived from demo state and PaNa-specific statuses. | Custom workflows break comparable reports. | Canonical events and semantic metric definitions mapped from workflows. | P1 | Open |
 | CFG-15 | Retention/compliance | Retention and consent rules are not tenant-configured. | Different legal/operational policies cannot be applied. | Retention, consent, recording and export policies per tenant/clinic. | P0 for production | Open |
+| CFG-16 | User directory | Prototype users and telephony extensions now have one canonical catalog, but it is still a frontend seed. | Adding users/extensions in production cannot rely on a deployment artifact. | Identity-service/Frappe user API with stable IDs, clinic scope, roles and provider extension mappings. | P0 | Duplicate seeds removed; backend persistence open |
 
 ## Rules for all new development
 

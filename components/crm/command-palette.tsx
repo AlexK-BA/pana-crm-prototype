@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/command"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { ChannelIcon } from "@/components/crm/channel-icon"
-import type { ChannelPlatform } from "@/lib/crm/types"
+import { ChannelIcon, type ChannelPlatform } from "@/components/crm/channel-icon"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 
 const ICON_CHANNELS: ChannelPlatform[] = ["instagram", "telegram", "whatsapp", "website", "phone"]

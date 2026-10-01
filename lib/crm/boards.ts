@@ -1,5 +1,14 @@
-import type { BoardColumn, BoardId } from "./types"
+import type { CaseBoard } from "./entities"
 import type { DictionaryKey } from "./language-context"
+
+export type BoardId = CaseBoard
+
+export interface BoardColumn {
+  id: string
+  label: string
+  labelKey: DictionaryKey
+  color: "rose" | "amber" | "violet" | "orange" | "red" | "slate" | "emerald" | "sky"
+}
 
 export const BOARD_LABELS: Record<BoardId, string> = {
   leads: "Leady · Contact Center",

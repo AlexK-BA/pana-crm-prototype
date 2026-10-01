@@ -37,7 +37,7 @@ import { getClinic, getClinicTone, CLINICS } from "@/lib/crm/catalog"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { formatRelative } from "@/lib/crm/format"
 import type { ContactChannel } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
@@ -74,7 +74,7 @@ export default function InboxPage() {
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const meName = ROLE_PROFILES[role].user.name
-  const actorId = OPERATORS.find((o) => o.name === meName)?.id ?? "system"
+  const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
 
   const conversations = useMemo(() => {
     const list = cases

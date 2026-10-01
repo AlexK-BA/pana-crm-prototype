@@ -11,7 +11,7 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { OPERATORS } from "@/lib/crm/data"
+import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { getQueue, getQueueCounters } from "@/lib/crm/entity-queue"
 import {
   buildQueueItem,
@@ -34,7 +34,7 @@ export function OperatorHome() {
   const { t } = useLanguage()
   const { tasks, cases, skipTask } = useScopedEntityStore()
   const meName = ROLE_PROFILES[role].user.name
-  const me = OPERATORS.find((o) => o.name === meName)
+  const me = INITIAL_USERS.find((o) => o.name === meName)
   const [tab, setTab] = useState<"mine" | "unassigned" | "team">("mine")
   const [actionFilter, setActionFilter] = useState<ActionKind | "all">("all")
   type TileFilter = "p0" | "p1" | "p2" | "p3" | "overdue" | "unassigned"

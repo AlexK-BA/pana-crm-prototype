@@ -1,11 +1,9 @@
 /**
  * TO-BE domain model (§2 of the master spec).
  *
- * This file intentionally keeps Patient, ContactIdentity, EngagementCase, Task,
- * Interaction/Call and Comment/AuditEvent as separate entities instead of the
- * single flat `CrmCase` used by the AS-IS prototype (see ./types.ts, which is
- * kept as-is for the legacy board/status vocabulary and is being phased out
- * screen by screen).
+ * Patient, ContactIdentity, EngagementCase, Task, Interaction/Call and
+ * Comment/AuditEvent are separate entities. This is the canonical prototype
+ * domain model; the former flat CrmCase model has been removed.
  */
 
 export type ClinicId = "pana-medica" | "pana-comfort" | "pana-international"
