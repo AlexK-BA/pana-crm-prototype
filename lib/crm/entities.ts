@@ -192,6 +192,8 @@ export interface Task {
   ownerId?: string
   currentWorkerId?: string
   attempts: number
+  /** Workflow rule: this task cannot be skipped or completed without a logged call disposition. */
+  requiresCall?: boolean
   outcome?: TaskOutcome
   skipReason?: string
   callId?: string
