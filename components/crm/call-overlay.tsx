@@ -87,6 +87,17 @@ export function CallOverlay() {
 
   if (phase === "idle" || !call) return null
 
+  if (call.direction === "incoming" && call.dismissedBy.includes(actorId)) return null
+
+  if (phase === "active" && call.claimedBy && call.claimedBy !== actorId) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 w-80 rounded-xl border border-border bg-card p-4 shadow-2xl">
+        <p className="text-sm font-semibold text-foreground">Połączenie zostało odebrane</p>
+        <p className="mt-1 text-xs text-muted-foreground">Obsługuje: {call.claimedBy}</p>
+      </div>
+    )
+  }
+
   if (phase === "incoming" || phase === "active") {
     return (
       <div className="fixed bottom-4 right-4 z-50 w-80 overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
@@ -121,6 +132,11 @@ export function CallOverlay() {
               <Building2 className="h-3 w-3" />
               {call.clinicName}
             </p>
+            {call.direction === "incoming" && phase === "incoming" && (
+              <p className="mt-1 text-[11px] text-emerald-700">
+                Wspólna kolejka · dostępne dla {call.offeredTo.length - call.dismissedBy.length} konsultantów
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-2 border-t border-border px-4 py-3">
