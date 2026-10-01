@@ -133,6 +133,8 @@ Prototype behavior:
 | Audit | Record user administration, access changes and administrator overrides |
 | Realtime | Filter incoming calls/messages by the same scope |
 
+Telephony commands use `call:handle` as an action-level guard. Audit and call records store the canonical user ID rather than a mutable display name; the user directory resolves the visible name and extension.
+
 ## 8. Prototype boundaries
 
 Implemented in the prototype:

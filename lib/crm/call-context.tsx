@@ -14,10 +14,10 @@ import type { CallDisposition } from "./entities"
 import { getCase } from "./entity-data"
 import { ROLE_PROFILES } from "./roles"
 import { getClinic } from "./catalog"
-import { useRole } from "./role-context"
 import { useEntityStore } from "./entity-store"
 import { getNextTaskForCase } from "./entity-queue"
-import { getCatalogUserByName } from "./user-catalog"
+import { useUserDirectory } from "./user-directory"
+import { useAuthorization } from "./authorization-context"
 
 export type CallPhase = "idle" | "incoming" | "active" | "wrapup"
 
@@ -50,14 +50,16 @@ interface CallContextValue {
 const CallContext = createContext<CallContextValue | null>(null)
 
 export function CallProvider({ children }: { children: ReactNode }) {
-  const { role } = useRole()
+  const { currentUser } = useUserDirectory()
+  const { hasPermission } = useAuthorization()
   const { tasks, logCall, completeTask, rescheduleTask, ensureMissedCallTask, linkDuplicateCase } = useEntityStore()
   const [phase, setPhase] = useState<CallPhase>("idle")
   const [call, setCall] = useState<ActiveCall | null>(null)
   const [elapsedSec, setElapsedSec] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const actorId = ROLE_PROFILES[role].user.name
+  const actorId = currentUser.id
+  const actorName = currentUser.name
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -88,45 +90,48 @@ export function CallProvider({ children }: { children: ReactNode }) {
         startAt: new Date().toISOString(),
         offeredTo: input.direction === "incoming"
           ? [ROLE_PROFILES.operator.user.name, ROLE_PROFILES.patient_care.user.name, ROLE_PROFILES.clinic_manager.user.name]
-          : [actorId],
+          : [actorName],
         dismissedBy: [],
-        claimedBy: input.direction === "outgoing" ? actorId : undefined,
+        claimedBy: input.direction === "outgoing" ? actorName : undefined,
       }
     },
-    [actorId],
+    [actorName],
   )
 
   const simulateIncomingCall = useCallback(
     (input: { caseId: string; taskId?: string; unknown?: boolean }) => {
+      if (!hasPermission("call:handle")) return
       const next = buildCall({ ...input, direction: "incoming" })
       if (!next) return
       setCall(next)
       setPhase("incoming")
     },
-    [buildCall],
+    [buildCall, hasPermission],
   )
 
   const startOutgoingCall = useCallback(
     (input: { caseId: string; taskId?: string }) => {
+      if (!hasPermission("call:handle")) return
       const next = buildCall({ ...input, direction: "outgoing" })
       if (!next) return
       setCall(next)
       setPhase("active")
       startTimer()
     },
-    [buildCall, startTimer],
+    [buildCall, hasPermission, startTimer],
   )
 
   const answer = useCallback(() => {
-    if (!call || call.claimedBy) return
-    setCall((current) => (current ? { ...current, claimedBy: actorId } : current))
+    if (!hasPermission("call:handle") || !call || call.claimedBy) return
+    setCall((current) => (current ? { ...current, claimedBy: actorName } : current))
     setPhase("active")
     startTimer()
-  }, [actorId, call, startTimer])
+  }, [actorName, call, hasPermission, startTimer])
 
   const decline = useCallback(() => {
+    if (!hasPermission("call:handle")) return
     if (call?.direction === "incoming") {
-      const dismissedBy = [...new Set([...call.dismissedBy, actorId])]
+      const dismissedBy = [...new Set([...call.dismissedBy, actorName])]
       const remaining = call.offeredTo.filter((operator) => !dismissedBy.includes(operator))
       if (remaining.length > 0) {
         setCall({ ...call, dismissedBy })
@@ -138,7 +143,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         patientId: call.patientId,
         direction: call.direction,
         actorId,
-        extension: getCatalogUserByName(actorId)?.telephonyExtension ?? "101",
+        extension: currentUser.telephonyExtension ?? "101",
         clinicId: getCase(call.caseId)?.clinicId ?? "pana-medica",
         startAt: call.startAt,
         answered: false,
@@ -148,15 +153,17 @@ export function CallProvider({ children }: { children: ReactNode }) {
     stopTimer()
     setPhase("idle")
     setCall(null)
-  }, [actorId, call, ensureMissedCallTask, logCall, stopTimer])
+  }, [actorId, actorName, call, currentUser.telephonyExtension, ensureMissedCallTask, hasPermission, logCall, stopTimer])
 
   const hangUp = useCallback(() => {
+    if (!hasPermission("call:handle")) return
     stopTimer()
     setPhase("wrapup")
-  }, [stopTimer])
+  }, [hasPermission, stopTimer])
 
   const submitWrapUp = useCallback(
     (disposition: CallDisposition, opts?: { rescheduleAt?: string; note?: string; duplicateOfCaseId?: string }) => {
+      if (!hasPermission("call:handle")) return
       if (!call) {
         setPhase("idle")
         return
@@ -167,7 +174,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         patientId: call.patientId,
         direction: call.direction,
         actorId,
-        extension: getCatalogUserByName(actorId)?.telephonyExtension ?? "101",
+        extension: currentUser.telephonyExtension ?? "101",
         clinicId: getCase(call.caseId)?.clinicId ?? "pana-medica",
         startAt: call.startAt,
         answered: disposition !== "no_answer" && disposition !== "not_reached",
@@ -197,7 +204,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       setElapsedSec(0)
       setPhase("idle")
     },
-    [actorId, call, completeTask, elapsedSec, linkDuplicateCase, logCall, rescheduleTask, tasks],
+    [actorId, call, completeTask, currentUser.telephonyExtension, elapsedSec, hasPermission, linkDuplicateCase, logCall, rescheduleTask, tasks],
   )
 
   const value = useMemo(

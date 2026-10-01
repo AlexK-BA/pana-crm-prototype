@@ -350,6 +350,17 @@ Expected:
 
 **Expected:** `audit:view` is enforced consistently at route and case level; sensitive user operations are confirmed, attributable and non-destructive.
 
+## UAT-20 — telephony permission and canonical call actor
+
+1. As Operator, start an outgoing call from a call-required task, hang up and select a retry outcome.
+2. Verify wrap-up cannot be dismissed, a future retry date is mandatory and the same task remains active with the new deadline.
+3. Complete another call with a terminal disposition and verify the related task closes.
+4. Open the patient/case interaction history and Audit Log as AIHub Admin.
+5. Verify the call and audit event resolve to the current user through the canonical `usr-*` identifier and correct extension.
+6. Remove `call:handle` from a test role and verify direct call commands are rejected even if invoked outside the normal button path.
+
+**Expected:** UI visibility and command execution use the same permission; call history never stores a display name as the actor identifier.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.
