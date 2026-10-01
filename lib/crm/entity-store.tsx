@@ -474,6 +474,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
               dueAt: iso(0.2),
               createdAt: iso(0),
               attempts: 0,
+              requiresCall: input.channel === "phone",
             }
           : {
               id: nextTaskId(),
@@ -484,6 +485,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
               dueAt: iso(0.2),
               createdAt: iso(0),
               attempts: 0,
+              requiresCall: false,
             },
       ])
 
