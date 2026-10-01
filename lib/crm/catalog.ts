@@ -1,4 +1,4 @@
-import type { Clinic, ClinicId } from "./entities"
+import type { Clinic, ClinicId, Doctor, Procedure } from "./entities"
 
 export const CLINICS: Clinic[] = [
   { id: "pana-medica", name: "PaNa Medica", color: "emerald" },
