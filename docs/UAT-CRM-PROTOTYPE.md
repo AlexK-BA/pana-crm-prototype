@@ -303,6 +303,23 @@ Expected:
 - Administrator retains full access and cannot be edited;
 - page reload restores prototype defaults until persistent backend role storage is implemented.
 
+## UAT-17 — merged delivery states for chat and SMS
+
+1. Open a patient conversation and send a website-chat message with `Symuluj błąd wysyłki` disabled.
+2. Verify the message moves deterministically from `Wysyłanie` to `Dostarczono` and receives one simulated patient reply.
+3. Enable `Symuluj błąd wysyłki`, send another chat message and use `Spróbuj ponownie`.
+4. Select SMS and send a message to a patient with a phone identity and active clinic provider.
+5. Verify the SMS uses the provider-neutral SMS status (`W kolejce`, `Wysłano`, `Dostarczono` or provider-specific terminal state), not the generic chat-delivery state.
+6. Verify sending one SMS creates exactly one interaction and does not generate a simulated patient reply.
+7. Disable `sms:send_custom` for the current role and verify SMS sending is blocked while non-SMS channels still follow `communication:send`.
+
+Expected:
+
+- generic channel emulation and SMS-provider emulation remain separate;
+- delivery failures are deterministic and only occur when explicitly enabled for UAT;
+- retry is available for a simulated generic-channel failure and does not replace the SMS provider retry workflow;
+- the merge preserves patient-channel history, runtime RBAC and provider metadata without duplicate messages.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.
@@ -311,7 +328,6 @@ Expected:
 - State is client-side and resets after reload.
 - Role permission changes are session-local; production requires persistent versioned roles and backend enforcement.
 - Shared incoming-call ownership demonstrates business behavior in one browser by switching roles; production requires backend realtime events and an atomic claim operation.
-- RBAC enforcement is not part of this UAT yet; role screens are demonstrational until the permission matrix is approved.
 - Automatic workflow tasks for every funnel stage are not included until funnel stages and rules are confirmed by Daniel and the clinic team.
 - Prototype RBAC blocks client routes and actions demonstrationally; production authorization must be repeated by Frappe/FastAPI and the identity provider.
 - Password reset, invitation and session revocation are emulated; the production identity-provider API is not connected.

@@ -9,10 +9,11 @@
  * aggregated across all of a patient's cases in the Patient Profile.
  */
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Check, CheckCheck, CircleAlert, Clock3, Phone, MessageSquare, StickyNote, Send, Smartphone } from "lucide-react"
+import { AlertTriangle, Check, CheckCheck, CircleAlert, Clock3, Loader2, Phone, MessageSquare, StickyNote, Send, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import type { ContactChannel, InteractionType, SmsMessage } from "@/lib/crm/entities"
 import { formatDateTime } from "@/lib/crm/format"
@@ -99,8 +100,14 @@ export function ConversationThread({
   const { hasPermission } = useAuthorization()
   const [draft, setDraft] = useState("")
   const [channel, setChannel] = useState<ContactChannel>("website")
+  const [deliveryStatus, setDeliveryStatus] = useState<Record<string, "sending" | "sent" | "error">>({})
+  /** Demo-only control (UAT requirement): delivery must be deterministic by
+   * default (sending → sent). Failures are never randomized — they only
+   * happen when this toggle is explicitly turned on by the operator. */
+  const [simulateError, setSimulateError] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoReplyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const deliveryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const targetCaseId = primaryCaseId ?? caseIds[0]
   const targetCase = cases.find((item) => item.id === targetCaseId)
   const phoneIdentity = identities.find((item) => item.patientId === patientId && item.channel === "phone")
@@ -112,8 +119,28 @@ export function ConversationThread({
   useEffect(() => {
     return () => {
       if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
+      Object.values(deliveryTimers.current).forEach(clearTimeout)
     }
   }, [])
+
+  /** Emulates network delivery: brief "sending" state, then deterministically
+   * "sent" — unless the operator has explicitly enabled "Symuluj błąd
+   * wysyłki" for this test, in which case it deterministically fails so the
+   * retry affordance has something to do. No randomness in the outcome. */
+  function deliver(messageId: string, sentText: string, interactionType: InteractionType, sentChannel: ContactChannel) {
+    setDeliveryStatus((prev) => ({ ...prev, [messageId]: "sending" }))
+    if (deliveryTimers.current[messageId]) clearTimeout(deliveryTimers.current[messageId])
+    deliveryTimers.current[messageId] = setTimeout(() => {
+      const failed = simulateError
+      setDeliveryStatus((prev) => ({ ...prev, [messageId]: failed ? "error" : "sent" }))
+      if (!failed) {
+        if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
+        autoReplyTimer.current = setTimeout(() => {
+          sendMessage({ caseId: targetCaseId, patientId, text: pickAutoReply(sentText), type: interactionType, channel: sentChannel, direction: "incoming" })
+        }, 1500)
+      }
+    }, 600)
+  }
 
   const messages = useMemo(() => {
     const caseIdSet = new Set(caseIds)
@@ -145,20 +172,15 @@ export function ConversationThread({
         authorId,
       })
     } else {
-      sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: interactionType, channel, direction: "outgoing", authorId })
+      const sent = sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: interactionType, channel, direction: "outgoing", authorId })
+      deliver(sent.id, sentText, interactionType, channel)
     }
     setDraft("")
+  }
 
-    // Emulate the patient replying so operators can test a full conversation
-    // without a second session.
-    if (channel === "phone") return
-    if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
-    autoReplyTimer.current = setTimeout(
-      () => {
-        sendMessage({ caseId: targetCaseId, patientId, text: pickAutoReply(sentText), type: interactionType, channel, direction: "incoming" })
-      },
-      1200 + Math.random() * 1000,
-    )
+  function handleRetry(m: (typeof messages)[number]) {
+    if (isSmsMessage(m)) return
+    deliver(m.id, m.text ?? "", m.type, m.channel ?? "website")
   }
 
   return (
@@ -168,29 +190,49 @@ export function ConversationThread({
         {messages.map((m) => {
           const Icon = TYPE_ICON[m.type] ?? MessageSquare
           const incoming = m.direction !== "outgoing"
+          const status = incoming ? undefined : deliveryStatus[m.id]
           return (
-            <div key={m.id} className={cn("flex items-end gap-2", incoming ? "justify-start" : "justify-end")}>
-              {incoming && (
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <Icon className="h-3 w-3 text-muted-foreground" />
-                </span>
-              )}
-              <div
-                className={cn(
-                  "max-w-[75%] rounded-lg px-3 py-2 text-sm",
-                  incoming ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
+            <div key={m.id} className={cn("flex flex-col gap-1", incoming ? "items-start" : "items-end")}>
+              <div className={cn("flex items-end gap-2", incoming ? "justify-start" : "justify-end")}>
+                {incoming && (
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <Icon className="h-3 w-3 text-muted-foreground" />
+                  </span>
                 )}
-              >
-                <p className="whitespace-pre-wrap">{m.text}</p>
-                <div className={cn("mt-1 flex flex-wrap items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
-                  <span>{TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
-                  {isSmsMessage(m) && <SmsStatus message={m} />}
+                <div
+                  className={cn(
+                    "max-w-[75%] rounded-lg px-3 py-2 text-sm",
+                    incoming ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
+                    status === "error" && "opacity-70",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{m.text}</p>
+                  <div className={cn("mt-1 flex flex-wrap items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
+                    <span>{TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
+                    {isSmsMessage(m) ? (
+                      <SmsStatus message={m} />
+                    ) : (
+                      <>
+                        {status === "sending" && <Loader2 className="h-2.5 w-2.5 animate-spin" aria-label="Wysyłanie" />}
+                        {status === "sent" && <Check className="h-2.5 w-2.5" aria-label="Dostarczono" />}
+                      </>
+                    )}
+                  </div>
                 </div>
+                {!incoming && (
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                    <Icon className="h-3 w-3 text-primary" />
+                  </span>
+                )}
               </div>
-              {!incoming && (
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15">
-                  <Icon className="h-3 w-3 text-primary" />
-                </span>
+              {status === "error" && !isSmsMessage(m) && (
+                <div className="flex items-center gap-1.5 pr-8 text-[10px] text-red-600">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>Błąd wysyłki</span>
+                  <button type="button" className="font-medium underline-offset-2 hover:underline" onClick={() => handleRetry(m)}>
+                    Spróbuj ponownie
+                  </button>
+                </div>
               )}
             </div>
           )
@@ -212,17 +254,44 @@ export function ConversationThread({
         </div>
       )}
 
+      <div className="flex items-center justify-end gap-1.5 pb-1.5 text-[11px] text-muted-foreground">
+        <input
+          id="simulate-send-error"
+          type="checkbox"
+          checked={simulateError}
+          onChange={(e) => setSimulateError(e.target.checked)}
+          className="h-3 w-3 accent-destructive"
+        />
+        <label htmlFor="simulate-send-error" className="cursor-pointer select-none">
+          Symuluj błąd wysyłki (test UAT)
+        </label>
+      </div>
       <div className="flex items-end gap-2 border-t border-border pt-3">
         <Select value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
           <SelectTrigger className="h-9 w-[150px] shrink-0 text-xs" aria-label="Kanał wysyłki">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {SEND_CHANNELS.map((c) => (
-              <SelectItem key={c.value} value={c.value} disabled={c.potential}>
-                {c.label}{c.potential ? " · Potencjalny" : ""}
-              </SelectItem>
-            ))}
+            {SEND_CHANNELS.map((c) =>
+              c.potential ? (
+                <Tooltip key={c.value}>
+                  <TooltipTrigger
+                    render={
+                      <span>
+                        <SelectItem value={c.value} disabled>
+                          {c.label} · Potencjalny
+                        </SelectItem>
+                      </span>
+                    }
+                  />
+                  <TooltipContent side="right">Integracja nie jest jeszcze podłączona</TooltipContent>
+                </Tooltip>
+              ) : (
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
+              ),
+            )}
           </SelectContent>
         </Select>
         <Textarea
