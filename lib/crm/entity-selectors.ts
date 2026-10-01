@@ -36,6 +36,7 @@ export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
 export function getActionKind(task: Task, engagementCase?: EngagementCase, identity?: ReturnType<typeof getIdentity>): ActionKind {
   if (engagementCase && !engagementCase.clinicId) return "unassigned_clinic"
   if (/plan leczenia/i.test(task.title)) return "treatment_plan"
+  if (task.requiresCall) return task.attempts > 0 ? "follow_up" : "call"
   if (task.attempts > 0) return "follow_up"
   if (identity && CHAT_CHANNELS.includes(identity.channel)) return "reply"
   return "call"
