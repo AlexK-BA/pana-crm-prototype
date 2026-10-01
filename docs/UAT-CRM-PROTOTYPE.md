@@ -23,6 +23,7 @@ The build is accepted when all critical scenarios (`P0`) pass and no action caus
 | UAT-08 | Patient 360 consistency | P0 |
 | UAT-09 | Patient comments and audit | P1 |
 | UAT-10 | Filters and navigation | P1 |
+| UAT-11 | Patient conversations and channels | P0 |
 
 ## UAT-01 — role workspaces
 
@@ -178,11 +179,31 @@ Expected:
 - search reads from EntityStore rather than legacy records;
 - calendar items are tasks and open their parent engagement case.
 
+## UAT-11 — patient conversations and channels
+
+1. Open a patient profile and select `Czat`.
+2. Verify that the left column lists the patient's conversations separately by case and contact channel.
+3. Switch between two conversations and verify that the message history changes without changing the patient.
+4. Open the send-channel selector.
+5. Verify the available options: website chat, SMS, WhatsApp, Telegram, Instagram, Facebook and e-mail.
+6. Verify that TikTok is visible as `Potencjalny` and cannot be selected as an active integration.
+7. Send an emulated message through Telegram, Instagram or Facebook and wait for the emulated reply.
+
+Expected:
+
+- one Patient can own several independent conversations;
+- selecting a conversation displays only interactions belonging to its engagement case;
+- channel identity, address/handle, last message and last activity are visible in the conversation list;
+- an outgoing message records both the generic interaction type and the concrete delivery channel;
+- TikTok is not represented as an already implemented integration;
+- all sending and replies remain simulated and do not call external APIs.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.
+- Telegram, Instagram, Facebook, WhatsApp, website chat and e-mail sending are also simulated in the prototype.
+- TikTok is displayed only as a potential future channel and is disabled for sending.
 - State is client-side and resets after reload.
 - Shared incoming-call ownership demonstrates business behavior in one browser by switching roles; production requires backend realtime events and an atomic claim operation.
 - RBAC enforcement is not part of this UAT yet; role screens are demonstrational until the permission matrix is approved.
 - Automatic workflow tasks for every funnel stage are not included until funnel stages and rules are confirmed by Daniel and the clinic team.
-

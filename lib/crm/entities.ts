@@ -93,6 +93,7 @@ export type ContactChannel =
   | "facebook"
   | "whatsapp"
   | "telegram"
+  | "tiktok"
   | "viber"
   | "website"
   | "personal_account"
@@ -211,6 +212,8 @@ export interface Interaction {
   patientId?: string
   taskId?: string
   type: InteractionType
+  /** Concrete delivery channel for generic chat/social interactions. */
+  channel?: ContactChannel
   direction?: InteractionDirection
   at: string
   authorId?: string

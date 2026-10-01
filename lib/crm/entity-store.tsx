@@ -69,6 +69,7 @@ interface EntityStoreValue {
     patientId?: string
     text: string
     type: InteractionType
+    channel?: ContactChannel
     direction: InteractionDirection
     authorId?: string
   }) => Interaction
@@ -374,12 +375,13 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const sendMessage = useCallback(
-    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; direction: InteractionDirection; authorId?: string }) => {
+    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string }) => {
       const interaction: Interaction = {
         id: nextInteractionId(),
         caseId: input.caseId,
         patientId: input.patientId,
         type: input.type,
+        channel: input.channel,
         direction: input.direction,
         at: iso(0),
         authorId: input.authorId,

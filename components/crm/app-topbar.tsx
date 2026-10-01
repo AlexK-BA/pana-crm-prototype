@@ -45,6 +45,7 @@ const CHANNEL_LABEL: Record<ContactChannel, string> = {
   facebook: "Facebook",
   whatsapp: "WhatsApp",
   telegram: "Telegram",
+  tiktok: "TikTok · Potencjalny",
   viber: "Viber",
   website: "Czat na stronie",
   personal_account: "Konto pacjenta",

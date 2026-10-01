@@ -14,15 +14,24 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEntityStore } from "@/lib/crm/entity-store"
-import type { InteractionType } from "@/lib/crm/entities"
+import type { ContactChannel, InteractionType } from "@/lib/crm/entities"
 import { formatDateTime } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 
-const SEND_CHANNELS: { value: InteractionType; label: string; icon: typeof MessageSquare }[] = [
-  { value: "chat", label: "Czat", icon: MessageSquare },
-  { value: "sms", label: "SMS", icon: Smartphone },
-  { value: "whatsapp", label: "WhatsApp", icon: MessageSquare },
+const SEND_CHANNELS: { value: ContactChannel; label: string; potential?: boolean }[] = [
+  { value: "website", label: "Czat" },
+  { value: "phone", label: "SMS" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "telegram", label: "Telegram" },
+  { value: "instagram", label: "Instagram" },
+  { value: "facebook", label: "Facebook" },
+  { value: "email", label: "E-mail" },
+  { value: "tiktok", label: "TikTok", potential: true },
 ]
+
+const CHANNEL_TYPE: Partial<Record<ContactChannel, InteractionType>> = {
+  website: "chat", phone: "sms", whatsapp: "whatsapp", telegram: "social", instagram: "social", facebook: "social", email: "email", tiktok: "social",
+}
 
 const TYPE_ICON: Record<string, typeof MessageSquare> = {
   call: Phone,
@@ -40,6 +49,10 @@ const TYPE_LABEL: Record<string, string> = {
   sms: "SMS",
   social: "Social",
   email: "E-mail",
+  telegram: "Telegram",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  tiktok: "TikTok",
 }
 
 /**
@@ -82,7 +95,7 @@ export function ConversationThread({
 }) {
   const { interactions, sendMessage, markRead } = useEntityStore()
   const [draft, setDraft] = useState("")
-  const [channel, setChannel] = useState<InteractionType>("chat")
+  const [channel, setChannel] = useState<ContactChannel>("website")
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoReplyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const targetCaseId = primaryCaseId ?? caseIds[0]
@@ -111,7 +124,8 @@ export function ConversationThread({
   function handleSend() {
     if (!draft.trim() || !targetCaseId) return
     const sentText = draft.trim()
-    sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: channel, direction: "outgoing", authorId })
+    const interactionType = CHANNEL_TYPE[channel] ?? "chat"
+    sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: interactionType, channel, direction: "outgoing", authorId })
     setDraft("")
 
     // Emulate the patient replying so operators can test a full conversation
@@ -119,7 +133,7 @@ export function ConversationThread({
     if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
     autoReplyTimer.current = setTimeout(
       () => {
-        sendMessage({ caseId: targetCaseId, patientId, text: pickAutoReply(sentText), type: channel, direction: "incoming" })
+        sendMessage({ caseId: targetCaseId, patientId, text: pickAutoReply(sentText), type: interactionType, channel, direction: "incoming" })
       },
       1200 + Math.random() * 1000,
     )
@@ -147,7 +161,7 @@ export function ConversationThread({
               >
                 <p className="whitespace-pre-wrap">{m.text}</p>
                 <p className={cn("mt-1 flex items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
-                  {TYPE_LABEL[m.type] ?? m.type} · {formatDateTime(m.at)}
+                  {TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}
                 </p>
               </div>
               {!incoming && (
@@ -162,14 +176,14 @@ export function ConversationThread({
       </div>
 
       <div className="flex items-end gap-2 border-t border-border pt-3">
-        <Select value={channel} onValueChange={(v) => setChannel(v as InteractionType)}>
-          <SelectTrigger className="h-9 w-[124px] shrink-0 text-xs" aria-label="Kanał wysyłki">
+        <Select value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
+          <SelectTrigger className="h-9 w-[150px] shrink-0 text-xs" aria-label="Kanał wysyłki">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {SEND_CHANNELS.map((c) => (
-              <SelectItem key={c.value} value={c.value}>
-                {c.label}
+              <SelectItem key={c.value} value={c.value} disabled={c.potential}>
+                {c.label}{c.potential ? " · Potencjalny" : ""}
               </SelectItem>
             ))}
           </SelectContent>

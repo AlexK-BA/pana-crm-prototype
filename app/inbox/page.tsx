@@ -49,12 +49,13 @@ const CHANNEL_ICON: Record<ContactChannel, typeof Phone> = {
   facebook: MessageCircle,
   whatsapp: MessageCircle,
   telegram: Send,
+  tiktok: MessageCircle,
   viber: MessageCircle,
   website: Globe,
   personal_account: User,
 }
 
-const SIMULATE_CHANNELS: ContactChannel[] = ["instagram", "facebook", "whatsapp", "telegram", "website"]
+const SIMULATE_CHANNELS: ContactChannel[] = ["instagram", "facebook", "whatsapp", "telegram", "tiktok", "website"]
 
 export default function InboxPage() {
   const [query, setQuery] = useState("")

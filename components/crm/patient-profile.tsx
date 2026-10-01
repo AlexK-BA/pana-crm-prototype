@@ -31,6 +31,7 @@ const CHANNEL_ICON: Record<string, typeof Phone> = {
   email: Mail,
   whatsapp: MessageSquare,
   telegram: MessageSquare,
+  tiktok: Share2,
   viber: MessageSquare,
   instagram: Share2,
   facebook: Share2,
@@ -92,7 +93,9 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const actorId = OPERATORS.find((o) => o.name === meName)?.id ?? "system"
   const [justSynced, setJustSynced] = useState(false)
   const [planSent, setPlanSent] = useState(false)
+  const [chatCaseId, setChatCaseId] = useState<string | null>(null)
   const primaryCase = cases[0]
+  const activeChatCaseId = chatCaseId && caseIds.has(chatCaseId) ? chatCaseId : cases[0]?.id
 
   function handleSync() {
     syncPatientWithMedicalCrm(patient.id, actorId)
@@ -271,19 +274,51 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0">
-          <div className="rounded-xl border border-border bg-card">
-            <div className="border-b border-border px-4 py-2.5">
-              <p className="text-xs text-muted-foreground">
-                Wszystkie kanały komunikacji tego pacjenta w jednej osi czasu, niezależnie od sprawy ({cases.length}).
-              </p>
+          <div className="flex h-[540px] overflow-hidden rounded-xl border border-border bg-card">
+            <aside className="w-[270px] shrink-0 overflow-y-auto border-r border-border bg-muted/20">
+              <div className="border-b border-border px-3 py-3">
+                <p className="text-sm font-semibold">Rozmowy pacjenta</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Każda sprawa i kanał pozostają osobną rozmową.</p>
+              </div>
+              {cases.map((item) => {
+                const contactIdentity = allIdentities.find((identity) => identity.id === item.contactIdentityId)
+                const caseMessages = allInteractions
+                  .filter((interaction) => interaction.caseId === item.id && interaction.type !== "call")
+                  .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+                const lastMessage = caseMessages[0]
+                const Icon = CHANNEL_ICON[contactIdentity?.channel ?? "website"] ?? MessageSquare
+                const selected = item.id === activeChatCaseId
+                return (
+                  <button key={item.id} type="button" onClick={() => setChatCaseId(item.id)} className={cn("flex w-full items-start gap-2.5 border-b border-border px-3 py-3 text-left hover:bg-accent", selected && "bg-accent")}>
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background"><Icon className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate text-xs font-medium capitalize">{contactIdentity?.channel ?? "chat"}</span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">{lastMessage ? formatRelative(lastMessage.at) : "—"}</span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{contactIdentity?.value ?? item.id}</span>
+                      <span className="mt-1 block truncate text-[11px] text-muted-foreground">{lastMessage?.text ?? "Brak wiadomości"}</span>
+                    </span>
+                  </button>
+                )
+              })}
+              <div className="px-3 py-3 text-[11px] text-muted-foreground">TikTok <Badge variant="outline" className="ml-1 text-[9px]">Potencjalny</Badge></div>
+            </aside>
+            <div className="min-w-0 flex-1">
+              {activeChatCaseId ? (
+                <ConversationThread
+                  key={activeChatCaseId}
+                  caseIds={[activeChatCaseId]}
+                  primaryCaseId={activeChatCaseId}
+                  patientId={patient.id}
+                  authorId={actorId}
+                  className="h-full px-4 py-4"
+                  emptyLabel="Brak wiadomości w tej rozmowie."
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Ten pacjent nie ma jeszcze rozmów.</div>
+              )}
             </div>
-            <ConversationThread
-              caseIds={cases.map((c) => c.id)}
-              patientId={patient.id}
-              authorId={actorId}
-              className="h-[480px] px-4 py-4"
-              emptyLabel="Brak wiadomości dla tego pacjenta."
-            />
           </div>
         </TabsContent>
 
