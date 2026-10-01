@@ -9,14 +9,15 @@
  * aggregated across all of a patient's cases in the Patient Profile.
  */
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Phone, MessageSquare, StickyNote, Send, Smartphone } from "lucide-react"
+import { Check, CheckCheck, CircleAlert, Clock3, Phone, MessageSquare, StickyNote, Send, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import type { ContactChannel, InteractionType } from "@/lib/crm/entities"
+import type { ContactChannel, InteractionType, SmsMessage } from "@/lib/crm/entities"
 import { formatDateTime } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
+import { calculateSmsParts, getSmsStatusLabel, isSmsMessage, selectSmsProvider } from "@/lib/crm/sms-service"
 
 const SEND_CHANNELS: { value: ContactChannel; label: string; potential?: boolean }[] = [
   { value: "website", label: "Czat" },
@@ -93,12 +94,16 @@ export function ConversationThread({
   className?: string
   emptyLabel?: string
 }) {
-  const { interactions, sendMessage, markRead } = useScopedEntityStore()
+  const { interactions, sendMessage, sendSms, markRead, cases, identities, smsProviderConfigurations } = useScopedEntityStore()
   const [draft, setDraft] = useState("")
   const [channel, setChannel] = useState<ContactChannel>("website")
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoReplyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const targetCaseId = primaryCaseId ?? caseIds[0]
+  const targetCase = cases.find((item) => item.id === targetCaseId)
+  const phoneIdentity = identities.find((item) => item.patientId === patientId && item.channel === "phone")
+    ?? identities.find((item) => item.id === targetCase?.contactIdentityId && item.channel === "phone")
+  const smsProvider = selectSmsProvider(smsProviderConfigurations, targetCase?.clinicId)
 
   useEffect(() => {
     return () => {
@@ -125,11 +130,24 @@ export function ConversationThread({
     if (!draft.trim() || !targetCaseId) return
     const sentText = draft.trim()
     const interactionType = CHANNEL_TYPE[channel] ?? "chat"
-    sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: interactionType, channel, direction: "outgoing", authorId })
+    if (channel === "phone") {
+      if (!phoneIdentity) return
+      sendSms({
+        caseId: targetCaseId,
+        patientId,
+        clinicId: targetCase?.clinicId,
+        recipient: phoneIdentity.value,
+        text: sentText,
+        authorId,
+      })
+    } else {
+      sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: interactionType, channel, direction: "outgoing", authorId })
+    }
     setDraft("")
 
     // Emulate the patient replying so operators can test a full conversation
     // without a second session.
+    if (channel === "phone") return
     if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
     autoReplyTimer.current = setTimeout(
       () => {
@@ -160,9 +178,10 @@ export function ConversationThread({
                 )}
               >
                 <p className="whitespace-pre-wrap">{m.text}</p>
-                <p className={cn("mt-1 flex items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
-                  {TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}
-                </p>
+                <div className={cn("mt-1 flex flex-wrap items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
+                  <span>{TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
+                  {isSmsMessage(m) && <SmsStatus message={m} />}
+                </div>
               </div>
               {!incoming && (
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15">
@@ -174,6 +193,20 @@ export function ConversationThread({
         })}
         <div ref={bottomRef} />
       </div>
+
+      {channel === "phone" && (
+        <div className="border-t border-border px-1 pt-2 text-[11px] text-muted-foreground">
+          {phoneIdentity ? (
+            <span>
+              Do: <strong className="font-medium text-foreground">{phoneIdentity.value}</strong> · {smsProvider?.name ?? "Brak aktywnej konfiguracji"}
+              {smsProvider && !smsProvider.capabilities.deliveryReports ? " · bez potwierdzenia dostarczenia" : ""}
+              {draft ? ` · ${draft.length} znaków · ${calculateSmsParts(draft)} SMS` : ""}
+            </span>
+          ) : (
+            <span className="text-destructive">Brak numeru telefonu. Uzupełnij profil pacjenta przed wysłaniem SMS.</span>
+          )}
+        </div>
+      )}
 
       <div className="flex items-end gap-2 border-t border-border pt-3">
         <Select value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
@@ -201,10 +234,26 @@ export function ConversationThread({
           rows={1}
           className="min-h-9 flex-1 resize-none text-sm"
         />
-        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={!draft.trim()} aria-label="Wyślij">
+        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={!draft.trim() || (channel === "phone" && (!phoneIdentity || !smsProvider))} aria-label="Wyślij">
           <Send className="h-4 w-4" />
         </Button>
       </div>
     </div>
+  )
+}
+
+function SmsStatus({ message }: { message: SmsMessage }) {
+  const Icon = message.deliveryStatus === "delivered"
+    ? CheckCheck
+    : message.deliveryStatus === "submitted"
+      ? Check
+      : message.deliveryStatus === "failed" || message.deliveryStatus === "undelivered"
+        ? CircleAlert
+        : Clock3
+  return (
+    <span className="inline-flex items-center gap-0.5" title={message.errorMessage ?? message.providerStatus}>
+      <Icon className="h-3 w-3" />
+      {getSmsStatusLabel(message)} · {message.providerType}
+    </span>
   )
 }

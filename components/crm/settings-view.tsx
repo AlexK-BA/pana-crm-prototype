@@ -16,6 +16,7 @@ import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES, ROLE_ORDER } from "@/lib/crm/roles"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useUserDirectory } from "@/lib/crm/user-directory"
+import { SmsProviderSettings } from "@/components/crm/sms-provider-settings"
 
 interface KbArticle {
   id: string
@@ -146,6 +147,8 @@ export function SettingsView() {
           })}
         </div>
       </section>
+
+      <SmsProviderSettings />
 
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-foreground">{t("settings_team_title")}</h2>

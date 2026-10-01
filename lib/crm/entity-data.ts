@@ -15,6 +15,7 @@ import type {
   EngagementCase,
   Interaction,
   Patient,
+  SmsMessage,
   Task,
   TouchPoint,
 } from "./entities"
@@ -715,7 +716,7 @@ export function getTask(id?: string) {
 // ---------------------------------------------------------------------------
 // Interactions & Calls (§2.5 / §2.6)
 // ---------------------------------------------------------------------------
-export const INTERACTIONS: (Interaction | Call)[] = [
+export const INTERACTIONS: (Interaction | Call | SmsMessage)[] = [
   {
     id: "int-01", caseId: "case-1001", patientId: "pat-01", type: "note", at: iso(-2), authorId: WERONIKA,
     text: "Rozmowa z pacjentką, kwestia finansowa — zaproponować raty.",
@@ -778,6 +779,20 @@ export const INTERACTIONS: (Interaction | Call)[] = [
     id: "int-11", caseId: "case-1012", type: "chat", direction: "incoming", at: iso(-0.05),
     text: "Cześć! Piszę pierwszy raz, chciałabym zapytać o ceny wybielania zębów 🦷",
   },
+  {
+    id: "sms-01", caseId: "case-1001", patientId: "pat-01", type: "sms", channel: "phone", direction: "outgoing",
+    at: iso(-20), authorId: WERONIKA, text: "Dzień dobry, przypominamy o kontakcie w sprawie planu leczenia.",
+    recipient: "+48 611 924 357", sender: "PaNaMedica", providerType: "emulator", providerConfigurationId: "sms-pm-emulator",
+    providerMessageId: "emulator-sms-01", deliveryStatus: "delivered", providerStatus: "DELIVERED", partsCount: 1,
+    submittedAt: iso(-20), deliveredAt: iso(-19.99),
+  } as SmsMessage,
+  {
+    id: "sms-02", caseId: "case-1101", patientId: "pat-04", type: "sms", channel: "phone", direction: "outgoing",
+    at: iso(-12), authorId: PAVEL, text: "Potwierdzamy termin konsultacji. W razie potrzeby prosimy o kontakt.",
+    recipient: "+48 500 440 211", sender: "+48 61 000 00 02", providerType: "supervoip", providerConfigurationId: "sms-pc-supervoip",
+    providerMessageId: "supervoip-sms-02", deliveryStatus: "submitted", providerStatus: "ACCEPTED", partsCount: 1,
+    submittedAt: iso(-12),
+  } as SmsMessage,
 ]
 
 export function getInteractionsForCase(caseId: string) {

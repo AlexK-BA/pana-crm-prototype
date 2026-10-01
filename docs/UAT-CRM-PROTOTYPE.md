@@ -26,6 +26,8 @@ The build is accepted when all critical scenarios (`P0`) pass and no action caus
 | UAT-11 | Patient conversations and channels | P0 |
 | UAT-12 | RBAC route enforcement | P0 |
 | UAT-13 | User lifecycle management | P0 |
+| UAT-14 | Clinic data scope | P0 |
+| UAT-15 | Provider-neutral SMS history and sending | P0 |
 
 ## UAT-01 — role workspaces
 
@@ -258,6 +260,27 @@ Expected:
 - unassigned cases are visible only to triage-capable roles;
 - inactive, locked and invited users cannot be impersonated through the demo role switcher;
 - production repeats these rules server-side; client filtering alone is explicitly not treated as security.
+
+## UAT-15 — provider-neutral SMS history and sending
+
+1. As Administrator, open Settings and locate `SMS · dostawcy i nadawcy`.
+2. Verify that PaNa Medica, PaNa Comfort and the global fallback may use different providers.
+3. Change a clinic provider between Emulator, SMSAPI and SuperVoIP and run `Testuj`.
+4. Open a patient with a phone identity and select SMS in the conversation composer.
+5. Verify recipient, selected clinic provider, character count and calculated SMS parts.
+6. Send a custom SMS and verify that it first appears as `W kolejce`.
+7. With Emulator or SMSAPI, wait for `Wysłano` and then `Dostarczono`.
+8. With SuperVoIP, verify that the terminal demo status is `Przyjęto przez operatora`, not `Dostarczono`.
+9. Open a contact without a phone identity and verify that sending is blocked with an instruction to complete the profile.
+10. Verify that the sent SMS is visible both in the patient conversation and in the current case history.
+
+Expected:
+
+- no real external API is called;
+- provider credentials are not present in frontend state;
+- provider selection is based on the case clinic, then the global default;
+- changing the active provider does not change historical SMS metadata;
+- sending an SMS records an audit event but does not complete the linked task automatically.
 
 ## Known prototype boundaries
 

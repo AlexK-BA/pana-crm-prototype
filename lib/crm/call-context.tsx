@@ -13,6 +13,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import type { CallDisposition } from "./entities"
 import { getCase } from "./entity-data"
 import { ROLE_PROFILES } from "./roles"
+import { getClinic } from "./catalog"
 import { useRole } from "./role-context"
 import { useEntityStore } from "./entity-store"
 import { getNextTaskForCase } from "./entity-queue"
@@ -81,8 +82,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     (input: { caseId: string; taskId?: string; unknown?: boolean; direction: "incoming" | "outgoing" }): ActiveCall | null => {
       const engagementCase = getCase(input.caseId)
       if (!engagementCase) return null
-      const clinicName =
-        engagementCase.clinicId === "pana-medica" ? "PaNa Medica" : engagementCase.clinicId === "pana-comfort" ? "PaNa Comfort" : "PaNa International"
+      const clinicName = getClinic(engagementCase.clinicId)?.name ?? "Nieprzypisana klinika"
       return {
         caseId: input.caseId,
         taskId: input.taskId,

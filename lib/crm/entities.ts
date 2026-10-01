@@ -222,6 +222,55 @@ export interface Interaction {
   text?: string
 }
 
+export type SmsProviderType = "emulator" | "smsapi" | "supervoip"
+export type SmsDeliveryStatus = "queued" | "submitted" | "delivered" | "failed" | "undelivered" | "received" | "unknown"
+
+export interface SmsProviderCapabilities {
+  outboundSms: boolean
+  inboundSms: boolean
+  deliveryReports: boolean
+  senderName: boolean
+  ownedSenderNumber: boolean
+  twoWayMessaging: boolean
+  multipartMessages: boolean
+  unicodeMessages: boolean
+}
+
+/** Provider-neutral clinic configuration. Secrets are intentionally absent from the frontend prototype. */
+export interface SmsProviderConfiguration {
+  id: string
+  name: string
+  providerType: SmsProviderType
+  clinicId?: ClinicId
+  enabled: boolean
+  isDefault?: boolean
+  senderMode: "sender_name" | "owned_number" | "two_way" | "provider_default"
+  senderValue: string
+  inboundNumber?: string
+  capabilities: SmsProviderCapabilities
+  lastTestAt?: string
+  lastTestStatus?: "success" | "failed"
+}
+
+/** SMS remains an Interaction for the common timeline, while carrying delivery-specific facts. */
+export interface SmsMessage extends Interaction {
+  type: "sms"
+  direction: InteractionDirection
+  channel: "phone"
+  recipient: string
+  sender: string
+  providerType: SmsProviderType
+  providerConfigurationId: string
+  providerMessageId?: string
+  deliveryStatus: SmsDeliveryStatus
+  providerStatus?: string
+  partsCount: number
+  errorMessage?: string
+  submittedAt?: string
+  deliveredAt?: string
+  retryOfId?: string
+}
+
 export type CallTelcoStatus = "ringing" | "answered" | "missed" | "failed" | "voicemail"
 
 export type CallDisposition =
