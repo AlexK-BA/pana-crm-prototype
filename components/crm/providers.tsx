@@ -11,6 +11,7 @@ import { EngagementCaseDrawer } from "@/components/crm/engagement-case-drawer"
 import { CommandPalette } from "@/components/crm/command-palette"
 import { CallOverlay } from "@/components/crm/call-overlay"
 import { UserDirectoryProvider } from "@/lib/crm/user-directory"
+import { AuthorizationProvider } from "@/lib/crm/authorization-context"
 
 export function CrmProviders({ children }: { children: ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export function CrmProviders({ children }: { children: ReactNode }) {
       <LanguageProvider>
         <EntityStoreProvider>
           <UserDirectoryProvider>
+            <AuthorizationProvider>
             <TooltipProvider delay={200}>
               <CasePanelProvider>
                 <CallProvider>
@@ -28,6 +30,7 @@ export function CrmProviders({ children }: { children: ReactNode }) {
                 </CallProvider>
               </CasePanelProvider>
             </TooltipProvider>
+            </AuthorizationProvider>
           </UserDirectoryProvider>
         </EntityStoreProvider>
       </LanguageProvider>

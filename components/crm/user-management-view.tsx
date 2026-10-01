@@ -13,6 +13,7 @@ import { ROLE_ORDER, ROLE_PROFILES, type RoleId } from "@/lib/crm/roles"
 import { CLINICS } from "@/lib/crm/catalog"
 import type { ClinicId } from "@/lib/crm/entities"
 import { formatRelative } from "@/lib/crm/format"
+import { RolePermissionMatrix } from "@/components/crm/role-permission-matrix"
 
 const STATUS_LABEL = { invited: "Zaproszony", active: "Aktywny", inactive: "Nieaktywny", locked: "Zablokowany" }
 const STATUS_TONE = { invited: "border-sky-200 bg-sky-50 text-sky-700", active: "border-emerald-200 bg-emerald-50 text-emerald-700", inactive: "border-slate-200 bg-slate-50 text-slate-600", locked: "border-red-200 bg-red-50 text-red-700" }
@@ -97,6 +98,8 @@ export function UserManagementView() {
           </table>
         </div>
       </section>
+
+      <RolePermissionMatrix />
 
       <UserDialog open={createOpen || Boolean(editing)} title={editing ? "Edytuj dostęp" : "Dodaj użytkownika"} draft={draft} setDraft={setDraft} toggleClinic={toggleClinic} onClose={() => { setCreateOpen(false); setEditing(null) }} onSave={() => {
         if (editing) { updateAccess(editing.id, [draft.role], draft.clinics); setEditing(null); notify("Zaktualizowano role i zakres klinik.") } else submitCreate()

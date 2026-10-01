@@ -18,6 +18,7 @@ import type { ContactChannel, InteractionType, SmsMessage } from "@/lib/crm/enti
 import { formatDateTime } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { calculateSmsParts, getSmsStatusLabel, isSmsMessage, selectSmsProvider } from "@/lib/crm/sms-service"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 
 const SEND_CHANNELS: { value: ContactChannel; label: string; potential?: boolean }[] = [
   { value: "website", label: "Czat" },
@@ -95,6 +96,7 @@ export function ConversationThread({
   emptyLabel?: string
 }) {
   const { interactions, sendMessage, sendSms, markRead, cases, identities, smsProviderConfigurations } = useScopedEntityStore()
+  const { hasPermission } = useAuthorization()
   const [draft, setDraft] = useState("")
   const [channel, setChannel] = useState<ContactChannel>("website")
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -104,6 +106,8 @@ export function ConversationThread({
   const phoneIdentity = identities.find((item) => item.patientId === patientId && item.channel === "phone")
     ?? identities.find((item) => item.id === targetCase?.contactIdentityId && item.channel === "phone")
   const smsProvider = selectSmsProvider(smsProviderConfigurations, targetCase?.clinicId)
+  const canSendMessage = hasPermission("communication:send")
+  const canSendCustomSms = hasPermission("sms:send_custom")
 
   useEffect(() => {
     return () => {
@@ -233,8 +237,9 @@ export function ConversationThread({
           placeholder="Napisz wiadomość..."
           rows={1}
           className="min-h-9 flex-1 resize-none text-sm"
+          disabled={!canSendMessage || (channel === "phone" && !canSendCustomSms)}
         />
-        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={!draft.trim() || (channel === "phone" && (!phoneIdentity || !smsProvider))} aria-label="Wyślij">
+        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={!draft.trim() || !canSendMessage || (channel === "phone" && (!canSendCustomSms || !phoneIdentity || !smsProvider))} aria-label="Wyślij">
           <Send className="h-4 w-4" />
         </Button>
       </div>

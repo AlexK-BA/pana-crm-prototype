@@ -7,8 +7,7 @@ import { ShieldAlert } from "lucide-react"
 import { AppSidebar } from "@/components/crm/app-sidebar"
 import { AppTopbar } from "@/components/crm/app-topbar"
 import { Button } from "@/components/ui/button"
-import { useRole } from "@/lib/crm/role-context"
-import { canAccessRoute } from "@/lib/crm/permissions"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 
 export function PageShell({
   title,
@@ -22,8 +21,8 @@ export function PageShell({
   noPadding?: boolean
 }) {
   const pathname = usePathname()
-  const { role } = useRole()
-  const allowed = canAccessRoute(role, pathname)
+  const { canAccessRoute } = useAuthorization()
+  const allowed = canAccessRoute(pathname)
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <AppSidebar />

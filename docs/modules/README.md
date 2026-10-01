@@ -9,6 +9,7 @@ These files are the functional source of truth for product development. They des
 - External systems are connected through adapters using canonical internal entities and statuses.
 - Historical records preserve the configuration/version used at the time of action.
 - Roles are configurable permission bundles; authorization is enforced server-side and scoped by tenant/clinic/team.
+- Every source-code behavior change must update its module specification and UAT scenario in the same commit.
 - Confirmed requirements, derived recommendations and unresolved decisions must remain distinguishable.
 
 ## Module map

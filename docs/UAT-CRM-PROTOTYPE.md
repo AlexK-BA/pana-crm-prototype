@@ -28,6 +28,7 @@ The build is accepted when all critical scenarios (`P0`) pass and no action caus
 | UAT-13 | User lifecycle management | P0 |
 | UAT-14 | Clinic data scope | P0 |
 | UAT-15 | Provider-neutral SMS history and sending | P0 |
+| UAT-16 | Configurable role permission bundles | P0 |
 
 ## UAT-01 — role workspaces
 
@@ -282,12 +283,33 @@ Expected:
 - changing the active provider does not change historical SMS metadata;
 - sending an SMS records an audit event but does not complete the linked task automatically.
 
+## UAT-16 — configurable role permission bundles
+
+1. As Administrator, open `Użytkownicy` and scroll to `Role i uprawnienia`.
+2. Select Operator and disable `sms:send_custom`.
+3. Switch to Operator, open a patient conversation and select SMS.
+4. Verify that custom SMS composition/sending is disabled while message history remains readable.
+5. Return as Administrator and disable `communication:view` for Operator.
+6. Switch to Operator and verify Inbox disappears and direct `/inbox` shows `Brak dostępu`.
+7. Re-enable the permission or use `Domyślne` and verify access returns.
+8. Select Administrator and verify its permission switches are protected.
+9. Open Audit Log and verify permission bundle changes were recorded.
+
+Expected:
+
+- navigation, direct routes and actions use the same runtime permission bundle;
+- clinic scope remains an additional restriction and is not widened by a role permission;
+- changes to non-system roles apply immediately in the current prototype session;
+- Administrator retains full access and cannot be edited;
+- page reload restores prototype defaults until persistent backend role storage is implemented.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.
 - Telegram, Instagram, Facebook, WhatsApp, website chat and e-mail sending are also simulated in the prototype.
 - TikTok is displayed only as a potential future channel and is disabled for sending.
 - State is client-side and resets after reload.
+- Role permission changes are session-local; production requires persistent versioned roles and backend enforcement.
 - Shared incoming-call ownership demonstrates business behavior in one browser by switching roles; production requires backend realtime events and an atomic claim operation.
 - RBAC enforcement is not part of this UAT yet; role screens are demonstrational until the permission matrix is approved.
 - Automatic workflow tasks for every funnel stage are not included until funnel stages and rules are confirmed by Daniel and the clinic team.

@@ -29,14 +29,13 @@ import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
 import { AppointmentSlotPicker } from "@/components/crm/appointment-slot-picker"
-import { useRole } from "@/lib/crm/role-context"
-import { hasPermission } from "@/lib/crm/permissions"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 
 export function EngagementCaseDrawer() {
   const { activeCaseId, closeCase } = useCasePanel()
-  const { role } = useRole()
+  const { hasPermission } = useAuthorization()
   const { cases } = useScopedEntityStore()
-  const canViewCases = hasPermission(role, "case:view")
+  const canViewCases = hasPermission("case:view")
   const isEntityCase = !!activeCaseId && activeCaseId.startsWith("case-")
   const engagementCase = isEntityCase ? cases.find((c) => c.id === activeCaseId) ?? getCase(activeCaseId!) : undefined
 
