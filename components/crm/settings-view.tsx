@@ -10,12 +10,46 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Pencil, Trash2, Plus, Bot, Database, FileText, Globe2, Play, RefreshCw } from "lucide-react"
+import { Pencil, Trash2, Plus, Bot, Database, FileText, Globe2, Play, RefreshCw, ShieldCheck, Check, Eye, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRole } from "@/lib/crm/role-context"
-import { ROLE_PROFILES, ROLE_ORDER } from "@/lib/crm/roles"
+import { ROLE_PROFILES, ROLE_ORDER, type RoleId } from "@/lib/crm/roles"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useUserDirectory } from "@/lib/crm/user-directory"
+import { ROLE_PERMISSIONS, type Permission } from "@/lib/crm/permissions"
+
+/**
+ * Permission labels for the matrix below. The permission set itself is NOT
+ * defined here — it is read from `ROLE_PERMISSIONS` (lib/crm/permissions.ts),
+ * the single source of truth also used for route/action guards. This file
+ * only supplies a human-readable Polish label per canonical Permission.
+ */
+const PERMISSION_LABELS: Record<Permission, string> = {
+  "case:view": "Przeglądanie spraw",
+  "case:edit": "Edycja spraw",
+  "case:move": "Przenoszenie spraw między etapami",
+  "task:view": "Przeglądanie zadań",
+  "task:work": "Realizacja zadań",
+  "task:assign": "Przypisywanie zadań",
+  "patient:view_basic": "Podgląd danych podstawowych pacjenta",
+  "patient:view_medical": "Podgląd danych medycznych pacjenta",
+  "patient:edit_local": "Edycja danych lokalnych pacjenta",
+  "communication:view": "Przeglądanie komunikacji",
+  "communication:send": "Wysyłanie wiadomości",
+  "call:handle": "Obsługa połączeń",
+  "report:view_operational": "Raporty operacyjne",
+  "report:view_marketing": "Raporty marketingowe",
+  "audit:view": "Przeglądanie dziennika audytu",
+  "configuration:manage": "Konfiguracja systemu",
+  "users:manage": "Zarządzanie użytkownikami",
+}
+
+const PERMISSION_ORDER = Object.keys(PERMISSION_LABELS) as Permission[]
+
+function AccessIcon({ allowed }: { allowed: boolean }) {
+  if (allowed) return <Check className="mx-auto h-3.5 w-3.5 text-emerald-600" aria-label="Dozwolone" />
+  return <Minus className="mx-auto h-3.5 w-3.5 text-muted-foreground/40" aria-label="Zabronione" />
+}
 
 interface KbArticle {
   id: string
@@ -229,6 +263,66 @@ export function SettingsView() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-1 flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">Role i uprawnienia</h2>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Macierz budowana bezpośrednio z definicji <code className="rounded bg-muted px-1 py-0.5 text-[10px]">ROLE_PERMISSIONS</code> — odzwierciedla wyłącznie realnie istniejące uprawnienia systemu.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-xs">
+            <thead>
+              <tr>
+                <th className="sticky left-0 bg-card py-2 pr-3 text-left font-medium text-muted-foreground">Uprawnienie</th>
+                {ROLE_ORDER.map((roleId) => {
+                  const profile = ROLE_PROFILES[roleId]
+                  return (
+                    <th key={roleId} className="px-2 py-2 text-center font-medium text-muted-foreground">
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className={cn(
+                            "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white",
+                            profile.user.color,
+                          )}
+                        >
+                          {profile.user.initials}
+                        </div>
+                        <span className="whitespace-nowrap">{t(profile.labelKey)}</span>
+                      </div>
+                    </th>
+                  )
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {PERMISSION_ORDER.map((permission) => (
+                <tr key={permission} className="border-t border-border">
+                  <td className="sticky left-0 bg-card py-2 pr-3 text-foreground">
+                    <span className="block">{PERMISSION_LABELS[permission]}</span>
+                    <code className="text-[10px] text-muted-foreground">{permission}</code>
+                  </td>
+                  {ROLE_ORDER.map((roleId) => (
+                    <td key={roleId} className="px-2 py-2 text-center">
+                      <AccessIcon allowed={ROLE_PERMISSIONS[roleId].includes(permission)} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Check className="h-3 w-3 text-emerald-600" /> Dozwolone
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Minus className="h-3 w-3 text-muted-foreground/40" /> Zabronione
+          </span>
         </div>
       </section>
 

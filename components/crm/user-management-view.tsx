@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useUserDirectory, type AppUser } from "@/lib/crm/user-directory"
 import { ROLE_ORDER, ROLE_PROFILES, type RoleId } from "@/lib/crm/roles"
 import { CLINICS } from "@/lib/crm/catalog"
@@ -86,10 +87,22 @@ export function UserManagementView() {
                   <td className="px-3 py-3"><Badge variant="outline" className={STATUS_TONE[user.status]}>{STATUS_LABEL[user.status]}</Badge></td>
                   <td className="px-3 py-3 text-xs text-muted-foreground">{user.lastLoginAt ? formatRelative(user.lastLoginAt) : "Nigdy"}</td>
                   <td className="px-4 py-3"><div className="flex justify-end gap-1">
-                    <Button size="icon" variant="ghost" aria-label="Edytuj role i kliniki" onClick={() => { setEditing(user); setDraft({ name: user.name, email: user.email, role: user.roles[0], clinics: user.clinicIds }) }}><ShieldCheck className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" aria-label="Resetuj hasło" onClick={() => { requestPasswordReset(user.id); notify(`Wysłano instrukcję resetu hasła do ${user.email}.`) }}><KeyRound className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" aria-label="Zakończ sesje" onClick={() => { revokeSessions(user.id); notify(`Aktywne sesje użytkownika ${user.name} zostały zakończone.`) }}><Laptop2 className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" disabled={user.id === "usr-mk"} aria-label={user.status === "inactive" ? "Aktywuj" : "Dezaktywuj"} onClick={() => { const active = user.status === "inactive"; setActive(user.id, active); notify(active ? "Konto aktywowano." : "Konto dezaktywowano, a sesje zakończono.") }}>{user.status === "inactive" ? <UserCheck className="h-3.5 w-3.5 text-emerald-600" /> : <UserX className="h-3.5 w-3.5 text-amber-600" />}</Button>
+                  <Tooltip>
+                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Edytuj role i kliniki" onClick={() => { setEditing(user); setDraft({ name: user.name, email: user.email, role: user.roles[0], clinics: user.clinicIds }) }}><ShieldCheck className="h-3.5 w-3.5" /></Button>} />
+                    <TooltipContent>Edytuj role i kliniki</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Resetuj hasło" onClick={() => { requestPasswordReset(user.id); notify(`Wysłano instrukcję resetu hasła do ${user.email}.`) }}><KeyRound className="h-3.5 w-3.5" /></Button>} />
+                    <TooltipContent>Resetuj hasło</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Zakończ sesje" onClick={() => { revokeSessions(user.id); notify(`Aktywne sesje użytkownika ${user.name} zostały zakończone.`) }}><Laptop2 className="h-3.5 w-3.5" /></Button>} />
+                    <TooltipContent>Zakończ aktywne sesje</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === "usr-mk"} aria-label={user.status === "inactive" ? "Aktywuj" : "Dezaktywuj"} onClick={() => { const active = user.status === "inactive"; setActive(user.id, active); notify(active ? "Konto aktywowano." : "Konto dezaktywowano, a sesje zakończono.") }}>{user.status === "inactive" ? <UserCheck className="h-3.5 w-3.5 text-emerald-600" /> : <UserX className="h-3.5 w-3.5 text-amber-600" />}</Button>} />
+                    <TooltipContent>{user.status === "inactive" ? "Aktywuj konto" : "Dezaktywuj konto"}</TooltipContent>
+                  </Tooltip>
                   </div></td>
                 </tr>
               ))}
