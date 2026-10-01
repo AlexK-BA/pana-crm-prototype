@@ -20,6 +20,7 @@ import { EntityCaseCard } from "@/components/crm/entity-case-card"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { cn } from "@/lib/utils"
 import type { DictionaryKey } from "@/lib/crm/language-context"
+import { compareCaseWorkOrder } from "@/lib/crm/entity-queue"
 
 const BOARDS: { id: CaseBoard; labelKey: DictionaryKey }[] = [
   { id: "leads", labelKey: "board_lead" },
@@ -46,6 +47,7 @@ export function KanbanBoard() {
   const columns = BOARD_COLUMNS[board]
 
   const casesByColumn = useMemo(() => {
+    const nowMs = Date.now()
     const filtered = cases.filter((c) => {
       if (c.board !== board) return false
       if (clinic !== "all" && c.clinicId !== clinic) return false
@@ -65,8 +67,11 @@ export function KanbanBoard() {
       if (!map[c.status]) map[c.status] = []
       map[c.status].push(c)
     }
+    for (const columnCases of Object.values(map)) {
+      columnCases.sort((a, b) => compareCaseWorkOrder(a, b, tasks, nowMs))
+    }
     return map
-  }, [board, cases, columns, query, clinic, doctor, service, assignee])
+  }, [board, cases, tasks, columns, query, clinic, doctor, service, assignee])
 
   function handleDrop(columnId: string) {
     if (dragCaseId) moveCase(dragCaseId, columnId, actorId)
