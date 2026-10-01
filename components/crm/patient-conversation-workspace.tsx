@@ -46,11 +46,22 @@ export function PatientConversationWorkspace({
   authorId?: string
   className?: string
 }) {
-  const { cases, identities, interactions } = useScopedEntityStore()
-  const patientCases = useMemo(
-    () => patientId ? cases.filter((item) => item.patientId === patientId) : cases.filter((item) => item.id === currentCaseId),
-    [cases, currentCaseId, patientId],
-  )
+  const { cases, identities, interactions, readAt } = useScopedEntityStore()
+  const patientCases = useMemo(() => {
+    const scoped = patientId ? cases.filter((item) => item.patientId === patientId) : cases.filter((item) => item.id === currentCaseId)
+    const withMeta = scoped.map((item) => {
+      const messages = interactions.filter((interaction) => interaction.caseId === item.id && interaction.type !== "call")
+      const lastMessage = messages.slice().sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]
+      const lastReadAt = readAt[item.id]
+      const unread = messages.filter(
+        (message) => message.direction === "incoming" && (!lastReadAt || new Date(message.at).getTime() > new Date(lastReadAt).getTime()),
+      ).length
+      return { item, lastMessage, unread }
+    })
+    return withMeta
+      .sort((a, b) => new Date(b.lastMessage?.at ?? b.item.createdAt).getTime() - new Date(a.lastMessage?.at ?? a.item.createdAt).getTime())
+      .map((entry) => entry.item)
+  }, [cases, currentCaseId, interactions, patientId, readAt])
   const [selectedCaseId, setSelectedCaseId] = useState(currentCaseId)
   const activeCaseId = patientCases.some((item) => item.id === selectedCaseId) ? selectedCaseId : patientCases[0]?.id ?? currentCaseId
 
@@ -69,6 +80,10 @@ export function PatientConversationWorkspace({
             .filter((interaction) => interaction.caseId === item.id && interaction.type !== "call")
             .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
           const lastMessage = messages[0]
+          const lastReadAt = readAt[item.id]
+          const unread = messages.filter(
+            (message) => message.direction === "incoming" && (!lastReadAt || new Date(message.at).getTime() > new Date(lastReadAt).getTime()),
+          ).length
           const channel = identity?.channel ?? "website"
           const Icon = CHANNEL_ICON[channel]
           const selected = item.id === activeCaseId
@@ -79,16 +94,28 @@ export function PatientConversationWorkspace({
               onClick={() => setSelectedCaseId(item.id)}
               className={cn("flex w-full items-start gap-2.5 border-b border-border px-3 py-3 text-left transition-colors hover:bg-accent", selected && "bg-accent")}
             >
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background">
+              <span className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background">
                 <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                {unread > 0 && !selected && (
+                  <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+                )}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-2">
-                  <span className="truncate text-xs font-medium">{CHANNEL_LABEL[channel]}</span>
-                  <span className="shrink-0 text-[10px] text-muted-foreground">{lastMessage ? formatRelative(lastMessage.at) : "—"}</span>
+                  <span className={cn("truncate text-xs", unread > 0 ? "font-semibold" : "font-medium")}>{CHANNEL_LABEL[channel]}</span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground">{lastMessage ? formatRelative(lastMessage.at) : "—"}</span>
+                    {unread > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                        {unread}
+                      </span>
+                    )}
+                  </span>
                 </span>
                 <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{identity?.value ?? item.id}</span>
-                <span className="mt-1 block truncate text-[11px] text-muted-foreground">{lastMessage?.text ?? "Brak wiadomości"}</span>
+                <span className={cn("mt-1 block truncate text-[11px]", unread > 0 ? "font-medium text-foreground" : "text-muted-foreground")}>
+                  {lastMessage?.text ?? "Brak wiadomości"}
+                </span>
               </span>
             </button>
           )
