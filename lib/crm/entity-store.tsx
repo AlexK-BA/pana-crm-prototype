@@ -29,6 +29,7 @@ import { AUDIT_EVENTS, BROADCASTS, CONTACT_IDENTITIES, ENGAGEMENT_CASES, INTERAC
 // fallback lookup inside matchCaseToPatient/createDraftCase for identities
 // created earlier in the same session that may not be in local state yet.
 import { BOARD_COLUMNS } from "./boards"
+import { buildAutomaticTask, getWorkflowStageRule } from "./workflow-rules"
 
 interface EntityStoreValue {
   tasks: Task[]
@@ -371,8 +372,28 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
         before: beforeLabel,
         after: afterLabel,
       })
+
+      const stageRule = getWorkflowStageRule(before.board, newStatus)
+      if (stageRule?.automaticTask) {
+        const duplicate = tasks.some(
+          (task) => task.caseId === caseId && task.workflowRuleId === stageRule.automaticTask?.id && !["completed", "cancelled", "failed"].includes(task.status),
+        )
+        if (!duplicate) {
+          const generated = buildAutomaticTask(stageRule.automaticTask, before)
+          generated.id = nextTaskId()
+          setTasks((prev) => [...prev, generated])
+          addAudit({
+            caseId,
+            patientId: before.patientId,
+            type: "task_change",
+            actorId: "system",
+            summary: `Automatyzacja ${stageRule.automaticTask.id} · utworzono zadanie: ${generated.title}`,
+            correlationId: `transition:${caseId}:${newStatus}`,
+          })
+        }
+      }
     },
-    [addAudit, cases],
+    [addAudit, cases, tasks],
   )
 
   const sendMessage = useCallback(

@@ -200,6 +200,8 @@ export interface Task {
   outcome?: TaskOutcome
   skipReason?: string
   callId?: string
+  /** Stable id of the workflow rule that generated the task; used for idempotency and audit. */
+  workflowRuleId?: string
 }
 
 export type InteractionType = "call" | "sms" | "whatsapp" | "email" | "chat" | "social" | "note"
