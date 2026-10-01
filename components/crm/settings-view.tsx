@@ -1,0 +1,390 @@
+"use client"
+
+import { useState } from "react"
+import { OPERATORS } from "@/lib/crm/data"
+import { BOARD_LABEL_KEYS, BOARD_COLUMNS, COLOR_CLASSES } from "@/lib/crm/boards"
+import { CLINICS, PROCEDURES, DOCTORS, CLINIC_TONE } from "@/lib/crm/catalog"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Pencil, Trash2, Plus, Bot } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useRole } from "@/lib/crm/role-context"
+import { ROLE_PROFILES, ROLE_ORDER } from "@/lib/crm/roles"
+import { useLanguage } from "@/lib/crm/language-context"
+
+interface KbArticle {
+  id: string
+  question: string
+  answer: string
+  category: string
+  uses: number
+}
+
+const INITIAL_KB: KbArticle[] = [
+  {
+    id: "kb-1",
+    question: "Jakie są godziny otwarcia kliniki?",
+    answer: "Kliniki PaNa Medica są otwarte od poniedziałku do piątku 8:00–20:00, w soboty 9:00–15:00.",
+    category: "Ogólne",
+    uses: 142,
+  },
+  {
+    id: "kb-2",
+    question: "Jak umówić wizytę kontrolną?",
+    answer: "Wizytę kontrolną można umówić przez chat, telefon lub formularz na stronie — bot automatycznie proponuje najbliższy wolny termin u tego samego lekarza.",
+    category: "Wizyty",
+    uses: 87,
+  },
+  {
+    id: "kb-3",
+    question: "Czy przyjmujecie pacjentów z NFZ?",
+    answer: "PaNa Medica działa w modelu prywatnym — nie realizujemy świadczeń w ramach NFZ.",
+    category: "Płatności",
+    uses: 54,
+  },
+]
+
+let kbSeq = INITIAL_KB.length
+
+export function SettingsView() {
+  const { role, setRole } = useRole()
+  const { t } = useLanguage()
+
+  const [botEnabled, setBotEnabled] = useState(true)
+  const [botName, setBotName] = useState("PaNa Assistant")
+  const [botHours, setBotHours] = useState("Pon–Pt 8:00–20:00, Sob 9:00–15:00")
+  const [autoReply, setAutoReply] = useState(true)
+  const [escalationThreshold, setEscalationThreshold] = useState("3")
+  const [channels, setChannels] = useState({ whatsapp: true, instagram: true, webchat: true, sms: false })
+
+  const [articles, setArticles] = useState<KbArticle[]>(INITIAL_KB)
+  const [editing, setEditing] = useState<KbArticle | null>(null)
+  const [draft, setDraft] = useState({ question: "", answer: "", category: "" })
+  const [showForm, setShowForm] = useState(false)
+
+  function startAdd() {
+    setEditing(null)
+    setDraft({ question: "", answer: "", category: "" })
+    setShowForm(true)
+  }
+
+  function startEdit(article: KbArticle) {
+    setEditing(article)
+    setDraft({ question: article.question, answer: article.answer, category: article.category })
+    setShowForm(true)
+  }
+
+  function saveArticle() {
+    if (!draft.question.trim() || !draft.answer.trim()) return
+    if (editing) {
+      setArticles((prev) =>
+        prev.map((a) => (a.id === editing.id ? { ...a, ...draft, category: draft.category || "Ogólne" } : a)),
+      )
+    } else {
+      kbSeq += 1
+      setArticles((prev) => [
+        ...prev,
+        { id: `kb-${kbSeq}`, question: draft.question, answer: draft.answer, category: draft.category || "Ogólne", uses: 0 },
+      ])
+    }
+    setShowForm(false)
+    setEditing(null)
+  }
+
+  function deleteArticle(id: string) {
+    setArticles((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="mb-1 text-sm font-semibold text-foreground">{t("settings_role_title")}</h2>
+        <p className="mb-3 text-xs text-muted-foreground">{t("settings_role_desc")}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {ROLE_ORDER.map((id) => {
+            const profile = ROLE_PROFILES[id]
+            const active = id === role
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setRole(id)}
+                className={cn(
+                  "flex items-center gap-2 rounded-md border px-2.5 py-2 text-left transition-colors",
+                  active ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:bg-muted/50",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white",
+                    profile.user.color,
+                  )}
+                >
+                  {profile.user.initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium text-foreground">{t(profile.labelKey)}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{t(profile.homeLabelKey)}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">{t("settings_team_title")}</h2>
+        <div className="space-y-2">
+          {OPERATORS.map((op) => (
+            <div key={op.id} className="flex items-center gap-3 rounded-md px-2 py-1.5">
+              <div
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white",
+                  op.color,
+                )}
+              >
+                {op.initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">{op.name}</p>
+                <p className="text-xs text-muted-foreground">{t("contact_center_role")}</p>
+              </div>
+              <Badge variant="secondary">{t("settings_active")}</Badge>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">{t("settings_clinics_title")}</h2>
+        <div className="space-y-4">
+          {CLINICS.map((clinic) => {
+            const tone = CLINIC_TONE[clinic.color]
+            const clinicProcedures = PROCEDURES.filter((p) => p.clinicId === clinic.id)
+            const clinicDoctors = DOCTORS.filter((d) => d.clinicId === clinic.id)
+            return (
+              <div key={clinic.id} className="rounded-md border border-border p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className={cn("h-2 w-2 rounded-full", tone.dot)} />
+                  <p className="text-sm font-medium text-foreground">{clinic.name}</p>
+                  <span className="text-xs text-muted-foreground">
+                    {clinicDoctors.length} {t("settings_doctors_count")} · {clinicProcedures.length}{" "}
+                    {t("settings_procedures_count")}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {clinicProcedures.map((proc) => (
+                    <span
+                      key={proc.id}
+                      className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs", tone.chip)}
+                    >
+                      {proc.name}
+                      <span className="text-[10px] opacity-70">{proc.durationMin} min</span>
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {clinicDoctors.map((doc) => (
+                    <span
+                      key={doc.id}
+                      className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground"
+                    >
+                      {doc.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">{t("settings_boards_title")}</h2>
+        <div className="space-y-4">
+          {Object.entries(BOARD_LABEL_KEYS).map(([boardId, labelKey]) => (
+            <div key={boardId}>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t(labelKey)}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {BOARD_COLUMNS[boardId as keyof typeof BOARD_COLUMNS].map((col) => (
+                  <span
+                    key={col.id}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-xs text-foreground"
+                  >
+                    <span className={cn("h-1.5 w-1.5 rounded-full", COLOR_CLASSES[col.color].dot)} />
+                    {t(col.labelKey)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-1 flex items-center gap-2">
+          <Bot className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">{t("settings_bot_title")}</h2>
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">{t("settings_bot_desc")}</p>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-md border border-border p-3">
+            <Label htmlFor="bot-enabled" className="text-sm font-medium text-foreground">
+              {t("settings_bot_enabled")}
+            </Label>
+            <Switch id="bot-enabled" checked={botEnabled} onCheckedChange={setBotEnabled} />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="bot-name" className="text-xs text-muted-foreground">
+                {t("settings_bot_name")}
+              </Label>
+              <Input id="bot-name" value={botName} onChange={(e) => setBotName(e.target.value)} className="h-8 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bot-hours" className="text-xs text-muted-foreground">
+                {t("settings_bot_hours")}
+              </Label>
+              <Input id="bot-hours" value={botHours} onChange={(e) => setBotHours(e.target.value)} className="h-8 text-sm" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">{t("settings_bot_channels")}</Label>
+            <div className="flex flex-wrap gap-3">
+              {Object.entries(channels).map(([key, value]) => (
+                <label key={key} className="flex items-center gap-2 text-sm text-foreground">
+                  <Switch
+                    checked={value}
+                    onCheckedChange={(v) => setChannels((prev) => ({ ...prev, [key]: v }))}
+                  />
+                  <span className="capitalize">{key}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-md border border-border p-3">
+            <Label htmlFor="auto-reply" className="text-sm font-medium text-foreground">
+              {t("settings_bot_autoreply")}
+            </Label>
+            <Switch id="auto-reply" checked={autoReply} onCheckedChange={setAutoReply} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="escalation" className="text-xs text-muted-foreground">
+              {t("settings_bot_escalation")}
+            </Label>
+            <Input
+              id="escalation"
+              type="number"
+              min={1}
+              max={10}
+              value={escalationThreshold}
+              onChange={(e) => setEscalationThreshold(e.target.value)}
+              className="h-8 w-24 text-sm"
+            />
+            <p className="text-[11px] text-muted-foreground">{t("settings_bot_escalation_hint")}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">{t("settings_kb_title")}</h2>
+          <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={startAdd}>
+            <Plus className="h-3.5 w-3.5" />
+            {t("settings_kb_add")}
+          </Button>
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">{t("settings_kb_desc")}</p>
+
+        {showForm && (
+          <div className="mb-4 space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t("settings_kb_question")}</Label>
+              <Input
+                value={draft.question}
+                onChange={(e) => setDraft((d) => ({ ...d, question: e.target.value }))}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t("settings_kb_answer")}</Label>
+              <Textarea
+                value={draft.answer}
+                onChange={(e) => setDraft((d) => ({ ...d, answer: e.target.value }))}
+                className="min-h-20 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t("settings_kb_category")}</Label>
+              <Input
+                value={draft.category}
+                onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
+                className="h-8 w-40 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowForm(false)}>
+                {t("cancel")}
+              </Button>
+              <Button size="sm" className="h-7 text-xs" onClick={saveArticle}>
+                {t("save")}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {articles.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">{t("settings_kb_empty")}</p>
+          ) : (
+            articles.map((article) => (
+              <div key={article.id} className="rounded-md border border-border p-3">
+                <div className="mb-1 flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">{article.question}</p>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => startEdit(article)}
+                      aria-label={t("settings_kb_edit")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-destructive hover:text-destructive"
+                      onClick={() => deleteArticle(article.id)}
+                      aria-label={t("settings_kb_delete")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="mb-2 text-xs text-muted-foreground">{article.answer}</p>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[11px]">
+                    {article.category}
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground">
+                    {article.uses} {t("settings_kb_used")}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}

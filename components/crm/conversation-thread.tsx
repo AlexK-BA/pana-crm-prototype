@@ -1,0 +1,196 @@
+"use client"
+
+/**
+ * Unified conversation surface: renders every text-like Interaction (chat,
+ * WhatsApp, SMS, social, note) for one or many cases in a single thread and
+ * lets an operator reply on any channel from the same composer — per the
+ * "chat as a lead source, chat as a channel independent of the card"
+ * requirement. Used standalone in Inbox, inside the case drawer, and
+ * aggregated across all of a patient's cases in the Patient Profile.
+ */
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Phone, MessageSquare, StickyNote, Send, Smartphone } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useEntityStore } from "@/lib/crm/entity-store"
+import type { InteractionType } from "@/lib/crm/entities"
+import { formatDateTime } from "@/lib/crm/format"
+import { cn } from "@/lib/utils"
+
+const SEND_CHANNELS: { value: InteractionType; label: string; icon: typeof MessageSquare }[] = [
+  { value: "chat", label: "Czat", icon: MessageSquare },
+  { value: "sms", label: "SMS", icon: Smartphone },
+  { value: "whatsapp", label: "WhatsApp", icon: MessageSquare },
+]
+
+const TYPE_ICON: Record<string, typeof MessageSquare> = {
+  call: Phone,
+  note: StickyNote,
+  chat: MessageSquare,
+  whatsapp: MessageSquare,
+  sms: Smartphone,
+  social: MessageSquare,
+  email: MessageSquare,
+}
+
+const TYPE_LABEL: Record<string, string> = {
+  chat: "Czat",
+  whatsapp: "WhatsApp",
+  sms: "SMS",
+  social: "Social",
+  email: "E-mail",
+}
+
+/**
+ * Canned patient replies for the chat emulation, so testing a conversation
+ * doesn't require a second operator/browser. Picked loosely by keyword, with
+ * a generic fallback — this is a demo simulator, not a real patient.
+ */
+const AUTO_REPLY_POOL = [
+  "Dziękuję za informację, będę pamiętać o tym terminie.",
+  "Ok, pasuje mi ten termin.",
+  "Czy mogę prosić o inny termin, ten mi nie pasuje?",
+  "Dobrze, do zobaczenia!",
+  "Rozumiem, dziękuję za kontakt.",
+]
+
+function pickAutoReply(sentText: string): string {
+  const lower = sentText.toLowerCase()
+  if (lower.includes("wizyt") || lower.includes("termin")) {
+    return Math.random() > 0.5 ? "Ok, pasuje mi ten termin." : "Czy mogę prosić o inny termin, ten mi nie pasuje?"
+  }
+  return AUTO_REPLY_POOL[Math.floor(Math.random() * AUTO_REPLY_POOL.length)]
+}
+
+export function ConversationThread({
+  caseIds,
+  primaryCaseId,
+  patientId,
+  authorId,
+  className,
+  emptyLabel = "Brak wiadomości w tej rozmowie.",
+}: {
+  /** All case ids whose messages should appear merged in this thread. */
+  caseIds: string[]
+  /** Which case a new outgoing message gets attached to (defaults to caseIds[0]). */
+  primaryCaseId?: string
+  patientId?: string
+  authorId?: string
+  className?: string
+  emptyLabel?: string
+}) {
+  const { interactions, sendMessage, markRead } = useEntityStore()
+  const [draft, setDraft] = useState("")
+  const [channel, setChannel] = useState<InteractionType>("chat")
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const autoReplyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const targetCaseId = primaryCaseId ?? caseIds[0]
+
+  useEffect(() => {
+    return () => {
+      if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
+    }
+  }, [])
+
+  const messages = useMemo(() => {
+    const caseIdSet = new Set(caseIds)
+    return interactions
+      .filter((i) => i.type !== "call" && caseIdSet.has(i.caseId))
+      .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+  }, [interactions, caseIds])
+
+  useEffect(() => {
+    if (targetCaseId) markRead(targetCaseId)
+  }, [targetCaseId, markRead, messages.length])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end" })
+  }, [messages.length])
+
+  function handleSend() {
+    if (!draft.trim() || !targetCaseId) return
+    const sentText = draft.trim()
+    sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: channel, direction: "outgoing", authorId })
+    setDraft("")
+
+    // Emulate the patient replying so operators can test a full conversation
+    // without a second session.
+    if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
+    autoReplyTimer.current = setTimeout(
+      () => {
+        sendMessage({ caseId: targetCaseId, patientId, text: pickAutoReply(sentText), type: channel, direction: "incoming" })
+      },
+      1200 + Math.random() * 1000,
+    )
+  }
+
+  return (
+    <div className={cn("flex h-full min-h-0 flex-col", className)}>
+      <div className="flex-1 space-y-3 overflow-y-auto px-1 py-2">
+        {messages.length === 0 && <p className="px-2 py-6 text-center text-sm text-muted-foreground">{emptyLabel}</p>}
+        {messages.map((m) => {
+          const Icon = TYPE_ICON[m.type] ?? MessageSquare
+          const incoming = m.direction !== "outgoing"
+          return (
+            <div key={m.id} className={cn("flex items-end gap-2", incoming ? "justify-start" : "justify-end")}>
+              {incoming && (
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <Icon className="h-3 w-3 text-muted-foreground" />
+                </span>
+              )}
+              <div
+                className={cn(
+                  "max-w-[75%] rounded-lg px-3 py-2 text-sm",
+                  incoming ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
+                )}
+              >
+                <p className="whitespace-pre-wrap">{m.text}</p>
+                <p className={cn("mt-1 flex items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
+                  {TYPE_LABEL[m.type] ?? m.type} · {formatDateTime(m.at)}
+                </p>
+              </div>
+              {!incoming && (
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                  <Icon className="h-3 w-3 text-primary" />
+                </span>
+              )}
+            </div>
+          )
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="flex items-end gap-2 border-t border-border pt-3">
+        <Select value={channel} onValueChange={(v) => setChannel(v as InteractionType)}>
+          <SelectTrigger className="h-9 w-[124px] shrink-0 text-xs" aria-label="Kanał wysyłki">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SEND_CHANNELS.map((c) => (
+              <SelectItem key={c.value} value={c.value}>
+                {c.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.nativeEvent.keyCode !== 229) {
+              e.preventDefault()
+              handleSend()
+            }
+          }}
+          placeholder="Napisz wiadomość..."
+          rows={1}
+          className="min-h-9 flex-1 resize-none text-sm"
+        />
+        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={!draft.trim()} aria-label="Wyślij">
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
