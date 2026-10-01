@@ -250,7 +250,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">{t("clinic_optional")}</Label>
-                <Select value={newCaseClinic} onValueChange={setNewCaseClinic}>
+                <Select value={newCaseClinic} onValueChange={(value) => setNewCaseClinic(value ?? "none")}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
