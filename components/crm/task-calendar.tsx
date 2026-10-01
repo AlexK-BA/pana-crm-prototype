@@ -160,13 +160,17 @@ export function TaskCalendar() {
                           className={cn("absolute left-0 top-0 h-full w-1", item.overdue ? "bg-destructive" : tone.bar)}
                           aria-hidden="true"
                         />
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                           <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", PRIORITY_TONE[task.priority])} />
                           <span className="text-[11px] font-medium text-muted-foreground">{time}</span>
                           {item.overdue && (
-                            <span className="ml-auto flex items-center gap-0.5 text-[10px] font-semibold text-destructive">
-                              <AlertTriangle className="h-2.5 w-2.5" />
-                              Przeterminowane
+                            <span
+                              className="ml-auto flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[10px] font-semibold text-destructive"
+                              title="Przeterminowane"
+                            >
+                              <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                              <span className="hidden sm:inline">Przeterminowane</span>
+                              <span className="sm:hidden">Opóźnione</span>
                             </span>
                           )}
                         </div>
