@@ -22,6 +22,7 @@ import { useEntityStore } from "@/lib/crm/entity-store"
 import { getCase, getPatient, getIdentity, getTasksForCase, getCommentsForCase, getAuditForCase } from "@/lib/crm/entity-data"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
 import { getOperator, PRIORITY_TEXT_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
+import { getNextTaskForCase } from "@/lib/crm/entity-queue"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { ConversationThread } from "@/components/crm/conversation-thread"
@@ -87,10 +88,11 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const [activeTab, setActiveTab] = useState("timeline")
   const [matchResult, setMatchResult] = useState<"matched" | "none" | null>(null)
 
-  const openTasks = caseTasks.filter((t) => t.status !== "completed" && t.status !== "cancelled")
+  const openTasks = caseTasks.filter((t) => !["completed", "cancelled", "failed"].includes(t.status))
+  const nextTask = getNextTaskForCase(caseTasks, caseId)
 
   const handleCall = () => {
-    startOutgoingCall({ caseId, taskId: openTasks[0]?.id })
+    startOutgoingCall({ caseId, taskId: nextTask?.id })
   }
 
   const handleMatchPatient = () => {
@@ -157,7 +159,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             />
             <AppointmentSlotPicker
               caseId={caseId}
-              taskId={openTasks[0]?.id}
+              taskId={nextTask?.id}
               patientId={patient?.id ?? engagementCase.patientId}
               clinicId={engagementCase.clinicId}
               procedureId={engagementCase.serviceInterest}
@@ -237,11 +239,13 @@ function DrawerBody({ caseId }: { caseId: string }) {
             {caseTasks.map((task) => {
               const done = task.status === "completed" || task.status === "cancelled"
               const owner = getOperator(task.ownerId)
+              const requiresCall = !done && task.requiresCall === true
               return (
                 <div key={task.id} className="rounded-md border border-border px-3 py-2.5">
                   <div className="flex items-start gap-2.5">
                     <Checkbox
                       checked={done}
+                      disabled={requiresCall}
                       onCheckedChange={(checked) => {
                         if (checked) completeTask(task.id, "done")
                         else reopenTask(task.id)
@@ -260,8 +264,20 @@ function DrawerBody({ caseId }: { caseId: string }) {
                       {task.skipReason && (
                         <p className="mt-1 text-xs text-amber-600">{t("skipped_prefix")}: {task.skipReason}</p>
                       )}
+                      {requiresCall && (
+                        <p className="mt-1 text-xs font-medium text-sky-700">To zadanie wymaga próby połączenia i wyboru wyniku rozmowy.</p>
+                      )}
                     </div>
-                    {!done && (
+                    {requiresCall ? (
+                      <Button
+                        size="sm"
+                        className="h-7 shrink-0 gap-1 px-2 text-xs"
+                        onClick={() => startOutgoingCall({ caseId, taskId: task.id })}
+                      >
+                        <Phone className="h-3 w-3" />
+                        {t("call")}
+                      </Button>
+                    ) : !done ? (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -270,7 +286,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
                       >
                         {t("skip")}
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                   {skipTaskId === task.id && (
                     <div className="mt-2 flex items-center gap-2 pl-7">
