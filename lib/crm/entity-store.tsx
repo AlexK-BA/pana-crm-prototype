@@ -56,7 +56,7 @@ interface EntityStoreValue {
     direction: "incoming" | "outgoing"
     actorId: string
     extension: string
-    clinicId: EngagementCase["clinicId"]
+    clinicId: ClinicId
     startAt: string
     answered: boolean
     disposition?: CallDisposition
@@ -113,6 +113,8 @@ interface EntityStoreValue {
   matchCaseToPatient: (caseId: string, actorId: string) => { matched: boolean; patientId?: string }
   /** Creates a task to send the patient's current treatment plan (pulled from Medical CRM). */
   sendTreatmentPlanTask: (patientId: string, caseId: string, actorId: string) => Task
+  /** Links two engagement cases as duplicates and records both audit entries. */
+  linkDuplicateCase: (caseId: string, duplicateOfCaseId: string, actorId: string) => void
   /** Sends an SMS notification campaign to a filtered audience. */
   sendBroadcast: (input: {
     name: string
@@ -290,7 +292,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       direction: "incoming" | "outgoing"
       actorId: string
       extension: string
-      clinicId: EngagementCase["clinicId"]
+      clinicId: ClinicId
       startAt: string
       answered: boolean
       disposition?: CallDisposition
