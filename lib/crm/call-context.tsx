@@ -28,6 +28,9 @@ export interface ActiveCall {
   callerNumber: string
   clinicName: string
   startAt: string
+  offeredTo: string[]
+  dismissedBy: string[]
+  claimedBy?: string
 }
 
 interface CallContextValue {
@@ -53,7 +56,7 @@ const EXTENSION_BY_ACTOR: Record<string, string> = {
 
 export function CallProvider({ children }: { children: ReactNode }) {
   const { role } = useRole()
-  const { tasks, logCall, completeTask, rescheduleTask, linkDuplicateCase } = useEntityStore()
+  const { tasks, logCall, completeTask, rescheduleTask, ensureMissedCallTask, linkDuplicateCase } = useEntityStore()
   const [phase, setPhase] = useState<CallPhase>("idle")
   const [call, setCall] = useState<ActiveCall | null>(null)
   const [elapsedSec, setElapsedSec] = useState(0)
@@ -89,9 +92,14 @@ export function CallProvider({ children }: { children: ReactNode }) {
         callerNumber: "+48 592 817 364",
         clinicName,
         startAt: new Date().toISOString(),
+        offeredTo: input.direction === "incoming"
+          ? [ROLE_PROFILES.operator.user.name, ROLE_PROFILES.patient_care.user.name, ROLE_PROFILES.clinic_manager.user.name]
+          : [actorId],
+        dismissedBy: [],
+        claimedBy: input.direction === "outgoing" ? actorId : undefined,
       }
     },
-    [],
+    [actorId],
   )
 
   const simulateIncomingCall = useCallback(
@@ -116,12 +124,20 @@ export function CallProvider({ children }: { children: ReactNode }) {
   )
 
   const answer = useCallback(() => {
+    if (!call || call.claimedBy) return
+    setCall((current) => (current ? { ...current, claimedBy: actorId } : current))
     setPhase("active")
     startTimer()
-  }, [startTimer])
+  }, [actorId, call, startTimer])
 
   const decline = useCallback(() => {
-    if (call) {
+    if (call?.direction === "incoming") {
+      const dismissedBy = [...new Set([...call.dismissedBy, actorId])]
+      const remaining = call.offeredTo.filter((operator) => !dismissedBy.includes(operator))
+      if (remaining.length > 0) {
+        setCall({ ...call, dismissedBy })
+        return
+      }
       logCall({
         caseId: call.caseId,
         taskId: call.taskId,
@@ -133,11 +149,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
         startAt: call.startAt,
         answered: false,
       })
+      ensureMissedCallTask(call.caseId, call.patientId)
     }
     stopTimer()
     setPhase("idle")
     setCall(null)
-  }, [actorId, call, logCall, stopTimer])
+  }, [actorId, call, ensureMissedCallTask, logCall, stopTimer])
 
   const hangUp = useCallback(() => {
     stopTimer()
