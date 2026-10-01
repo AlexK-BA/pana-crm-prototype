@@ -39,6 +39,8 @@ const INCOMING_DISPOSITIONS: { value: CallDisposition; label: string }[] = [
   { value: "resignation", label: "Rezygnacja pacjenta" },
 ]
 
+const RETRY_DISPOSITIONS: CallDisposition[] = ["call_later", "no_answer", "not_reached", "contact_failed"]
+
 function formatElapsed(sec: number) {
   const m = Math.floor(sec / 60)
   const s = sec % 60
@@ -144,15 +146,23 @@ export function CallOverlay() {
     )
   }
 
-  const canSubmit = disposition && (disposition !== "duplicate" || Boolean(duplicateOfCaseId))
+  const retryRequired = Boolean(disposition && RETRY_DISPOSITIONS.includes(disposition))
+  const rescheduleTime = rescheduleAt ? new Date(rescheduleAt).getTime() : Number.NaN
+  const validRetryDate = !retryRequired || (Number.isFinite(rescheduleTime) && rescheduleTime > Date.now())
+  const canSubmit = Boolean(disposition) && validRetryDate && (disposition !== "duplicate" || Boolean(duplicateOfCaseId))
 
   const handleSubmit = () => {
     if (!disposition) return
     submitWrapUp(disposition, {
       note: note.trim() || undefined,
-      rescheduleAt: disposition === "call_later" ? new Date(rescheduleAt).toISOString() : undefined,
+      rescheduleAt: retryRequired ? new Date(rescheduleAt).toISOString() : undefined,
       duplicateOfCaseId: disposition === "duplicate" ? duplicateOfCaseId ?? undefined : undefined,
     })
+    setDisposition(null)
+    setNote("")
+    setRescheduleAt(defaultLocalDateTime(24))
+    setDuplicateQuery("")
+    setDuplicateOfCaseId(null)
   }
 
   // Mandatory wrap-up: no escape/backdrop dismissal until a disposition is submitted.
@@ -202,7 +212,7 @@ export function CallOverlay() {
             </div>
           </div>
 
-          {disposition === "call_later" && (
+          {retryRequired && (
             <div className="rounded-md border border-input bg-secondary/40 p-3">
               <Label htmlFor="call-reschedule" className="mb-2 block text-xs text-muted-foreground">
                 Kiedy zadzwonić ponownie
@@ -215,8 +225,11 @@ export function CallOverlay() {
                 className="text-sm"
               />
               <p className="mt-1.5 text-[11px] text-muted-foreground">
-                Zadanie zostanie przełożone na wybrany termin i wróci do kolejki.
+                Zadanie pozostanie aktywne, zostanie przełożone na wybrany termin i wróci do kolejki.
               </p>
+              {!validRetryDate && (
+                <p className="mt-1 text-[11px] font-medium text-red-600">Wybierz termin w przyszłości.</p>
+              )}
             </div>
           )}
 
