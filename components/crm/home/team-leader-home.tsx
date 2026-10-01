@@ -127,7 +127,7 @@ export function TeamLeaderHome() {
                           key={op.id}
                           onClick={() => {
                             setReassigned((r) => ({ ...r, [item.task.id]: op.name }))
-                            assignTask(item.task.id, op.id)
+                            assignTask(item.task.id, op.id, "op-dl")
                           }}
                         >
                           {op.name}

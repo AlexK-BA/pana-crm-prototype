@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Pencil, Trash2, Plus, Bot } from "lucide-react"
+import { Pencil, Trash2, Plus, Bot, Database, FileText, Globe2, Play, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES, ROLE_ORDER } from "@/lib/crm/roles"
@@ -50,6 +50,12 @@ const INITIAL_KB: KbArticle[] = [
 
 let kbSeq = INITIAL_KB.length
 
+const INITIAL_SOURCES = [
+  { id: "src-web", name: "pa-na.pl", type: "WWW", scope: "Wszystkie kliniki", items: 84, status: "Gotowe" },
+  { id: "src-prices", name: "Cenniki i procedury", type: "Dokumenty", scope: "Według kliniki", items: 12, status: "Gotowe" },
+  { id: "src-doctors", name: "Lekarze i specjalizacje", type: "Medical CRM", scope: "Według kliniki", items: 26, status: "Synchronizacja" },
+]
+
 export function SettingsView() {
   const { role, setRole } = useRole()
   const { t } = useLanguage()
@@ -65,6 +71,9 @@ export function SettingsView() {
   const [editing, setEditing] = useState<KbArticle | null>(null)
   const [draft, setDraft] = useState({ question: "", answer: "", category: "" })
   const [showForm, setShowForm] = useState(false)
+  const [sources, setSources] = useState(INITIAL_SOURCES)
+  const [testQuery, setTestQuery] = useState("")
+  const [testAnswer, setTestAnswer] = useState("")
 
   function startAdd() {
     setEditing(null)
@@ -304,6 +313,46 @@ export function SettingsView() {
           </Button>
         </div>
         <p className="mb-4 text-xs text-muted-foreground">{t("settings_kb_desc")}</p>
+
+        <div className="mb-5 rounded-lg border border-border bg-muted/20 p-3">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold">Źródła wiedzy bota</h3>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">Źródła używane do odpowiedzi. W prototypie synchronizacja i indeksowanie są emulowane.</p>
+            </div>
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setSources((prev) => [...prev, { id: `src-${prev.length + 1}`, name: "Nowe źródło", type: "Dokument", scope: "Do konfiguracji", items: 0, status: "Szkic" }])}>
+              <Plus className="h-3.5 w-3.5" />Dodaj źródło
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {sources.map((source) => (
+              <div key={source.id} className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2.5">
+                {source.type === "WWW" ? <Globe2 className="h-4 w-4 text-sky-600" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{source.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{source.type} · {source.scope} · {source.items} elementów</p>
+                </div>
+                <Badge variant={source.status === "Gotowe" ? "secondary" : "outline"}>{source.status}</Badge>
+                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Ponownie indeksuj" onClick={() => setSources((prev) => prev.map((item) => item.id === source.id ? { ...item, status: "Gotowe" } : item))}>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-5 rounded-lg border border-border p-3">
+          <div className="mb-2 flex items-center gap-2"><Play className="h-4 w-4 text-muted-foreground" /><h3 className="text-sm font-semibold">Test odpowiedzi</h3></div>
+          <p className="mb-3 text-xs text-muted-foreground">Sprawdź, czy bot znajduje odpowiedź w aktywnej bazie przed publikacją zmian.</p>
+          <div className="flex gap-2">
+            <Input value={testQuery} onChange={(event) => setTestQuery(event.target.value)} placeholder="Np. jakie są godziny otwarcia?" />
+            <Button variant="secondary" disabled={!testQuery.trim()} onClick={() => setTestAnswer(INITIAL_KB.find((item) => item.question.toLowerCase().includes("godziny"))?.answer ?? "Nie znaleziono pewnej odpowiedzi — przekaż rozmowę operatorowi.")}>Testuj</Button>
+          </div>
+          {testAnswer && <div className="mt-3 rounded-md bg-muted px-3 py-2 text-xs leading-relaxed"><span className="font-medium">Odpowiedź bota:</span> {testAnswer}</div>}
+        </div>
 
         {showForm && (
           <div className="mb-4 space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">

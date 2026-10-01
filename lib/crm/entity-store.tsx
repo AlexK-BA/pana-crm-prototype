@@ -44,6 +44,8 @@ interface EntityStoreValue {
   reopenTask: (taskId: string) => void
   skipTask: (taskId: string, reason: string) => void
   rescheduleTask: (taskId: string, dueAtIso: string, reason?: string) => void
+  /** Creates or reactivates the shared P1 callback after a fully missed incoming call. */
+  ensureMissedCallTask: (caseId: string, patientId?: string) => Task
   assignTask: (taskId: string, ownerId: string, actorId: string) => void
   setPriority: (taskId: string, priority: TaskPriority, actorId: string) => void
   moveCase: (caseId: string, newStatus: string, actorId: string) => void
@@ -54,7 +56,7 @@ interface EntityStoreValue {
     direction: "incoming" | "outgoing"
     actorId: string
     extension: string
-    clinicId: EngagementCase["clinicId"]
+    clinicId: ClinicId
     startAt: string
     answered: boolean
     disposition?: CallDisposition
@@ -67,6 +69,7 @@ interface EntityStoreValue {
     patientId?: string
     text: string
     type: InteractionType
+    channel?: ContactChannel
     direction: InteractionDirection
     authorId?: string
   }) => Interaction
@@ -109,8 +112,20 @@ interface EntityStoreValue {
    * through a deal. If nothing matches, the case stays an unlinked lead/deal.
    */
   matchCaseToPatient: (caseId: string, actorId: string) => { matched: boolean; patientId?: string }
+  /** Creates or updates the contact profile directly from a case/chat workspace. */
+  saveCaseContactProfile: (input: {
+    caseId: string
+    firstName: string
+    lastName: string
+    pesel?: string
+    phone?: string
+    email?: string
+    actorId: string
+  }) => { patientId: string }
   /** Creates a task to send the patient's current treatment plan (pulled from Medical CRM). */
   sendTreatmentPlanTask: (patientId: string, caseId: string, actorId: string) => Task
+  /** Links two engagement cases as duplicates and records both audit entries. */
+  linkDuplicateCase: (caseId: string, duplicateOfCaseId: string, actorId: string) => void
   /** Sends an SMS notification campaign to a filtered audience. */
   sendBroadcast: (input: {
     name: string
@@ -158,6 +173,12 @@ let broadcastSeq = 0
 function nextBroadcastId() {
   broadcastSeq += 1
   return `bc-live-${broadcastSeq}`
+}
+
+let patientSeq = 0
+function nextPatientId() {
+  patientSeq += 1
+  return `pat-live-${patientSeq}`
 }
 
 export function EntityStoreProvider({ children }: { children: ReactNode }) {
@@ -216,6 +237,38 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     [addAudit, patchTask, tasks],
   )
 
+  const ensureMissedCallTask = useCallback(
+    (caseId: string, patientId?: string) => {
+      const existing = tasks.find(
+        (task) => task.caseId === caseId && task.requiresCall && !["completed", "cancelled", "failed"].includes(task.status),
+      )
+      if (existing) {
+        const next = { ...existing, status: "ready" as const, priority: "P1" as const, dueAt: iso(0) }
+        setTasks((prev) => prev.map((task) => (task.id === existing.id ? next : task)))
+        addAudit({ caseId, patientId, type: "task_change", actorId: "system", summary: "Nieodebrane połączenie · zadanie oddzwonienia ustawione jako P1" })
+        return next
+      }
+
+      const task: Task = {
+        id: nextTaskId(),
+        caseId,
+        patientId,
+        title: "Oddzwoń po nieodebranym połączeniu",
+        status: "ready",
+        priority: "P1",
+        dueAt: iso(0),
+        slaAt: iso(0.1),
+        createdAt: iso(0),
+        attempts: 0,
+        requiresCall: true,
+      }
+      setTasks((prev) => [...prev, task])
+      addAudit({ caseId, patientId, type: "task_change", actorId: "system", summary: "Nieodebrane połączenie · utworzono zadanie oddzwonienia P1" })
+      return task
+    },
+    [addAudit, tasks],
+  )
+
   const assignTask = useCallback(
     (taskId: string, ownerId: string, actorId: string) => {
       const before = tasks.find((t) => t.id === taskId)?.ownerId ?? "Nie przypisano"
@@ -256,7 +309,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       direction: "incoming" | "outgoing"
       actorId: string
       extension: string
-      clinicId: EngagementCase["clinicId"]
+      clinicId: ClinicId
       startAt: string
       answered: boolean
       disposition?: CallDisposition
@@ -322,12 +375,13 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const sendMessage = useCallback(
-    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; direction: InteractionDirection; authorId?: string }) => {
+    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string }) => {
       const interaction: Interaction = {
         id: nextInteractionId(),
         caseId: input.caseId,
         patientId: input.patientId,
         type: input.type,
+        channel: input.channel,
         direction: input.direction,
         at: iso(0),
         authorId: input.authorId,
@@ -474,6 +528,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
               dueAt: iso(0.2),
               createdAt: iso(0),
               attempts: 0,
+              requiresCall: input.channel === "phone",
             }
           : {
               id: nextTaskId(),
@@ -484,6 +539,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
               dueAt: iso(0.2),
               createdAt: iso(0),
               attempts: 0,
+              requiresCall: false,
             },
       ])
 
@@ -546,6 +602,62 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       return { matched: false }
     },
     [addAudit, cases, identities],
+  )
+
+  const saveCaseContactProfile = useCallback(
+    (input: { caseId: string; firstName: string; lastName: string; pesel?: string; phone?: string; email?: string; actorId: string }) => {
+      const targetCase = cases.find((item) => item.id === input.caseId)
+      if (!targetCase) throw new Error(`Unknown case ${input.caseId}`)
+
+      const existing = targetCase.patientId ? patients.find((item) => item.id === targetCase.patientId) : undefined
+      const patientId = existing?.id ?? nextPatientId()
+      const clean = {
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+        pesel: input.pesel?.trim() || undefined,
+        phone: input.phone?.trim() || undefined,
+        email: input.email?.trim() || undefined,
+      }
+      const now = iso(0)
+      const provenance = [
+        { field: "firstName", source: "User-entered" as const, value: clean.firstName, updatedAt: now },
+        { field: "lastName", source: "User-entered" as const, value: clean.lastName, updatedAt: now },
+        ...(clean.pesel ? [{ field: "pesel", source: "User-entered" as const, value: clean.pesel, updatedAt: now }] : []),
+      ]
+
+      if (existing) {
+        setPatients((prev) => prev.map((item) => item.id === patientId ? { ...item, firstName: clean.firstName, lastName: clean.lastName, pesel: clean.pesel, provenance: [...item.provenance.filter((field) => !["firstName", "lastName", "pesel"].includes(field.field)), ...provenance] } : item))
+      } else {
+        const patient: Patient = {
+          id: patientId,
+          firstName: clean.firstName,
+          lastName: clean.lastName,
+          pesel: clean.pesel,
+          preferredLanguage: targetCase.attribution.caseCreationTouch.language,
+          primaryClinicId: targetCase.clinicId ?? targetCase.attribution.caseCreationTouch.clinicIntentId,
+          integrationState: "unlinked",
+          contactable: true,
+          provenance,
+        }
+        setPatients((prev) => [...prev, patient])
+        setCases((prev) => prev.map((item) => item.id === input.caseId ? { ...item, patientId } : item))
+      }
+
+      const upsertIdentity = (channel: "phone" | "email", value?: string) => {
+        if (!value) return
+        setIdentities((prev) => {
+          const found = prev.find((item) => item.patientId === patientId && item.channel === channel)
+          if (found) return prev.map((item) => item.id === found.id ? { ...item, value, displayName: `${clean.firstName} ${clean.lastName}` } : item)
+          return [...prev, { id: `ci-${patientId}-${channel}`, patientId, channel, value, isPrimary: channel === "phone", verified: false, displayName: `${clean.firstName} ${clean.lastName}` }]
+        })
+      }
+      upsertIdentity("phone", clean.phone)
+      upsertIdentity("email", clean.email)
+      setIdentities((prev) => prev.map((item) => item.id === targetCase.contactIdentityId ? { ...item, patientId, displayName: `${clean.firstName} ${clean.lastName}` } : item))
+      addAudit({ caseId: input.caseId, patientId, type: "link", actorId: input.actorId, summary: existing ? "Zaktualizowano dane profilu kontaktu" : "Utworzono lokalny profil pacjenta i powiązano go ze sprawą" })
+      return { patientId }
+    },
+    [addAudit, cases, patients],
   )
 
   const sendTreatmentPlanTask = useCallback(
@@ -627,6 +739,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       reopenTask,
       skipTask,
       rescheduleTask,
+      ensureMissedCallTask,
       assignTask,
       setPriority,
       moveCase,
@@ -638,6 +751,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       assignClinicToCase,
       syncPatientWithMedicalCrm,
       matchCaseToPatient,
+      saveCaseContactProfile,
       sendTreatmentPlanTask,
       sendBroadcast,
       linkDuplicateCase,
@@ -655,6 +769,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       reopenTask,
       skipTask,
       rescheduleTask,
+      ensureMissedCallTask,
       assignTask,
       setPriority,
       moveCase,
@@ -665,6 +780,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       assignClinicToCase,
       syncPatientWithMedicalCrm,
       matchCaseToPatient,
+      saveCaseContactProfile,
       sendTreatmentPlanTask,
       sendBroadcast,
       linkDuplicateCase,

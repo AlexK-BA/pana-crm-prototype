@@ -13,8 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Phone, MessageSquare, Calendar, History, CheckCircle2, XCircle, Clock, Link2, Search, XIcon } from "lucide-react"
+import { Phone, MessageSquare, Calendar, History, CheckCircle2, Link2, Search, XIcon, UserRound, BriefcaseBusiness, Save } from "lucide-react"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useCall } from "@/lib/crm/call-context"
@@ -22,6 +24,7 @@ import { useEntityStore } from "@/lib/crm/entity-store"
 import { getCase, getPatient, getIdentity, getTasksForCase, getCommentsForCase, getAuditForCase } from "@/lib/crm/entity-data"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
 import { getOperator, PRIORITY_TEXT_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
+import { getNextTaskForCase } from "@/lib/crm/entity-queue"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { ConversationThread } from "@/components/crm/conversation-thread"
@@ -39,19 +42,19 @@ export function EngagementCaseDrawer() {
         showCloseButton={false}
         className="flex h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-6xl"
       >
-        {engagementCase && <DrawerBody caseId={engagementCase.id} />}
+        {engagementCase && <DrawerBody key={engagementCase.id} caseId={engagementCase.id} />}
       </DialogContent>
     </Dialog>
   )
 }
 
 function DrawerBody({ caseId }: { caseId: string }) {
-  const { tasks, cases, completeTask, reopenTask, skipTask, matchCaseToPatient } = useEntityStore()
+  const { tasks, cases, patients, identities, completeTask, reopenTask, skipTask, matchCaseToPatient, saveCaseContactProfile } = useEntityStore()
   const { startOutgoingCall } = useCall()
   const { t } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId) ?? getCase(caseId)!
-  const patient = getPatient(engagementCase.patientId)
-  const identity = getIdentity(engagementCase.contactIdentityId)
+  const patient = patients.find((item) => item.id === engagementCase.patientId) ?? getPatient(engagementCase.patientId)
+  const identity = identities.find((item) => item.id === engagementCase.contactIdentityId) ?? getIdentity(engagementCase.contactIdentityId)
   const clinic = getClinic(engagementCase.clinicId)
   const procedure = getProcedure(engagementCase.serviceInterest)
   const doctor = getDoctor(engagementCase.doctorId)
@@ -84,18 +87,36 @@ function DrawerBody({ caseId }: { caseId: string }) {
   }, [caseTasks, comments, audit, t])
   const [skipReason, setSkipReason] = useState("")
   const [skipTaskId, setSkipTaskId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("timeline")
+  const [activeTab, setActiveTab] = useState(patient ? "timeline" : "profile")
   const [matchResult, setMatchResult] = useState<"matched" | "none" | null>(null)
+  const patientIdentities = identities.filter((item) => item.patientId === patient?.id)
+  const [profileDraft, setProfileDraft] = useState({
+    firstName: patient?.firstName ?? "",
+    lastName: patient?.lastName ?? "",
+    pesel: patient?.pesel ?? "",
+    phone: patientIdentities.find((item) => item.channel === "phone")?.value ?? (identity?.channel === "phone" ? identity.value : ""),
+    email: patientIdentities.find((item) => item.channel === "email")?.value ?? (identity?.channel === "email" ? identity.value : ""),
+  })
+  const [profileSaved, setProfileSaved] = useState(false)
 
-  const openTasks = caseTasks.filter((t) => t.status !== "completed" && t.status !== "cancelled")
+  const openTasks = caseTasks.filter((t) => !["completed", "cancelled", "failed"].includes(t.status))
+  const nextTask = getNextTaskForCase(caseTasks, caseId)
+  const relatedCases = patient ? cases.filter((item) => item.patientId === patient.id) : [engagementCase]
 
   const handleCall = () => {
-    startOutgoingCall({ caseId, taskId: openTasks[0]?.id })
+    startOutgoingCall({ caseId, taskId: nextTask?.id })
   }
 
   const handleMatchPatient = () => {
     const result = matchCaseToPatient(caseId, "current-user")
     setMatchResult(result.matched ? "matched" : "none")
+  }
+
+  const handleSaveProfile = () => {
+    if (!profileDraft.firstName.trim() || !profileDraft.lastName.trim()) return
+    saveCaseContactProfile({ caseId, ...profileDraft, actorId: "current-user" })
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 1800)
   }
 
   return (
@@ -157,7 +178,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             />
             <AppointmentSlotPicker
               caseId={caseId}
-              taskId={openTasks[0]?.id}
+              taskId={nextTask?.id}
               patientId={patient?.id ?? engagementCase.patientId}
               clinicId={engagementCase.clinicId}
               procedureId={engagementCase.serviceInterest}
@@ -188,6 +209,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
         <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent px-3 py-0">
+          <TabsTrigger value="profile" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+            <UserRound className="mr-1.5 h-3.5 w-3.5" />Profil
+          </TabsTrigger>
           <TabsTrigger value="timeline" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_timeline")}
           </TabsTrigger>
@@ -208,9 +232,49 @@ function DrawerBody({ caseId }: { caseId: string }) {
           <TabsTrigger value="audit" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_audit")}
           </TabsTrigger>
+          <TabsTrigger value="cases" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+            <BriefcaseBusiness className="mr-1.5 h-3.5 w-3.5" />Sprawy ({relatedCases.length})
+          </TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          <TabsContent value="profile" className="mt-0 space-y-4">
+            <div className="rounded-lg border border-border bg-muted/20 p-4">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Dane kontaktu i pacjenta</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Dane można uzupełnić ręcznie podczas rozmowy. Medical CRM pozostaje źródłem głównym po synchronizacji.</p>
+                </div>
+                <Badge variant="outline">{patient ? "Profil istnieje" : "Nowy profil lokalny"}</Badge>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([
+                  ["firstName", "Imię"], ["lastName", "Nazwisko"], ["pesel", "PESEL"], ["phone", "Telefon"], ["email", "E-mail"],
+                ] as const).map(([field, label]) => (
+                  <div key={field} className="space-y-1.5">
+                    <Label htmlFor={`profile-${field}`} className="text-xs text-muted-foreground">{label}</Label>
+                    <Input id={`profile-${field}`} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={`Uzupełnij: ${label.toLowerCase()}`} />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">Pola zapisane ręcznie otrzymują źródło „User-entered” i są widoczne w historii zmian.</p>
+                <Button size="sm" className="gap-1.5" disabled={!profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
+                  <Save className="h-3.5 w-3.5" />{profileSaved ? "Zapisano" : patient ? "Zapisz zmiany" : "Utwórz profil"}
+                </Button>
+              </div>
+            </div>
+            {patient && (
+              <div className="rounded-lg border border-border p-4">
+                <h3 className="mb-2 text-sm font-semibold">Źródło i synchronizacja</h3>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Badge variant="outline">{patient.integrationState}</Badge>
+                  {patient.externalPatientId && <Badge variant="secondary">Medical CRM ID: {patient.externalPatientId}</Badge>}
+                  {patient.lastSyncAt && <span className="text-muted-foreground">Ostatnia synchronizacja: {formatDateTime(patient.lastSyncAt)}</span>}
+                </div>
+              </div>
+            )}
+          </TabsContent>
           <TabsContent value="timeline" className="mt-0">
             <ol className="space-y-3">
               {timeline.map((entry) => (
@@ -237,11 +301,13 @@ function DrawerBody({ caseId }: { caseId: string }) {
             {caseTasks.map((task) => {
               const done = task.status === "completed" || task.status === "cancelled"
               const owner = getOperator(task.ownerId)
+              const requiresCall = !done && task.requiresCall === true
               return (
                 <div key={task.id} className="rounded-md border border-border px-3 py-2.5">
                   <div className="flex items-start gap-2.5">
                     <Checkbox
                       checked={done}
+                      disabled={requiresCall}
                       onCheckedChange={(checked) => {
                         if (checked) completeTask(task.id, "done")
                         else reopenTask(task.id)
@@ -260,8 +326,20 @@ function DrawerBody({ caseId }: { caseId: string }) {
                       {task.skipReason && (
                         <p className="mt-1 text-xs text-amber-600">{t("skipped_prefix")}: {task.skipReason}</p>
                       )}
+                      {requiresCall && (
+                        <p className="mt-1 text-xs font-medium text-sky-700">To zadanie wymaga próby połączenia i wyboru wyniku rozmowy.</p>
+                      )}
                     </div>
-                    {!done && (
+                    {requiresCall ? (
+                      <Button
+                        size="sm"
+                        className="h-7 shrink-0 gap-1 px-2 text-xs"
+                        onClick={() => startOutgoingCall({ caseId, taskId: task.id })}
+                      >
+                        <Phone className="h-3 w-3" />
+                        {t("call")}
+                      </Button>
+                    ) : !done ? (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -270,7 +348,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
                       >
                         {t("skip")}
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                   {skipTaskId === task.id && (
                     <div className="mt-2 flex items-center gap-2 pl-7">
@@ -343,6 +421,24 @@ function DrawerBody({ caseId }: { caseId: string }) {
               })}
               {audit.length === 0 && <p className="text-sm text-muted-foreground">{t("no_audit")}</p>}
             </ol>
+          </TabsContent>
+
+          <TabsContent value="cases" className="mt-0 space-y-2">
+            {relatedCases.map((item) => {
+              const itemClinic = getClinic(item.clinicId)
+              const itemTasks = tasks.filter((task) => task.caseId === item.id && !["completed", "cancelled", "failed"].includes(task.status))
+              return (
+                <div key={item.id} className={cn("rounded-lg border p-3", item.id === caseId && "border-primary bg-primary/5")}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">{item.id} · {itemClinic?.name ?? "Bez kliniki"}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{item.board} / {item.status} · otwarte zadania: {itemTasks.length}</p>
+                    </div>
+                    {item.id === caseId && <Badge>Bieżąca sprawa</Badge>}
+                  </div>
+                </div>
+              )
+            })}
           </TabsContent>
         </div>
       </Tabs>

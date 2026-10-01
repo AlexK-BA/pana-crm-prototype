@@ -1,7 +1,7 @@
 /**
  * §6 Priorities P0–P4 and queue rules, computed from Task (never from Case tags).
  */
-import type { Task, TaskPriority } from "./entities"
+import type { EngagementCase, Task, TaskPriority } from "./entities"
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = { P0: 0, P1: 1, P2: 2, P3: 3, P4: 4 }
 
@@ -62,6 +62,32 @@ export function getQueue(allTasks: Task[], options: QueueOptions = {}, nowMs = D
   if (options.ownerId) tasks = tasks.filter((t) => t.ownerId === options.ownerId)
   if (options.unassignedOnly) tasks = tasks.filter((t) => !t.ownerId)
   return [...tasks].sort((a, b) => compareQueueOrder(a, b, nowMs))
+}
+
+/** The single task that currently determines what should happen next in a case. */
+export function getNextTaskForCase(allTasks: Task[], caseId: string, nowMs = Date.now()) {
+  return allTasks
+    .filter((task) => task.caseId === caseId && isActive(task))
+    .sort((a, b) => compareQueueOrder(a, b, nowMs))[0]
+}
+
+/**
+ * Keeps the kanban a board of cases, while allowing their active tasks to
+ * determine the order inside a stage. Cases without actionable work stay at
+ * the bottom instead of hiding overdue work among recently modified records.
+ */
+export function compareCaseWorkOrder(
+  a: EngagementCase,
+  b: EngagementCase,
+  allTasks: Task[],
+  nowMs = Date.now(),
+) {
+  const taskA = getNextTaskForCase(allTasks, a.id, nowMs)
+  const taskB = getNextTaskForCase(allTasks, b.id, nowMs)
+  if (taskA && taskB) return compareQueueOrder(taskA, taskB, nowMs)
+  if (taskA) return -1
+  if (taskB) return 1
+  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
 }
 
 export function getQueueCounters(allTasks: Task[], nowMs = Date.now()) {

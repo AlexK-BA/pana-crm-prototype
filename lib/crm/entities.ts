@@ -71,6 +71,8 @@ export interface Patient {
   externalPatientId?: string
   firstName: string
   lastName: string
+  /** Optional national identifier entered locally or synchronized from Medical CRM. */
+  pesel?: string
   preferredLanguage: PreferredLanguage
   primaryClinicId: ClinicId
   integrationState: IntegrationState
@@ -91,6 +93,7 @@ export type ContactChannel =
   | "facebook"
   | "whatsapp"
   | "telegram"
+  | "tiktok"
   | "viber"
   | "website"
   | "personal_account"
@@ -192,6 +195,8 @@ export interface Task {
   ownerId?: string
   currentWorkerId?: string
   attempts: number
+  /** Workflow rule: this task cannot be skipped or completed without a logged call disposition. */
+  requiresCall?: boolean
   outcome?: TaskOutcome
   skipReason?: string
   callId?: string
@@ -207,6 +212,8 @@ export interface Interaction {
   patientId?: string
   taskId?: string
   type: InteractionType
+  /** Concrete delivery channel for generic chat/social interactions. */
+  channel?: ContactChannel
   direction?: InteractionDirection
   at: string
   authorId?: string

@@ -39,6 +39,8 @@ const INCOMING_DISPOSITIONS: { value: CallDisposition; label: string }[] = [
   { value: "resignation", label: "Rezygnacja pacjenta" },
 ]
 
+const RETRY_DISPOSITIONS: CallDisposition[] = ["call_later", "no_answer", "not_reached", "contact_failed"]
+
 function formatElapsed(sec: number) {
   const m = Math.floor(sec / 60)
   const s = sec % 60
@@ -85,6 +87,17 @@ export function CallOverlay() {
 
   if (phase === "idle" || !call) return null
 
+  if (call.direction === "incoming" && call.dismissedBy.includes(actorId)) return null
+
+  if (phase === "active" && call.claimedBy && call.claimedBy !== actorId) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 w-80 rounded-xl border border-border bg-card p-4 shadow-2xl">
+        <p className="text-sm font-semibold text-foreground">Połączenie zostało odebrane</p>
+        <p className="mt-1 text-xs text-muted-foreground">Obsługuje: {call.claimedBy}</p>
+      </div>
+    )
+  }
+
   if (phase === "incoming" || phase === "active") {
     return (
       <div className="fixed bottom-4 right-4 z-50 w-80 overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
@@ -119,6 +132,11 @@ export function CallOverlay() {
               <Building2 className="h-3 w-3" />
               {call.clinicName}
             </p>
+            {call.direction === "incoming" && phase === "incoming" && (
+              <p className="mt-1 text-[11px] text-emerald-700">
+                Wspólna kolejka · dostępne dla {call.offeredTo.length - call.dismissedBy.length} konsultantów
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-2 border-t border-border px-4 py-3">
@@ -144,15 +162,23 @@ export function CallOverlay() {
     )
   }
 
-  const canSubmit = disposition && (disposition !== "duplicate" || Boolean(duplicateOfCaseId))
+  const retryRequired = Boolean(disposition && RETRY_DISPOSITIONS.includes(disposition))
+  const rescheduleTime = rescheduleAt ? new Date(rescheduleAt).getTime() : Number.NaN
+  const validRetryDate = !retryRequired || (Number.isFinite(rescheduleTime) && rescheduleTime > Date.now())
+  const canSubmit = Boolean(disposition) && validRetryDate && (disposition !== "duplicate" || Boolean(duplicateOfCaseId))
 
   const handleSubmit = () => {
     if (!disposition) return
     submitWrapUp(disposition, {
       note: note.trim() || undefined,
-      rescheduleAt: disposition === "call_later" ? new Date(rescheduleAt).toISOString() : undefined,
+      rescheduleAt: retryRequired ? new Date(rescheduleAt).toISOString() : undefined,
       duplicateOfCaseId: disposition === "duplicate" ? duplicateOfCaseId ?? undefined : undefined,
     })
+    setDisposition(null)
+    setNote("")
+    setRescheduleAt(defaultLocalDateTime(24))
+    setDuplicateQuery("")
+    setDuplicateOfCaseId(null)
   }
 
   // Mandatory wrap-up: no escape/backdrop dismissal until a disposition is submitted.
@@ -202,7 +228,7 @@ export function CallOverlay() {
             </div>
           </div>
 
-          {disposition === "call_later" && (
+          {retryRequired && (
             <div className="rounded-md border border-input bg-secondary/40 p-3">
               <Label htmlFor="call-reschedule" className="mb-2 block text-xs text-muted-foreground">
                 Kiedy zadzwonić ponownie
@@ -215,8 +241,11 @@ export function CallOverlay() {
                 className="text-sm"
               />
               <p className="mt-1.5 text-[11px] text-muted-foreground">
-                Zadanie zostanie przełożone na wybrany termin i wróci do kolejki.
+                Zadanie pozostanie aktywne, zostanie przełożone na wybrany termin i wróci do kolejki.
               </p>
+              {!validRetryDate && (
+                <p className="mt-1 text-[11px] font-medium text-red-600">Wybierz termin w przyszłości.</p>
+              )}
             </div>
           )}
 

@@ -11,6 +11,7 @@ import { getClinic, getClinicTone, getProcedure, getDoctor } from "@/lib/crm/cat
 import { getOperator, PRIORITY_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
 import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
+import { getNextTaskForCase } from "@/lib/crm/entity-queue"
 
 const CHANNEL_ICON: Record<string, typeof Phone> = {
   phone: Phone,
@@ -63,7 +64,7 @@ export function EntityCaseCard({
   const procedure = getProcedure(engagementCase.serviceInterest)
   const doctor = getDoctor(engagementCase.doctorId)
   const caseTasks = tasks ?? getTasksForCase(engagementCase.id)
-  const openTask = caseTasks.find((t) => t.status !== "completed" && t.status !== "cancelled")
+  const openTask = getNextTaskForCase(caseTasks, engagementCase.id)
   const owner = openTask ? getOperator(openTask.ownerId) : undefined
   const overdue = useIsOverdue(openTask?.dueAt)
   const ChannelIcon = CHANNEL_ICON[identity?.channel ?? ""] ?? StickyNote

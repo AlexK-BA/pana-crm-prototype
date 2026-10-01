@@ -621,17 +621,17 @@ export const TASKS: Task[] = [
   // Scenario 2: missed incoming Yeastar call → P1.
   {
     id: "task-02", caseId: "case-1004", title: "Oddzwoń po nieodebranym połączeniu",
-    status: "ready", priority: "P1", dueAt: iso(0.05), slaAt: iso(0.1), createdAt: iso(-1.4), ownerId: WERONIKA, attempts: 1,
+    status: "ready", priority: "P1", dueAt: iso(0.05), slaAt: iso(0.1), createdAt: iso(-1.4), ownerId: WERONIKA, attempts: 1, requiresCall: true,
   },
   // Scenario 3: scheduled callback due now → P2.
   {
     id: "task-03", caseId: "case-1002", patientId: "pat-02", title: "Zadzwoń: potwierdź termin konsultacji ortodontycznej",
-    status: "ready", priority: "P2", dueAt: iso(-0.1), createdAt: iso(-24), ownerId: ILONA, attempts: 1,
+    status: "ready", priority: "P2", dueAt: iso(-0.1), createdAt: iso(-24), ownerId: ILONA, attempts: 1, requiresCall: true,
   },
   // Scenario 1: new Meta lead without first attempt → P3.
   {
     id: "task-04", caseId: "case-1005", patientId: "pat-04", title: "Pierwszy kontakt z nowym lead z Facebook",
-    status: "planned", priority: "P3", dueAt: iso(0.5), createdAt: iso(-210), ownerId: PAVEL, attempts: 0,
+    status: "planned", priority: "P3", dueAt: iso(0.5), createdAt: iso(-210), ownerId: PAVEL, attempts: 0, requiresCall: true,
   },
   {
     id: "task-05", caseId: "case-1003", patientId: "pat-03", title: "Odpowiedz na pierwszą wiadomość Instagram",
@@ -640,12 +640,12 @@ export const TASKS: Task[] = [
   // Scenario 4: repeated unsuccessful attempt → P4.
   {
     id: "task-06", caseId: "case-1007", patientId: "pat-06", title: "Kolejna próba kontaktu — Vera Kavalchuk",
-    status: "ready", priority: "P4", dueAt: iso(-0.2), createdAt: iso(-52), ownerId: ILONA, attempts: 3,
+    status: "ready", priority: "P4", dueAt: iso(-0.2), createdAt: iso(-52), ownerId: ILONA, attempts: 3, requiresCall: true,
   },
   // Scenario 6: overdue task from yesterday remains visible.
   {
     id: "task-07", caseId: "case-1008", patientId: "pat-07", title: "Oddzwoń: potwierdź konsultację endodontyczną",
-    status: "overdue", priority: "P1", dueAt: iso(-26), createdAt: iso(-60), ownerId: PAVEL, attempts: 2,
+    status: "overdue", priority: "P1", dueAt: iso(-26), createdAt: iso(-60), ownerId: PAVEL, attempts: 2, requiresCall: true,
   },
   // Scenario 7: task due next week stays Planned, doesn't block today's queue.
   {
@@ -665,7 +665,7 @@ export const TASKS: Task[] = [
   // Scenario 26: waitlist case promoted to active callback.
   {
     id: "task-11", caseId: "case-1011", patientId: "pat-06", title: "Zaproponuj termin z listy oczekujących",
-    status: "ready", priority: "P2", dueAt: iso(-0.4), createdAt: iso(-140), ownerId: ILONA, attempts: 1,
+    status: "ready", priority: "P2", dueAt: iso(-0.4), createdAt: iso(-140), ownerId: ILONA, attempts: 1, requiresCall: true,
   },
   {
     id: "task-12", caseId: "case-1201", patientId: "pat-08", title: "Przypomnienie o wizycie jutro",

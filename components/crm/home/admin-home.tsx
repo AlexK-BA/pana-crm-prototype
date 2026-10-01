@@ -2,14 +2,13 @@
 
 import Link from "next/link"
 import { ArrowRight, Building2, ListChecks, Plug, ShieldCheck, Users } from "lucide-react"
-import { CASES, OPERATORS } from "@/lib/crm/data"
+import { OPERATORS } from "@/lib/crm/data"
 import { ROLE_ORDER, ROLE_PROFILES } from "@/lib/crm/roles"
 import { useEntityStore } from "@/lib/crm/entity-store"
+import { CLINICS } from "@/lib/crm/catalog"
 import { useLanguage } from "@/lib/crm/language-context"
 import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
-
-const CLINICS = ["Pana Comfort", "Pana Medica"] as const
 
 const ADMIN_SECTIONS = [
   { icon: Building2, title: "Kliniki i lekarze", detail: `${CLINICS.length} kliniki` },
@@ -19,18 +18,18 @@ const ADMIN_SECTIONS = [
 ]
 
 export function AdminHome() {
-  const { auditEvents } = useEntityStore()
+  const { auditEvents, cases, identities } = useEntityStore()
   const { t } = useLanguage()
-  const channels = new Set(CASES.map((c) => c.channelPlatform))
-  const clinicsCount = new Set(CASES.map((c) => c.clinic)).size
+  const caseIdentityIds = new Set(cases.map((item) => item.contactIdentityId))
+  const channels = new Set(identities.filter((item) => caseIdentityIds.has(item.id)).map((item) => item.channel))
   const recentAudit = [...auditEvents].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 6)
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Sprawy w systemie" value={CASES.length} />
+        <Stat label="Sprawy w systemie" value={cases.length} />
         <Stat label="Użytkownicy" value={OPERATORS.length} />
-        <Stat label="Kliniki" value={clinicsCount} />
+        <Stat label="Kliniki" value={CLINICS.length} />
         <Stat label="Podłączone kanały" value={channels.size} />
       </section>
 
