@@ -19,7 +19,9 @@ import {
   CalendarDays,
   Table2,
   BookOpen,
+  UsersRound,
 } from "lucide-react"
+import { canAccessRoute } from "@/lib/crm/permissions"
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -45,7 +47,8 @@ export function AppSidebar() {
           { href: "/docs", label: t("nav_docs"), icon: BookOpen },
         ]
       : []),
-  ]
+    ...(role === "admin" ? [{ href: "/users", label: "Użytkownicy", icon: UsersRound }] : []),
+  ].filter((item) => canAccessRoute(role, item.href))
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
@@ -83,13 +86,15 @@ export function AppSidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
-        <Link
-          href="/settings"
-          className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-        >
-          <Settings className="h-4 w-4" />
-          Settings
-        </Link>
+        {canAccessRoute(role, "/settings") && (
+          <Link
+            href="/settings"
+            className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Link>
+        )}
         <div className="mt-1">
           <RoleSwitcher />
         </div>

@@ -29,15 +29,19 @@ import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
 import { AppointmentSlotPicker } from "@/components/crm/appointment-slot-picker"
+import { useRole } from "@/lib/crm/role-context"
+import { hasPermission } from "@/lib/crm/permissions"
 
 export function EngagementCaseDrawer() {
   const { activeCaseId, closeCase } = useCasePanel()
+  const { role } = useRole()
   const { cases } = useEntityStore()
+  const canViewCases = hasPermission(role, "case:view")
   const isEntityCase = !!activeCaseId && activeCaseId.startsWith("case-")
   const engagementCase = isEntityCase ? cases.find((c) => c.id === activeCaseId) ?? getCase(activeCaseId!) : undefined
 
   return (
-    <Dialog open={!!engagementCase} onOpenChange={(open) => !open && closeCase()}>
+    <Dialog open={!!engagementCase && canViewCases} onOpenChange={(open) => !open && closeCase()}>
       <DialogContent
         showCloseButton={false}
         className="flex h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-6xl"

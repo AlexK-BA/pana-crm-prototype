@@ -10,22 +10,25 @@ import { CallProvider } from "@/lib/crm/call-context"
 import { EngagementCaseDrawer } from "@/components/crm/engagement-case-drawer"
 import { CommandPalette } from "@/components/crm/command-palette"
 import { CallOverlay } from "@/components/crm/call-overlay"
+import { UserDirectoryProvider } from "@/lib/crm/user-directory"
 
 export function CrmProviders({ children }: { children: ReactNode }) {
   return (
     <RoleProvider>
       <LanguageProvider>
         <EntityStoreProvider>
-          <TooltipProvider delay={200}>
-            <CasePanelProvider>
-              <CallProvider>
-                {children}
-                <EngagementCaseDrawer />
-                <CommandPalette />
-                <CallOverlay />
-              </CallProvider>
-            </CasePanelProvider>
-          </TooltipProvider>
+          <UserDirectoryProvider>
+            <TooltipProvider delay={200}>
+              <CasePanelProvider>
+                <CallProvider>
+                  {children}
+                  <EngagementCaseDrawer />
+                  <CommandPalette />
+                  <CallOverlay />
+                </CallProvider>
+              </CasePanelProvider>
+            </TooltipProvider>
+          </UserDirectoryProvider>
         </EntityStoreProvider>
       </LanguageProvider>
     </RoleProvider>

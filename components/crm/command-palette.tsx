@@ -14,6 +14,8 @@ import { useEntityStore } from "@/lib/crm/entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { ChannelIcon } from "@/components/crm/channel-icon"
 import type { ChannelPlatform } from "@/lib/crm/types"
+import { useRole } from "@/lib/crm/role-context"
+import { canAccessRoute, hasPermission } from "@/lib/crm/permissions"
 
 const ICON_CHANNELS: ChannelPlatform[] = ["instagram", "telegram", "whatsapp", "website", "phone"]
 
@@ -22,6 +24,8 @@ export function CommandPalette() {
   const router = useRouter()
   const { openCase } = useCasePanel()
   const { cases, patients, identities } = useEntityStore()
+  const { role } = useRole()
+  const canViewCases = hasPermission(role, "case:view")
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -41,10 +45,10 @@ export function CommandPalette() {
         <CommandEmpty>Nie znaleziono wyników.</CommandEmpty>
         <CommandGroup heading="Nawigacja">
           <CommandItem onSelect={() => { router.push("/"); setOpen(false) }}>Strona główna</CommandItem>
-          <CommandItem onSelect={() => { router.push("/board"); setOpen(false) }}>Tablica CRM</CommandItem>
-          <CommandItem onSelect={() => { router.push("/inbox"); setOpen(false) }}>Skrzynka odbiorcza</CommandItem>
+          {canAccessRoute(role, "/board") && <CommandItem onSelect={() => { router.push("/board"); setOpen(false) }}>Tablica CRM</CommandItem>}
+          {canAccessRoute(role, "/inbox") && <CommandItem onSelect={() => { router.push("/inbox"); setOpen(false) }}>Skrzynka odbiorcza</CommandItem>}
         </CommandGroup>
-        <CommandGroup heading="Sprawy">
+        {canViewCases && <CommandGroup heading="Sprawy">
           {cases.slice(0, 12).map((engagementCase) => {
             const patient = patients.find((item) => item.id === engagementCase.patientId)
             const identity = identities.find((item) => item.id === engagementCase.contactIdentityId)
@@ -71,7 +75,7 @@ export function CommandPalette() {
               </CommandItem>
             )
           })}
-        </CommandGroup>
+        </CommandGroup>}
       </CommandList>
     </CommandDialog>
   )

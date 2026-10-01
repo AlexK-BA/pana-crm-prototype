@@ -31,6 +31,7 @@ import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { formatRelative } from "@/lib/crm/format"
 import type { ContactChannel, ClinicId } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
+import { hasPermission } from "@/lib/crm/permissions"
 
 const DEMO_INCOMING_CALLS = [
   { caseId: "case-1004", taskId: "task-02", label: "Nierozpoznany numer (Scenario 2/17)", unknown: true },
@@ -60,6 +61,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
   const { language, setLanguage, t } = useLanguage()
   const meName = ROLE_PROFILES[role].user.name
   const actorId = OPERATORS.find((o) => o.name === meName)?.id ?? "system"
+  const canHandleCalls = hasPermission(role, "call:handle")
+  const canViewTasks = hasPermission(role, "task:view")
+  const canCreateCase = hasPermission(role, "case:edit")
 
   const [newCaseOpen, setNewCaseOpen] = useState(false)
   const [newCaseChannel, setNewCaseChannel] = useState<ContactChannel>("phone")
@@ -75,12 +79,13 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
   const hasIdentifier = Boolean(newCasePhone.trim() || newCaseEmail.trim() || newCasePatientId.trim())
 
   const notifications = useMemo(() => {
+    if (!canViewTasks) return []
     const queue = getQueue(tasks, {}, Date.now())
     return queue
       .map((t) => buildQueueItem(t, Date.now(), cases))
       .filter((i): i is NonNullable<typeof i> => !!i && (i.task.priority === "P0" || i.task.priority === "P1" || i.overdue))
       .slice(0, 6)
-  }, [tasks, cases])
+  }, [tasks, cases, canViewTasks])
 
   function resetNewCase() {
     setNewCaseChannel("phone")
@@ -157,7 +162,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <DropdownMenu>
+      {canHandleCalls && <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <Button variant="outline" size="sm" className="hidden gap-1.5 sm:flex">
@@ -177,9 +182,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
             ))}
           </DropdownMenuGroup>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu>}
 
-      <DropdownMenu>
+      {canViewTasks && <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <Button variant="ghost" size="icon" className="relative" aria-label={t("notifications")}>
@@ -219,7 +224,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
             ))}
           </DropdownMenuGroup>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu>}
 
       <Dialog
         open={newCaseOpen}
@@ -323,10 +328,10 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
         </DialogContent>
       </Dialog>
 
-      <Button size="sm" className="gap-1.5" onClick={() => setNewCaseOpen(true)}>
+      {canCreateCase && <Button size="sm" className="gap-1.5" onClick={() => setNewCaseOpen(true)}>
         <Plus className="h-4 w-4" />
         Nowa sprawa
-      </Button>
+      </Button>}
     </header>
   )
 }
