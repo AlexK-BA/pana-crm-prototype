@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
@@ -32,7 +32,7 @@ export function OperatorHome() {
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const { t } = useLanguage()
-  const { tasks, cases, skipTask } = useEntityStore()
+  const { tasks, cases, skipTask } = useScopedEntityStore()
   const meName = ROLE_PROFILES[role].user.name
   const me = OPERATORS.find((o) => o.name === meName)
   const [tab, setTab] = useState<"mine" | "unassigned" | "team">("mine")

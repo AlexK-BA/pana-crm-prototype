@@ -4,14 +4,14 @@ import { useMemo, useState } from "react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BOARD_COLUMNS } from "@/lib/crm/boards"
 import { CLINICS, getDoctor, getProcedure } from "@/lib/crm/catalog"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { formatRelative } from "@/lib/crm/format"
 import type { ClinicId } from "@/lib/crm/entities"
 
 export function ClinicManagerHome() {
   const { openCase } = useCasePanel()
-  const { cases, tasks, patients, identities } = useEntityStore()
+  const { cases, tasks, patients, identities } = useScopedEntityStore()
   const [clinicId, setClinicId] = useState<ClinicId>("pana-medica")
   const clinicCases = useMemo(() => cases.filter((c) => c.clinicId === clinicId), [cases, clinicId])
   const activeTasks = useMemo(() => tasks.filter((t) => clinicCases.some((c) => c.id === t.caseId) && !["completed", "cancelled", "failed"].includes(t.status)), [tasks, clinicCases])

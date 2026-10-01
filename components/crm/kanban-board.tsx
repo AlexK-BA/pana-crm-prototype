@@ -11,7 +11,7 @@ import type { CaseBoard } from "@/lib/crm/entities"
 import { BOARD_COLUMNS, COLOR_CLASSES } from "@/lib/crm/boards"
 import { CLINICS, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
 import { getPatient, getIdentity } from "@/lib/crm/entity-data"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
 import { useLanguage } from "@/lib/crm/language-context"
@@ -36,7 +36,7 @@ export function KanbanBoard() {
   const [service, setService] = useState<string>("all")
   const [assignee, setAssignee] = useState<string>("all")
   const [dragCaseId, setDragCaseId] = useState<string | null>(null)
-  const { cases, tasks, moveCase } = useEntityStore()
+  const { cases, tasks, moveCase } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const { t } = useLanguage()

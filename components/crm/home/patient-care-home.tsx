@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { getClinic, getProcedure } from "@/lib/crm/catalog"
 import { formatRelative } from "@/lib/crm/format"
@@ -14,7 +14,7 @@ const SEGMENTS = [
 ]
 
 export function PatientCareHome() {
-  const { cases, tasks, patients, identities } = useEntityStore()
+  const { cases, tasks, patients, identities } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const segments = useMemo(() => SEGMENTS.map((segment) => ({ ...segment, cases: cases.filter((c) => c.status === segment.key) })), [cases])
   const active = tasks.filter((t) => !["completed", "cancelled", "failed"].includes(t.status) && cases.some((c) => c.id === t.caseId && (c.board === "patients" || ["post_visit", "recall", "care", "no_show"].includes(c.status))))

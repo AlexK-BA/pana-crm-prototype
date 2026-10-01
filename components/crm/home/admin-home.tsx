@@ -4,7 +4,7 @@ import Link from "next/link"
 import { ArrowRight, Building2, ListChecks, Plug, ShieldCheck, Users } from "lucide-react"
 import { ROLE_ORDER, ROLE_PROFILES } from "@/lib/crm/roles"
 import { useUserDirectory } from "@/lib/crm/user-directory"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { CLINICS } from "@/lib/crm/catalog"
 import { useLanguage } from "@/lib/crm/language-context"
 import { formatRelative } from "@/lib/crm/format"
@@ -18,7 +18,7 @@ const ADMIN_SECTIONS = [
 ]
 
 export function AdminHome() {
-  const { auditEvents, cases, identities } = useEntityStore()
+  const { auditEvents, cases, identities } = useScopedEntityStore()
   const { users } = useUserDirectory()
   const { t } = useLanguage()
   const caseIdentityIds = new Set(cases.map((item) => item.contactIdentityId))

@@ -13,7 +13,7 @@ import { ChannelIcon } from "@/components/crm/channel-icon"
 import { OPERATORS } from "@/lib/crm/data"
 import { formatRelative } from "@/lib/crm/format"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getQueue, getQueueCounters } from "@/lib/crm/entity-queue"
 import { buildQueueItem, PRIORITY_TONE, type QueueItem } from "@/lib/crm/entity-selectors"
 import type { TaskPriority } from "@/lib/crm/entities"
@@ -37,7 +37,7 @@ const PRIORITIES: TaskPriority[] = ["P0", "P1", "P2", "P3", "P4"]
  */
 export function TeamLeaderHome() {
   const { openCase } = useCasePanel()
-  const { tasks, cases, interactions, assignTask } = useEntityStore()
+  const { tasks, cases, interactions, assignTask } = useScopedEntityStore()
   const [reassigned, setReassigned] = useState<Record<string, string>>({})
 
   const [now, setNow] = useState(0)

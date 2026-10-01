@@ -5,6 +5,8 @@ import { useEntityStore } from "@/lib/crm/entity-store"
 import { getProcedure } from "@/lib/crm/catalog"
 
 export function MarketingHome() {
+  // Aggregate-only demonstrator. Production receives a dedicated reporting
+  // projection; Marketing never receives patient/contact rows from the API.
   const { cases } = useEntityStore()
   const converted = cases.filter((c) => ["converted", "completed", "complete"].includes(c.status))
   const bySource = new Map<string, { total: number; converted: number }>()

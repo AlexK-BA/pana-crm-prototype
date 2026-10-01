@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { MessageSquare, Phone, Mail, Send, Share2, Globe, StickyNote } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { ConversationThread } from "@/components/crm/conversation-thread"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { formatRelative } from "@/lib/crm/format"
 import type { ContactChannel } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
@@ -46,7 +46,7 @@ export function PatientConversationWorkspace({
   authorId?: string
   className?: string
 }) {
-  const { cases, identities, interactions } = useEntityStore()
+  const { cases, identities, interactions } = useScopedEntityStore()
   const patientCases = useMemo(
     () => patientId ? cases.filter((item) => item.patientId === patientId) : cases.filter((item) => item.id === currentCaseId),
     [cases, currentCaseId, patientId],
