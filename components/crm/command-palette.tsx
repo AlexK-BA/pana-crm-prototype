@@ -10,14 +10,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { CASES } from "@/lib/crm/data"
+import { useEntityStore } from "@/lib/crm/entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { ChannelIcon } from "@/components/crm/channel-icon"
+import type { ChannelPlatform } from "@/lib/crm/types"
+
+const ICON_CHANNELS: ChannelPlatform[] = ["instagram", "telegram", "whatsapp", "website", "phone"]
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const { openCase } = useCasePanel()
+  const { cases, patients, identities } = useEntityStore()
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -41,21 +45,32 @@ export function CommandPalette() {
           <CommandItem onSelect={() => { router.push("/inbox"); setOpen(false) }}>Skrzynka odbiorcza</CommandItem>
         </CommandGroup>
         <CommandGroup heading="Sprawy">
-          {CASES.slice(0, 12).map((c) => (
-            <CommandItem
-              key={c.id}
-              value={`${c.displayName} ${c.phone ?? ""} ${c.id}`}
-              onSelect={() => {
-                openCase(c.id)
-                setOpen(false)
-              }}
-              className="gap-2"
-            >
-              <ChannelIcon platform={c.channelPlatform} className="h-4 w-4" />
-              <span className="flex-1 truncate">{c.displayName}</span>
-              <span className="text-xs text-muted-foreground">{c.phone}</span>
-            </CommandItem>
-          ))}
+          {cases.slice(0, 12).map((engagementCase) => {
+            const patient = patients.find((item) => item.id === engagementCase.patientId)
+            const identity = identities.find((item) => item.id === engagementCase.contactIdentityId)
+            const displayName = patient
+              ? `${patient.firstName} ${patient.lastName}`
+              : identity?.displayName ?? "Nierozpoznany kontakt"
+            const platform: ChannelPlatform = identity && ICON_CHANNELS.includes(identity.channel as ChannelPlatform)
+              ? identity.channel as ChannelPlatform
+              : "internal"
+
+            return (
+              <CommandItem
+                key={engagementCase.id}
+                value={`${displayName} ${identity?.value ?? ""} ${engagementCase.id}`}
+                onSelect={() => {
+                  openCase(engagementCase.id)
+                  setOpen(false)
+                }}
+                className="gap-2"
+              >
+                <ChannelIcon platform={platform} className="h-4 w-4" />
+                <span className="flex-1 truncate">{displayName}</span>
+                <span className="text-xs text-muted-foreground">{identity?.value}</span>
+              </CommandItem>
+            )
+          })}
         </CommandGroup>
       </CommandList>
     </CommandDialog>
