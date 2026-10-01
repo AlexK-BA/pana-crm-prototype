@@ -188,6 +188,8 @@ Expected:
 5. Verify the available options: website chat, SMS, WhatsApp, Telegram, Instagram, Facebook and e-mail.
 6. Verify that TikTok is visible as `Potencjalny` and cannot be selected as an active integration.
 7. Send an emulated message through Telegram, Instagram or Facebook and wait for the emulated reply.
+8. Open any engagement case for the same patient and select `Historia kontaktu`.
+9. Verify that the same patient-level conversation list is available inside the case drawer, with the current case selected initially.
 
 Expected:
 
@@ -197,6 +199,8 @@ Expected:
 - an outgoing message records both the generic interaction type and the concrete delivery channel;
 - TikTok is not represented as an already implemented integration;
 - all sending and replies remain simulated and do not call external APIs.
+- the operator can switch between all conversations of the linked patient without leaving the case drawer;
+- an unlinked contact shows only the current case conversation until a Patient link is created.
 
 ## Known prototype boundaries
 

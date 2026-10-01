@@ -27,7 +27,7 @@ import { getOperator, PRIORITY_TEXT_TONE, priorityLabel } from "@/lib/crm/entity
 import { getNextTaskForCase } from "@/lib/crm/entity-queue"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
-import { ConversationThread } from "@/components/crm/conversation-thread"
+import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
 import { AppointmentSlotPicker } from "@/components/crm/appointment-slot-picker"
 
 export function EngagementCaseDrawer() {
@@ -377,12 +377,10 @@ function DrawerBody({ caseId }: { caseId: string }) {
           </TabsContent>
 
           <TabsContent value="history" className="-mx-5 -my-4 mt-0 h-full">
-            <ConversationThread
-              caseIds={[caseId]}
+            <PatientConversationWorkspace
               patientId={patient?.id}
+              currentCaseId={caseId}
               authorId="current-user"
-              className="h-full px-5 py-4"
-              emptyLabel={t("no_messages")}
             />
           </TabsContent>
 
