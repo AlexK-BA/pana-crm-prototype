@@ -44,6 +44,8 @@ interface EntityStoreValue {
   reopenTask: (taskId: string) => void
   skipTask: (taskId: string, reason: string) => void
   rescheduleTask: (taskId: string, dueAtIso: string, reason?: string) => void
+  /** Creates or reactivates the shared P1 callback after a fully missed incoming call. */
+  ensureMissedCallTask: (caseId: string, patientId?: string) => Task
   assignTask: (taskId: string, ownerId: string, actorId: string) => void
   setPriority: (taskId: string, priority: TaskPriority, actorId: string) => void
   moveCase: (caseId: string, newStatus: string, actorId: string) => void
@@ -214,6 +216,38 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       })
     },
     [addAudit, patchTask, tasks],
+  )
+
+  const ensureMissedCallTask = useCallback(
+    (caseId: string, patientId?: string) => {
+      const existing = tasks.find(
+        (task) => task.caseId === caseId && task.requiresCall && !["completed", "cancelled", "failed"].includes(task.status),
+      )
+      if (existing) {
+        const next = { ...existing, status: "ready" as const, priority: "P1" as const, dueAt: iso(0) }
+        setTasks((prev) => prev.map((task) => (task.id === existing.id ? next : task)))
+        addAudit({ caseId, patientId, type: "task_change", actorId: "system", summary: "Nieodebrane połączenie · zadanie oddzwonienia ustawione jako P1" })
+        return next
+      }
+
+      const task: Task = {
+        id: nextTaskId(),
+        caseId,
+        patientId,
+        title: "Oddzwoń po nieodebranym połączeniu",
+        status: "ready",
+        priority: "P1",
+        dueAt: iso(0),
+        slaAt: iso(0.1),
+        createdAt: iso(0),
+        attempts: 0,
+        requiresCall: true,
+      }
+      setTasks((prev) => [...prev, task])
+      addAudit({ caseId, patientId, type: "task_change", actorId: "system", summary: "Nieodebrane połączenie · utworzono zadanie oddzwonienia P1" })
+      return task
+    },
+    [addAudit, tasks],
   )
 
   const assignTask = useCallback(
@@ -629,6 +663,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       reopenTask,
       skipTask,
       rescheduleTask,
+      ensureMissedCallTask,
       assignTask,
       setPriority,
       moveCase,
@@ -657,6 +692,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       reopenTask,
       skipTask,
       rescheduleTask,
+      ensureMissedCallTask,
       assignTask,
       setPriority,
       moveCase,
