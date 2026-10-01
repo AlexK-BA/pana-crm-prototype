@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { MessageSquare, Phone, Mail, Send, Share2, Globe, StickyNote } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ConversationThread } from "@/components/crm/conversation-thread"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { formatRelative } from "@/lib/crm/format"
@@ -120,9 +121,16 @@ export function PatientConversationWorkspace({
             </button>
           )
         })}
-        <div className="px-3 py-3 text-[11px] text-muted-foreground">
-          TikTok <Badge variant="outline" className="ml-1 text-[9px]">Potencjalny</Badge>
-        </div>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <div className="px-3 py-3 text-[11px] text-muted-foreground">
+                TikTok <Badge variant="outline" className="ml-1 text-[9px]">Potencjalny</Badge>
+              </div>
+            }
+          />
+          <TooltipContent side="top">Integracja nie jest jeszcze podłączona</TooltipContent>
+        </Tooltip>
       </aside>
 
       <div className="min-w-0 flex-1">

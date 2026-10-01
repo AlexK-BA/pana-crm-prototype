@@ -13,6 +13,7 @@ import { Phone, MessageSquare, StickyNote, Send, Smartphone, Check, AlertTriangl
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import type { ContactChannel, InteractionType } from "@/lib/crm/entities"
 import { formatDateTime } from "@/lib/crm/format"
@@ -97,6 +98,10 @@ export function ConversationThread({
   const [draft, setDraft] = useState("")
   const [channel, setChannel] = useState<ContactChannel>("website")
   const [deliveryStatus, setDeliveryStatus] = useState<Record<string, "sending" | "sent" | "error">>({})
+  /** Demo-only control (UAT requirement): delivery must be deterministic by
+   * default (sending → sent). Failures are never randomized — they only
+   * happen when this toggle is explicitly turned on by the operator. */
+  const [simulateError, setSimulateError] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoReplyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const deliveryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -109,24 +114,23 @@ export function ConversationThread({
     }
   }, [])
 
-  /** Emulates network delivery: brief "sending" state, then a small chance
-   * of a simulated failure so the retry affordance has something to do. */
+  /** Emulates network delivery: brief "sending" state, then deterministically
+   * "sent" — unless the operator has explicitly enabled "Symuluj błąd
+   * wysyłki" for this test, in which case it deterministically fails so the
+   * retry affordance has something to do. No randomness in the outcome. */
   function deliver(messageId: string, sentText: string, interactionType: InteractionType, sentChannel: ContactChannel) {
     setDeliveryStatus((prev) => ({ ...prev, [messageId]: "sending" }))
     if (deliveryTimers.current[messageId]) clearTimeout(deliveryTimers.current[messageId])
     deliveryTimers.current[messageId] = setTimeout(() => {
-      const failed = Math.random() < 0.08
+      const failed = simulateError
       setDeliveryStatus((prev) => ({ ...prev, [messageId]: failed ? "error" : "sent" }))
       if (!failed) {
         if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
-        autoReplyTimer.current = setTimeout(
-          () => {
-            sendMessage({ caseId: targetCaseId, patientId, text: pickAutoReply(sentText), type: interactionType, channel: sentChannel, direction: "incoming" })
-          },
-          1200 + Math.random() * 1000,
-        )
+        autoReplyTimer.current = setTimeout(() => {
+          sendMessage({ caseId: targetCaseId, patientId, text: pickAutoReply(sentText), type: interactionType, channel: sentChannel, direction: "incoming" })
+        }, 1500)
       }
-    }, 500 + Math.random() * 500)
+    }, 600)
   }
 
   const messages = useMemo(() => {
@@ -208,17 +212,44 @@ export function ConversationThread({
         <div ref={bottomRef} />
       </div>
 
+      <div className="flex items-center justify-end gap-1.5 pb-1.5 text-[11px] text-muted-foreground">
+        <input
+          id="simulate-send-error"
+          type="checkbox"
+          checked={simulateError}
+          onChange={(e) => setSimulateError(e.target.checked)}
+          className="h-3 w-3 accent-destructive"
+        />
+        <label htmlFor="simulate-send-error" className="cursor-pointer select-none">
+          Symuluj błąd wysyłki (test UAT)
+        </label>
+      </div>
       <div className="flex items-end gap-2 border-t border-border pt-3">
         <Select value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
           <SelectTrigger className="h-9 w-[150px] shrink-0 text-xs" aria-label="Kanał wysyłki">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {SEND_CHANNELS.map((c) => (
-              <SelectItem key={c.value} value={c.value} disabled={c.potential}>
-                {c.label}{c.potential ? " · Potencjalny" : ""}
-              </SelectItem>
-            ))}
+            {SEND_CHANNELS.map((c) =>
+              c.potential ? (
+                <Tooltip key={c.value}>
+                  <TooltipTrigger
+                    render={
+                      <span>
+                        <SelectItem value={c.value} disabled>
+                          {c.label} · Potencjalny
+                        </SelectItem>
+                      </span>
+                    }
+                  />
+                  <TooltipContent side="right">Integracja nie jest jeszcze podłączona</TooltipContent>
+                </Tooltip>
+              ) : (
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
+              ),
+            )}
           </SelectContent>
         </Select>
         <Textarea
