@@ -8,27 +8,23 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { getPatient } from "@/lib/crm/entity-data"
 import { getClinic, getClinicTone, getProcedure, getDoctor } from "@/lib/crm/catalog"
 import { ConversationThread } from "@/components/crm/conversation-thread"
 import {
   getOperator,
-  getCasesForPatient,
-  getIdentitiesForPatient,
-  getTasksForPatient,
-  getInteractionsForPatient,
   getCommentsForPatient,
-  getAuditForPatient,
   PRIORITY_TONE,
   priorityLabel,
 } from "@/lib/crm/entity-selectors"
 import { useEntityStore } from "@/lib/crm/entity-store"
+import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
 import { OPERATORS } from "@/lib/crm/data"
 import type { Call } from "@/lib/crm/entities"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
+import { getQueue } from "@/lib/crm/entity-queue"
 
 const CHANNEL_ICON: Record<string, typeof Phone> = {
   phone: Phone,
@@ -61,19 +57,36 @@ const INTEGRATION_TONE: Record<string, string> = {
 }
 
 export function PatientProfile({ patientId }: { patientId: string }) {
-  const patient = getPatient(patientId)
-  if (!patient) notFound()
+  const {
+    patients,
+    cases: allCases,
+    identities: allIdentities,
+    tasks: allTasks,
+    interactions: allInteractions,
+    auditEvents,
+    syncPatientWithMedicalCrm,
+    sendTreatmentPlanTask,
+  } = useEntityStore()
+  const { openCase } = useCasePanel()
+  const foundPatient = patients.find((item) => item.id === patientId)
+  if (!foundPatient) return notFound()
+  const patient = foundPatient
 
   const clinic = getClinic(patient.primaryClinicId)
   const careOwner = getOperator(patient.careOwnerId)
-  const cases = getCasesForPatient(patient.id)
-  const identities = getIdentitiesForPatient(patient.id)
-  const tasks = getTasksForPatient(patient.id)
-  const interactions = getInteractionsForPatient(patient.id)
+  const cases = allCases.filter((item) => item.patientId === patient.id)
+  const caseIds = new Set(cases.map((item) => item.id))
+  const identities = allIdentities.filter((item) => item.patientId === patient.id)
+  const tasks = allTasks.filter((item) => item.patientId === patient.id || caseIds.has(item.caseId))
+  const openTasks = getQueue(tasks)
+  const interactions = allInteractions
+    .filter((item) => item.patientId === patient.id || caseIds.has(item.caseId))
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
   const comments = getCommentsForPatient(patient.id)
-  const audit = getAuditForPatient(patient.id)
+  const audit = auditEvents
+    .filter((item) => item.patientId === patient.id || (item.caseId ? caseIds.has(item.caseId) : false))
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 
-  const { syncPatientWithMedicalCrm, sendTreatmentPlanTask } = useEntityStore()
   const { role } = useRole()
   const meName = ROLE_PROFILES[role].user.name
   const actorId = OPERATORS.find((o) => o.name === meName)?.id ?? "system"
@@ -171,7 +184,8 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           <TabsTrigger value="cases">Sprawy ({cases.length})</TabsTrigger>
           <TabsTrigger value="interactions">Interakcje ({interactions.length})</TabsTrigger>
           {patient.treatmentPlan && <TabsTrigger value="plan">Plan leczenia</TabsTrigger>}
-          <TabsTrigger value="activity">Komentarze i audit ({comments.length + audit.length})</TabsTrigger>
+          <TabsTrigger value="comments">Komentarze ({comments.length})</TabsTrigger>
+          <TabsTrigger value="audit">Historia zmian ({audit.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -219,13 +233,16 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           <section className="rounded-xl border border-border bg-card p-4">
             <h3 className="mb-3 text-sm font-semibold text-foreground">Otwarte zadania</h3>
             <div className="space-y-2">
-              {tasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").length === 0 && (
+              {openTasks.length === 0 && (
                 <p className="text-sm text-muted-foreground">Brak otwartych zadań.</p>
               )}
-              {tasks
-                .filter((t) => t.status !== "completed" && t.status !== "cancelled")
-                .map((task) => (
-                  <div key={task.id} className="flex items-center gap-2 text-sm">
+              {openTasks.map((task) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    onClick={() => openCase(task.caseId)}
+                    className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-sm hover:bg-secondary"
+                  >
                     <span
                       className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white", PRIORITY_TONE[task.priority])}
                       title={priorityLabel(task.priority)}
@@ -234,8 +251,9 @@ export function PatientProfile({ patientId }: { patientId: string }) {
                     </span>
                     <span className="min-w-0 flex-1 truncate text-foreground">{task.title}</span>
                     {task.dueAt && <span className="text-xs text-muted-foreground">{formatRelative(task.dueAt)}</span>}
-                  </div>
-                ))}
+                    <span className="text-xs text-muted-foreground">{getOperator(task.ownerId)?.name ?? "Nieprzypisane"}</span>
+                  </button>
+              ))}
             </div>
           </section>
         </TabsContent>
@@ -265,7 +283,12 @@ export function PatientProfile({ patientId }: { patientId: string }) {
             const caseClinic = getClinic(c.clinicId)
             const tone = getClinicTone(c.clinicId)
             return (
-              <div key={c.id} className="flex items-stretch overflow-hidden rounded-lg border border-border bg-card">
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => openCase(c.id)}
+                className="flex w-full items-stretch overflow-hidden rounded-lg border border-border bg-card text-left transition-colors hover:border-primary/40 hover:bg-secondary/20"
+              >
                 <span className={cn("w-1 shrink-0", tone.bar)} aria-hidden="true" />
                 <div className="min-w-0 flex-1 p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -282,7 +305,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
                     {doctor ? ` · ${doctor.name}` : ""}
                   </p>
                 </div>
-              </div>
+              </button>
             )
           })}
         </TabsContent>
@@ -355,8 +378,8 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           </TabsContent>
         )}
 
-        <TabsContent value="activity" className="space-y-2">
-          {comments.length === 0 && audit.length === 0 && <p className="text-sm text-muted-foreground">Brak aktywności.</p>}
+        <TabsContent value="comments" className="space-y-2">
+          {comments.length === 0 && <p className="text-sm text-muted-foreground">Brak komentarzy.</p>}
           {comments.map((comment) => {
             const author = getOperator(comment.authorId)
             return (
@@ -374,6 +397,10 @@ export function PatientProfile({ patientId }: { patientId: string }) {
               </div>
             )
           })}
+        </TabsContent>
+
+        <TabsContent value="audit" className="space-y-2">
+          {audit.length === 0 && <p className="text-sm text-muted-foreground">Brak zmian systemowych.</p>}
           {audit.map((event) => (
             <div key={event.id} className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">
               <span className="min-w-0 flex-1 truncate">{event.summary}</span>
