@@ -10,12 +10,69 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Pencil, Trash2, Plus, Bot, Database, FileText, Globe2, Play, RefreshCw } from "lucide-react"
+import { Pencil, Trash2, Plus, Bot, Database, FileText, Globe2, Play, RefreshCw, ShieldCheck, Check, Eye, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRole } from "@/lib/crm/role-context"
-import { ROLE_PROFILES, ROLE_ORDER } from "@/lib/crm/roles"
+import { ROLE_PROFILES, ROLE_ORDER, type RoleId } from "@/lib/crm/roles"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useUserDirectory } from "@/lib/crm/user-directory"
+
+type AccessLevel = "full" | "view" | "none"
+
+interface PermissionRow {
+  id: string
+  label: string
+  access: Record<RoleId, AccessLevel>
+}
+
+const PERMISSION_MATRIX: PermissionRow[] = [
+  {
+    id: "board",
+    label: "Przeglądanie tablicy spraw",
+    access: { operator: "full", patient_care: "full", team_leader: "full", clinic_manager: "full", marketing: "view", admin: "full" },
+  },
+  {
+    id: "stage",
+    label: "Zmiana etapu / przenoszenie spraw",
+    access: { operator: "full", patient_care: "full", team_leader: "full", clinic_manager: "view", marketing: "none", admin: "full" },
+  },
+  {
+    id: "assign",
+    label: "Przypisywanie zadań i właścicieli",
+    access: { operator: "none", patient_care: "view", team_leader: "full", clinic_manager: "full", marketing: "none", admin: "full" },
+  },
+  {
+    id: "merge",
+    label: "Scalanie i łączenie pacjentów",
+    access: { operator: "none", patient_care: "none", team_leader: "view", clinic_manager: "full", marketing: "none", admin: "full" },
+  },
+  {
+    id: "export",
+    label: "Eksport danych pacjentów",
+    access: { operator: "none", patient_care: "none", team_leader: "none", clinic_manager: "view", marketing: "view", admin: "full" },
+  },
+  {
+    id: "reports",
+    label: "Raporty i analityka",
+    access: { operator: "none", patient_care: "view", team_leader: "full", clinic_manager: "full", marketing: "full", admin: "full" },
+  },
+  {
+    id: "bot",
+    label: "Konfiguracja bota i bazy wiedzy",
+    access: { operator: "none", patient_care: "none", team_leader: "view", clinic_manager: "full", marketing: "none", admin: "full" },
+  },
+  {
+    id: "users",
+    label: "Zarządzanie użytkownikami i rolami",
+    access: { operator: "none", patient_care: "none", team_leader: "view", clinic_manager: "none", marketing: "none", admin: "full" },
+  },
+]
+
+function AccessIcon({ level }: { level: AccessLevel }) {
+  if (level === "full") return <Check className="mx-auto h-3.5 w-3.5 text-emerald-600" aria-label="Pełny dostęp" />
+  if (level === "view") return <Eye className="mx-auto h-3.5 w-3.5 text-amber-600" aria-label="Tylko podgląd" />
+  return <Minus className="mx-auto h-3.5 w-3.5 text-muted-foreground/40" aria-label="Brak dostępu" />
+}
 
 interface KbArticle {
   id: string
@@ -229,6 +286,66 @@ export function SettingsView() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-1 flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">Role i uprawnienia</h2>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Przegląd dostępu do kluczowych funkcji systemu w zależności od roli.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-xs">
+            <thead>
+              <tr>
+                <th className="sticky left-0 bg-card py-2 pr-3 text-left font-medium text-muted-foreground">Funkcja</th>
+                {ROLE_ORDER.map((roleId) => {
+                  const profile = ROLE_PROFILES[roleId]
+                  return (
+                    <th key={roleId} className="px-2 py-2 text-center font-medium text-muted-foreground">
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className={cn(
+                            "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white",
+                            profile.user.color,
+                          )}
+                        >
+                          {profile.user.initials}
+                        </div>
+                        <span className="whitespace-nowrap">{t(profile.labelKey)}</span>
+                      </div>
+                    </th>
+                  )
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {PERMISSION_MATRIX.map((row) => (
+                <tr key={row.id} className="border-t border-border">
+                  <td className="sticky left-0 bg-card py-2 pr-3 text-foreground">{row.label}</td>
+                  {ROLE_ORDER.map((roleId) => (
+                    <td key={roleId} className="px-2 py-2 text-center">
+                      <AccessIcon level={row.access[roleId]} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Check className="h-3 w-3 text-emerald-600" /> Pełny dostęp
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Eye className="h-3 w-3 text-amber-600" /> Tylko podgląd
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Minus className="h-3 w-3 text-muted-foreground/40" /> Brak dostępu
+          </span>
         </div>
       </section>
 
