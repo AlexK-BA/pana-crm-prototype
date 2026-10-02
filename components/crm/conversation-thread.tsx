@@ -23,6 +23,7 @@ import { useCasePanel } from "@/lib/crm/panel-context"
 import { getNextTaskForCase } from "@/lib/crm/entity-queue"
 import { useUserDirectory } from "@/lib/crm/user-directory"
 import { useAuthorization } from "@/lib/crm/authorization-context"
+import { isBotInteraction } from "@/lib/crm/conversation-control"
 
 const SEND_CHANNELS: { value: ContactChannel; label: string; potential?: boolean }[] = [
   { value: "website", label: "Czat" },
@@ -36,8 +37,6 @@ const SEND_CHANNELS: { value: ContactChannel; label: string; potential?: boolean
 ]
 
 const EMOJIS = ["😊", "👍", "🙏", "😀", "😉", "❤️", "👋", "✅", "📅", "🦷", "😁", "🙂", "👌", "🎉", "😢", "🤝", "⏰", "📞", "✨", "💬"]
-const isBotAuthor = (id?: string) => Boolean(id && /^bot/i.test(id))
-
 const CHANNEL_TYPE: Partial<Record<ContactChannel, InteractionType>> = {
   website: "chat", phone: "sms", whatsapp: "whatsapp", telegram: "social", instagram: "social", facebook: "social", email: "email", tiktok: "social",
 }
@@ -94,7 +93,7 @@ export function ConversationThread({
   emptyLabel = "Brak wiadomości w tej rozmowie.",
   patientSmsHistory = false,
   taskId,
-  threadChannel, threadIdentityId, threadKey, messageIds, highlight,
+  threadChannel, threadIdentityId, threadKey, messageIds, highlight, operatorCanReply = true, replyBlockedReason,
 }: {
   /** Search term from the inbox; matching messages get a visible marker. */
   highlight?: string
@@ -113,6 +112,8 @@ export function ConversationThread({
   threadIdentityId?: string
   threadKey?: string
   messageIds?: string[]
+  operatorCanReply?: boolean
+  replyBlockedReason?: string
 }) {
   const { interactions, sendMessage, sendSms, retrySms, markRead, cases, patients, tasks, identities, smsProviderConfigurations, currentUser } = useScopedEntityStore()
   const { hasPermission } = useAuthorization()
@@ -159,7 +160,7 @@ export function ConversationThread({
     setChosenTaskId(taskId)
     setSendError("")
   }, [channel, targetCaseId, targetPatientId, defaultSmsText, taskId])
-  const canSendMessage = hasPermission("communication:send") && (!threadChannel || Boolean(threadIdentityId && identities.some(item => item.id === threadIdentityId)))
+  const canSendMessage = operatorCanReply && hasPermission("communication:send") && (!threadChannel || Boolean(threadIdentityId && identities.some(item => item.id === threadIdentityId)))
   const canSendCustomSms = hasPermission("sms:send_custom")
 
   useEffect(() => {
@@ -221,7 +222,7 @@ export function ConversationThread({
     } else {
       if (!targetCaseId) return
       try {
-        const sent = sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: interactionType, channel, contactIdentityId: threadIdentityId, direction: "outgoing", authorId })
+        const sent = sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: interactionType, channel, contactIdentityId: threadIdentityId, direction: "outgoing", authorId, senderKind: "user", threadKey })
         deliver(sent.id, sentText, interactionType, channel)
       } catch (error) { setSendError(error instanceof Error ? error.message : "Błąd wysyłki."); return }
     }
@@ -266,7 +267,7 @@ export function ConversationThread({
                     status === "error" && "opacity-70",
                                       )}
                 >
-                  {!incoming && isBotAuthor(m.authorId) && <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-80">Bot</p>}
+                  {!incoming && isBotInteraction(m) && <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-80">Bot</p>}
                   <p className="whitespace-pre-wrap"><Highlighted text={m.text ?? ""} term={highlight} /></p>
                   <div className={cn("mt-1 flex flex-wrap items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
                     <span>{m.type === "sms" ? "SMS" : TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
@@ -346,6 +347,7 @@ export function ConversationThread({
         </div>
       )}
       {sendError && <p role="alert" className="text-xs text-destructive">{sendError}</p>}
+      {!operatorCanReply && replyBlockedReason && <p role="status" className="text-xs font-medium text-amber-700">{replyBlockedReason}</p>}
       <div className="flex items-center justify-end gap-1.5 pb-1.5 text-[11px] text-muted-foreground">
         <input
           id={toggleId}
