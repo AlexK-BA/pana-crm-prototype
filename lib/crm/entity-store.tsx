@@ -8,6 +8,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import type {
   AuditEvent,
+  AiConversationPolicy,
+  AiResponseTrace,
+  BotActivationSchedule,
   Broadcast,
   Call,
   CallDisposition,
@@ -45,6 +48,7 @@ import { BOARD_COLUMNS } from "./boards"
 import { TASK_TYPE_LABELS, buildAutomaticTask, getWorkflowStageRule } from "./workflow-rules"
 import { calculateSmsParts, emulatedSmsAdapter, isSmsMessage, INITIAL_SMS_PROVIDER_CONFIGS, selectSmsProvider } from "./sms-service"
 import { interactionSenderKind } from "./conversation-control"
+import { INITIAL_AI_CONVERSATION_POLICIES, isAiEnabledForConversation, makeBotActivationSchedule, resolveAiConversationPolicy, validateAiPolicy, validateAiResponseTrace } from "./ai-governance"
 
 export const TASK_TYPES: TaskType[] = ["call","message","sms","email","qualification","appointment_confirmation","appointment_booking","post_visit_follow_up","waitlist_contact","patient_care_handoff","treatment_plan_review","send_treatment_plan","custom"]
 
@@ -89,7 +93,12 @@ interface EntityStoreValue {
   matchDecisions: MatchDecision[]
   comments: Comment[]
   conversationControls: ConversationControl[]
+  aiConversationPolicies: AiConversationPolicy[]
+  botActivationSchedules: BotActivationSchedule[]
   setConversationMode: (input: { threadKey: string; caseId: string; patientId?: string; contactIdentityId?: string; channel: ContactChannel | "sms"; mode: ConversationMode; botId?: string; reason: string }, access?: MatchingAccess) => ConversationControl
+  setConversationAiEnabled: (input: { threadKey: string; caseId: string; patientId?: string; contactIdentityId?: string; channel: ContactChannel; enabled: boolean; reason: string }, access?: MatchingAccess) => ConversationControl
+  updateAiConversationPolicy: (id: string, patch: Partial<Omit<AiConversationPolicy, "id" | "version" | "updatedAt" | "updatedBy">>, reason: string, access?: MatchingAccess) => AiConversationPolicy
+  activateDueBot: (threadKey: string, access?: MatchingAccess) => ConversationControl | undefined
   createPatientCase: (input: PatientCaseInput, access?: MatchingAccess) => EngagementCase
   createPatientTask: (input: PatientTaskInput, access?: MatchingAccess) => Task
   completePatientTask: (taskId: string, access?: MatchingAccess) => void
@@ -135,6 +144,7 @@ interface EntityStoreValue {
     senderKind?: InteractionSenderKind
     contactIdentityId?: string
     threadKey?: string
+    aiTrace?: AiResponseTrace
   }, access?: MatchingAccess) => Interaction
   sendSms: (input: SmsSendInput) => SmsMessage
   retrySms: (id: string, authorId: string, simulateError?: boolean) => SmsMessage
@@ -230,6 +240,12 @@ function nextInteractionId() {
   return `int-live-${interactionSeq}`
 }
 
+let botActivationSeq = 0
+function nextBotActivationId() {
+  botActivationSeq += 1
+  return `bot-activation-live-${botActivationSeq}`
+}
+
 let taskSeq = 0
 function nextTaskId() {
   taskSeq += 1
@@ -268,6 +284,12 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const [readAt, setReadAt] = useState<Record<string, string>>({})
   const [conversationControls, setConversationControlsState] = useState<ConversationControl[]>([])
   const conversationControlRef = useRef(conversationControls); conversationControlRef.current = conversationControls
+  const [aiConversationPolicies, setAiConversationPoliciesState] = useState<AiConversationPolicy[]>(INITIAL_AI_CONVERSATION_POLICIES)
+  const aiPolicyRef = useRef(aiConversationPolicies); aiPolicyRef.current = aiConversationPolicies
+  const setAiConversationPolicies = (next: AiConversationPolicy[] | ((prev: AiConversationPolicy[]) => AiConversationPolicy[])) => { const value = typeof next === "function" ? next(aiPolicyRef.current) : next; aiPolicyRef.current = value; setAiConversationPoliciesState(value) }
+  const [botActivationSchedules, setBotActivationSchedulesState] = useState<BotActivationSchedule[]>([])
+  const botActivationRef = useRef(botActivationSchedules); botActivationRef.current = botActivationSchedules
+  const setBotActivationSchedules = (next: BotActivationSchedule[] | ((prev: BotActivationSchedule[]) => BotActivationSchedule[])) => { const value = typeof next === "function" ? next(botActivationRef.current) : next; botActivationRef.current = value; setBotActivationSchedulesState(value) }
   const setConversationControls = (next: ConversationControl[] | ((prev: ConversationControl[]) => ConversationControl[])) => {
     const value = typeof next === "function" ? next(conversationControlRef.current) : next
     conversationControlRef.current = value
@@ -666,14 +688,30 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     if (before?.mode === "operator_active" && before.ownerId && before.ownerId !== access!.actorId && !["admin", "team_leader"].includes(role ?? "")) {
       throw new AccessCommandError("Rozmowę prowadzi inny operator.")
     }
+    if (input.mode === "bot_active" && input.channel !== "sms") {
+      const policy = resolveAiConversationPolicy(aiPolicyRef.current, target?.clinicId, input.channel)
+      if (!isAiEnabledForConversation(before, policy)) throw new AccessCommandError("AI jest wyłączone dla tej rozmowy lub kanału.")
+    }
     const after: ConversationControl = {
       threadKey: input.threadKey, caseId: input.caseId, patientId: input.patientId ?? target?.patientId,
       contactIdentityId: input.contactIdentityId, channel: input.channel, mode: input.mode,
       ownerId: input.mode === "operator_active" || input.mode === "bot_paused" ? access!.actorId : undefined,
       botId: input.mode === "bot_active" ? input.botId ?? before?.botId ?? "bot-pana" : before?.botId,
+      aiEnabledOverride: before?.aiEnabledOverride,
+      aiDisclosureShownAt: before?.aiDisclosureShownAt,
       updatedAt: new Date().toISOString(), updatedBy: access!.actorId,
     }
     setConversationControls(prev => [...prev.filter(item => item.threadKey !== input.threadKey), after])
+    if (["operator_active", "bot_paused", "closed"].includes(input.mode)) {
+      const cancelledAt = new Date().toISOString()
+      const pending = botActivationRef.current.filter(item => item.threadKey === input.threadKey && item.status === "pending")
+      setBotActivationSchedules(prev => prev.map(item => item.threadKey === input.threadKey && item.status === "pending"
+        ? { ...item, status: "cancelled", cancelledAt, cancelledBy: access!.actorId, cancellationReason: input.reason.trim() }
+        : item))
+      for (const schedule of pending) addAudit({ type: "ai_activation_cancelled", action: "cancelled", caseId: input.caseId,
+        patientId: after.patientId, actorId: access!.actorId, before: schedule.dueAt, after: input.mode, reason: input.reason.trim(),
+        correlationId: schedule.id, summary: "Anulowano oczekującą aktywację AI" })
+    }
     addAudit({ type: "conversation_handoff", action: input.mode, caseId: input.caseId, patientId: after.patientId,
       actorId: access!.actorId, actorRole: role, before: before?.mode ?? "unmanaged", after: input.mode,
       reason: input.reason.trim(), correlationId: `conversation:${input.threadKey}:${Date.now()}`,
@@ -681,11 +719,97 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     return after
   }, [addAudit])
 
+  const setConversationAiEnabled = useCallback((input: { threadKey: string; caseId: string; patientId?: string; contactIdentityId?: string; channel: ContactChannel; enabled: boolean; reason: string }, access?: MatchingAccess) => {
+    const target = matchingState.current.cases.find(item => item.id === input.caseId)
+    assertMatchingAccess(access, "ai:manage", target)
+    if (!input.reason.trim()) throw new AccessCommandError("Podaj powód zmiany ustawienia AI.")
+    const before = conversationControlRef.current.find(item => item.threadKey === input.threadKey)
+    const now = new Date().toISOString()
+    const after: ConversationControl = {
+      threadKey: input.threadKey,
+      caseId: input.caseId,
+      patientId: input.patientId ?? target?.patientId,
+      contactIdentityId: input.contactIdentityId,
+      channel: input.channel,
+      mode: input.enabled ? "bot_active" : "bot_paused",
+      ownerId: input.enabled ? undefined : access!.actorId,
+      botId: before?.botId ?? "bot-pana",
+      aiEnabledOverride: input.enabled,
+      aiDisclosureShownAt: before?.aiDisclosureShownAt,
+      updatedAt: now,
+      updatedBy: access!.actorId,
+    }
+    setConversationControls(prev => [...prev.filter(item => item.threadKey !== input.threadKey), after])
+    if (!input.enabled) {
+      const pending = botActivationRef.current.filter(item => item.threadKey === input.threadKey && item.status === "pending")
+      setBotActivationSchedules(prev => prev.map(item => item.threadKey === input.threadKey && item.status === "pending"
+        ? { ...item, status: "cancelled", cancelledAt: now, cancelledBy: access!.actorId, cancellationReason: input.reason.trim() }
+        : item))
+      for (const schedule of pending) addAudit({ type: "ai_activation_cancelled", action: "disabled", caseId: input.caseId,
+        patientId: after.patientId, actorId: access!.actorId, before: schedule.dueAt, after: "disabled", reason: input.reason.trim(),
+        correlationId: schedule.id, summary: "Anulowano oczekującą aktywację AI po wyłączeniu AI" })
+    }
+    addAudit({ type: "ai_control_changed", action: input.enabled ? "enabled" : "disabled", caseId: input.caseId,
+      patientId: after.patientId, actorId: access!.actorId, actorRole: (access as MatchingAccess & { actorRole?: import("./roles").RoleId }).actorRole,
+      before: String(before?.aiEnabledOverride ?? "policy"), after: String(input.enabled), reason: input.reason.trim(),
+      correlationId: `ai-control:${input.threadKey}:${Date.now()}`, summary: `AI ${input.enabled ? "włączone" : "wyłączone"} dla rozmowy` })
+    return after
+  }, [addAudit])
+
+  const updateAiConversationPolicy = useCallback((id: string, patch: Partial<Omit<AiConversationPolicy, "id" | "version" | "updatedAt" | "updatedBy">>, reason: string, access?: MatchingAccess) => {
+    assertMatchingAccess(access, "ai:manage")
+    assertMatchingAccess(access, "configuration:manage")
+    if (!reason.trim()) throw new AccessCommandError("Podaj powód zmiany polityki AI.")
+    const before = aiPolicyRef.current.find(item => item.id === id)
+    if (!before) throw new AccessCommandError("Nie znaleziono polityki AI.")
+    if (before.clinicId && !access!.globalScope && !access!.clinicIds.includes(before.clinicId)) throw new AccessCommandError("Polityka AI jest poza zakresem kliniki.")
+    const after: AiConversationPolicy = { ...before, ...patch, id: before.id, version: before.version + 1,
+      updatedAt: new Date().toISOString(), updatedBy: access!.actorId }
+    validateAiPolicy(after)
+    setAiConversationPolicies(prev => prev.map(item => item.id === id ? after : item))
+    addAudit({ type: "ai_policy_changed", action: "updated", actorId: access!.actorId,
+      actorRole: (access as MatchingAccess & { actorRole?: import("./roles").RoleId }).actorRole, clinicId: after.clinicId,
+      before: `v${before.version}`, after: `v${after.version}`, reason: reason.trim(), correlationId: `ai-policy:${id}:${after.version}`,
+      summary: `Zmieniono politykę AI ${after.name}: v${before.version} → v${after.version}` })
+    return after
+  }, [addAudit])
+
+  const activateDueBot = useCallback((threadKey: string, access?: MatchingAccess) => {
+    const schedule = botActivationRef.current.find(item => item.threadKey === threadKey && item.status === "pending")
+    if (!schedule || Date.parse(schedule.dueAt) > Date.now()) return undefined
+    const target = matchingState.current.cases.find(item => item.id === schedule.caseId)
+    assertMatchingAccess(access, "communication:send", target)
+    const control = conversationControlRef.current.find(item => item.threadKey === threadKey)
+    const policy = aiPolicyRef.current.find(item => item.id === schedule.policyId && item.version === schedule.policyVersion)
+      ?? aiPolicyRef.current.find(item => item.id === schedule.policyId)
+    if (!isAiEnabledForConversation(control, policy) || ["operator_active", "bot_paused", "closed"].includes(control?.mode ?? "")) {
+      const now = new Date().toISOString()
+      setBotActivationSchedules(prev => prev.map(item => item.id === schedule.id ? { ...item, status: "cancelled", cancelledAt: now, cancelledBy: access!.actorId, cancellationReason: "AI niedostępne lub rozmowę przejął operator" } : item))
+      return undefined
+    }
+    const now = new Date().toISOString()
+    const after: ConversationControl = {
+      threadKey, caseId: schedule.caseId, patientId: schedule.patientId ?? target?.patientId,
+      contactIdentityId: control?.contactIdentityId, channel: control?.channel ?? "website", mode: "bot_active",
+      botId: control?.botId ?? "bot-pana", aiEnabledOverride: control?.aiEnabledOverride,
+      aiDisclosureShownAt: control?.aiDisclosureShownAt, updatedAt: now, updatedBy: "system",
+    }
+    setConversationControls(prev => [...prev.filter(item => item.threadKey !== threadKey), after])
+    setBotActivationSchedules(prev => prev.map(item => item.id === schedule.id ? { ...item, status: "activated", activatedAt: now } : item))
+    addAudit({ type: "ai_activation_started", action: "activated", caseId: schedule.caseId, patientId: schedule.patientId,
+      actorId: "system", before: "pending", after: "bot_active", correlationId: schedule.id, summary: "Aktywowano AI po upływie skonfigurowanego czasu" })
+    return after
+  }, [addAudit])
+
   const sendMessage = useCallback(
-    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string; senderKind?: InteractionSenderKind; contactIdentityId?: string; threadKey?: string }, access?: MatchingAccess) => {
+    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string; senderKind?: InteractionSenderKind; contactIdentityId?: string; threadKey?: string; aiTrace?: AiResponseTrace }, access?: MatchingAccess) => {
       if (access && input.direction === "outgoing") assertMatchingAccess(access, "communication:send", matchingState.current.cases.find(item => item.id === input.caseId))
       const control = input.threadKey ? conversationControls.find(item => item.threadKey === input.threadKey) : undefined
       const senderKind = input.senderKind ?? interactionSenderKind(input)
+      if (senderKind === "bot") {
+        if (!input.aiTrace) throw new AccessCommandError("Odpowiedź bota wymaga audytowalnego AI trace.")
+        validateAiResponseTrace(input.aiTrace)
+      } else if (input.aiTrace) throw new AccessCommandError("AI trace można przypisać wyłącznie odpowiedzi bota.")
       if (input.direction === "outgoing" && control?.mode === "closed") throw new AccessCommandError("Rozmowa jest zamknięta.")
       if (input.direction === "outgoing" && senderKind === "bot" && control?.mode !== "bot_active") throw new AccessCommandError("Bot nie jest aktywnym właścicielem rozmowy.")
       if (input.direction === "outgoing" && senderKind !== "bot" && control && (control.mode !== "operator_active" || control.ownerId !== access?.actorId)) {
@@ -709,14 +833,51 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
         authorId: input.authorId,
         senderKind,
         text: input.text,
+        aiTrace: input.aiTrace,
       }
       setInteractions((prev) => [...prev, interaction])
+      if (input.direction === "incoming" && input.threadKey && input.channel) {
+        const target = matchingState.current.cases.find(item => item.id === input.caseId)
+        const currentControl = conversationControlRef.current.find(item => item.threadKey === input.threadKey)
+        const policy = resolveAiConversationPolicy(aiPolicyRef.current, target?.clinicId, input.channel)
+        if (policy && isAiEnabledForConversation(currentControl, policy) && !["operator_active", "bot_paused", "closed"].includes(currentControl?.mode ?? "")) {
+          const schedule = makeBotActivationSchedule({ id: nextBotActivationId(), threadKey: input.threadKey, caseId: input.caseId,
+            patientId: interaction.patientId, triggerInteractionId: interaction.id, policy, scheduledAt: interaction.at })
+          const replaced = botActivationRef.current.filter(item => item.threadKey === input.threadKey && item.status === "pending")
+          setBotActivationSchedules(prev => [...prev.map(item => item.threadKey === input.threadKey && item.status === "pending"
+            ? { ...item, status: "cancelled" as const, cancelledAt: interaction.at, cancelledBy: "system", cancellationReason: "Nowsza wiadomość przychodząca" }
+            : item), schedule])
+          for (const old of replaced) addAudit({ type: "ai_activation_cancelled", action: "rescheduled", caseId: input.caseId,
+            patientId: interaction.patientId, actorId: "system", before: old.dueAt, after: schedule.dueAt,
+            correlationId: old.id, summary: "Zastąpiono timer AI po nowszej wiadomości pacjenta" })
+          addAudit({ type: "ai_activation_scheduled", action: "scheduled", caseId: input.caseId, patientId: interaction.patientId,
+            actorId: "system", after: schedule.dueAt, correlationId: schedule.id, summary: `Zaplanowano aktywację AI za ${policy.activationDelaySeconds}s` })
+        }
+      }
+      if (input.direction === "outgoing" && input.threadKey && senderKind !== "bot") {
+        const now = new Date().toISOString()
+        const pending = botActivationRef.current.filter(item => item.threadKey === input.threadKey && item.status === "pending")
+        setBotActivationSchedules(prev => prev.map(item => item.threadKey === input.threadKey && item.status === "pending"
+          ? { ...item, status: "cancelled", cancelledAt: now, cancelledBy: access?.actorId ?? input.authorId ?? "system", cancellationReason: "Odpowiedział operator" }
+          : item))
+        for (const schedule of pending) addAudit({ type: "ai_activation_cancelled", action: "operator_answered", caseId: input.caseId,
+          patientId: interaction.patientId, actorId: access?.actorId ?? input.authorId ?? "system", before: schedule.dueAt, after: "operator_answered",
+          correlationId: schedule.id, summary: "Anulowano aktywację AI: odpowiedział operator" })
+      }
+      if (input.direction === "outgoing" && senderKind === "bot" && input.threadKey) {
+        setConversationControls(prev => prev.map(item => item.threadKey === input.threadKey
+          ? { ...item, aiDisclosureShownAt: item.aiDisclosureShownAt ?? interaction.at, updatedAt: interaction.at }
+          : item))
+        addAudit({ type: "ai_response_recorded", action: "answered", caseId: input.caseId, patientId: interaction.patientId,
+          actorId: input.authorId ?? "bot", before: input.aiTrace!.policyId, after: input.aiTrace!.runId,
+          correlationId: interaction.id, summary: `Zapisano odpowiedź AI z ${input.aiTrace!.citations.length} źródłami Bazy Wiedzy` })
+      }
       if (input.direction === "outgoing") {
         setReadAt((prev) => ({ ...prev, [input.caseId]: interaction.at }))
       }
       return interaction
     },
-    [conversationControls, matchCaseToPatient],
+    [addAudit, matchCaseToPatient],
   )
 
   const sendSms = useCallback(
@@ -1051,6 +1212,8 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       matchDecisions,
       comments,
       conversationControls,
+      aiConversationPolicies,
+      botActivationSchedules,
       changeTask, createPatientCase, createPatientTask, completePatientTask, addPatientContact, updatePatientLocal, addCaseComment,
       readAt,
       recordAudit: addAudit,
@@ -1065,6 +1228,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       logCall,
       sendMessage,
       setConversationMode,
+      setConversationAiEnabled,
+      updateAiConversationPolicy,
+      activateDueBot,
       sendSms,
       retrySms,
       updateSmsProviderConfiguration,
@@ -1094,6 +1260,8 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       matchDecisions,
       comments,
       conversationControls,
+      aiConversationPolicies,
+      botActivationSchedules,
       changeTask, createPatientCase, createPatientTask, completePatientTask, addPatientContact, updatePatientLocal, addCaseComment,
       readAt,
       completeTask,
@@ -1107,6 +1275,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       logCall,
       sendMessage,
       setConversationMode,
+      setConversationAiEnabled,
+      updateAiConversationPolicy,
+      activateDueBot,
       sendSms,
       retrySms,
       updateSmsProviderConfiguration,

@@ -1,5 +1,25 @@
 # PaNa CRM prototype — UAT scenario
 
+## AI governance, KB trace and activation timer
+
+Baseline: branch `codex/ai-governance-kb`. Use Admin and Operator role views.
+
+| ID | Scenario | Expected |
+|---|---|---|
+| AI-UAT-01 | As Admin open case `case-1012`, Instagram thread and bot message `int-12`. | Message is visibly AI; “Źródła odpowiedzi AI” opens exact KB title/version/chunk/retrieval time and model/policy/prompt/run metadata. No chain-of-thought is shown. |
+| AI-UAT-02 | Switch to Operator and open the same message. | Bot label remains; detailed `aiTrace` and source control are absent from scoped data/UI. |
+| AI-UAT-03 | Record a bot answer without trace, without disclosure, and without citation/no-source reason through command tests. | All are rejected without Interaction or audit mutation. |
+| AI-UAT-04 | Send an incoming supported-channel message in an AI-enabled thread. | One pending schedule is created; countdown derives from `dueAt`; typed audit event exists. |
+| AI-UAT-05 | Send another patient message before zero. | Original schedule remains as cancelled; one new pending schedule replaces it; audit explains reschedule. |
+| AI-UAT-06 | Operator takes over or replies before zero. | Pending timer cancels and remains in history; bot cannot answer while operator owns the thread. |
+| AI-UAT-07 | As Admin disable AI with a reason, then enable it. | Per-thread override changes without changing clinic/global policy; reason/actor/time are audited. |
+| AI-UAT-08 | Let countdown reach zero while AI remains allowed. | Control becomes `bot_active`; schedule becomes activated. Prototype needs an open browser; production limitation is explicit. |
+| AI-UAT-09 | Simulate medical advice, emergency phrase, no source, low confidence and patient request. | Policy helper returns mandatory human-handoff reason; no autonomous clinical answer is accepted by product policy. |
+| AI-UAT-10 | Open Patient 360 Activity after bot response. | AI answer stays communication history and does not modify Patient identity, matching, PESEL, plan or medical provenance. |
+| AI-UAT-11 | Open unlinked lead and linked Patient states. | Unlinked lead has no invented Medical CRM content; linked Patient retains read-only source and conflict/sync warnings. |
+
+Production blocker: the browser timer is an emulation. Backend persistence, scheduler/idempotency, provider/RAG integration, server RBAC, AI classification/DPIA, approved disclosures and red-team tests are required before live AI answers.
+
 ## Test environment
 
 - Branch under test: `codex/task-calendar-workflow` (base: `main`, `022e10371a9750320b6d94662ddfbb315c006598`).

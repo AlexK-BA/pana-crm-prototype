@@ -8,6 +8,8 @@ Patient ≠ EngagementCase. One Patient can have many cases; each case can have 
 
 The existing `/patients/[id]` route and PatientProfile are extended. `patient-360-selectors.ts` projects canonical records from ScopedEntityStore; it does not persist copies. EntityStore remains the only operational store. Comments use the existing Comment entity, now initialized and mutated in EntityStore rather than read directly from seed data. Legacy CASES/CrmCase and fallback sources remain removed.
 
+AI output remains a communication Interaction and is not a Patient/medical field. Patient 360 may render an AI label and, for authorised Admin users, the immutable KB trace, but it must not treat the answer as verified identity or clinical provenance. Patient/Lead card risks and visual requirements are recorded in [PATIENT-LEAD-CARD-RISK-REVIEW.md](PATIENT-LEAD-CARD-RISK-REVIEW.md).
+
 ## Sections
 
 - Header: basic identity, external ID, clinic, integration state, contacts, language, local tags, responsible employee, latest activity, next task and overdue count. New/existing is derived from the external link; it is not a new clinical status field.

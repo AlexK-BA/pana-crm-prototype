@@ -288,6 +288,23 @@ export function ConversationThread({
                   </span>
                 )}
               </div>
+              {isBotInteraction(m) && "aiTrace" in m && m.aiTrace && hasPermission("ai:trace_view") && (
+                <details className="max-w-[80%] rounded border bg-background px-3 py-2 text-xs text-foreground">
+                  <summary className="cursor-pointer font-medium">Źródła odpowiedzi AI ({m.aiTrace.citations.length})</summary>
+                  <div className="mt-2 space-y-2">
+                    <p>Run: {m.aiTrace.runId} · {m.aiTrace.modelProvider}/{m.aiTrace.modelName}{m.aiTrace.modelVersion ? ` · ${m.aiTrace.modelVersion}` : ""}</p>
+                    <p>Polityka: {m.aiTrace.policyId} v{m.aiTrace.policyVersion} · prompt: {m.aiTrace.promptTemplateId} v{m.aiTrace.promptTemplateVersion}</p>
+                    {m.aiTrace.citations.map((source, sourceIndex) => <div key={`${source.sourceId}/${source.sourceVersion}/${source.chunkId ?? sourceIndex}`} className="rounded bg-muted p-2">
+                      <p className="font-medium">{source.sourceTitle} · v{source.sourceVersion}</p>
+                      <p>{[source.section, source.page ? `s. ${source.page}` : undefined, source.chunkId].filter(Boolean).join(" · ") || source.sourceId}</p>
+                      <p className="text-muted-foreground">Pobrano: {formatDateTime(source.retrievedAt)}{source.relevance !== undefined ? ` · trafność ${Math.round(source.relevance * 100)}%` : ""}</p>
+                    </div>)}
+                    {!m.aiTrace.citations.length && <p>Brak źródła: {m.aiTrace.noSourceReason}</p>}
+                    {m.aiTrace.escalationReason && <p className="text-amber-700">Eskalacja: {m.aiTrace.escalationReason}</p>}
+                    <p className="text-muted-foreground">Pokazywane są źródła i wersje, nie ukryty tok rozumowania modelu.</p>
+                  </div>
+                </details>
+              )}
               {isSmsMessage(m) && (
                 <div className="flex max-w-[80%] flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                   {m.caseId ? <button type="button" className="underline" onClick={() => openCase(m.caseId!)}>Sprawa: {m.caseId}</button> : <span>Bez sprawy</span>}

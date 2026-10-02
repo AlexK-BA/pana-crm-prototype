@@ -1,5 +1,7 @@
 # Module specification: Omnichannel communications
 
+AI-assisted channels use the canonical conversation owner, versioned activation policy/schedule and per-answer KB trace. A bot response is rejected without disclosure evidence and citations or an explicit allowed no-source reason. AI is limited to administrative, non-clinical use and must hand off medical/emergency/low-confidence/no-source cases. See `docs/AI-GOVERNANCE-KB-TRACEABILITY.md`.
+
 ## Goal and problem
 
 Provide one patient-level communication workspace while preserving separate conversations by channel and case. Operators should not lose context when one patient contacts the clinic through several channels.

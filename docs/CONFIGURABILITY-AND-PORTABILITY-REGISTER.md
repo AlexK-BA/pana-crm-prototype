@@ -91,6 +91,8 @@ Patient 360 consumes canonical scoped projections, existing clinic/procedure cat
 
 Remaining hardcode: clinic/procedure catalogs and initial funnel stages (leads:new, deals:scheduled, patients:new_patient), fixed channel list including TikTok Potential, and Polish workspace labels. No medical summary field exists; no synthetic replacement is introduced. These choices need tenant catalogs, workflow entry configuration, channel activation and translation resources for another clinic. Medical CRM contract, credentials, persistence and server authorization belong to future backend adapters, not frontend mock data. Patient 360 itself adds no credentials or external API calls.
 
+AI portability: `AiConversationPolicy` is tenant/clinic/channel configuration and must move to backend tenant storage. The bundled 120-second activation delay, 300-second human SLA, confidence threshold and bot-turn limit are prototype defaults awaiting business approval, not PaNa-specific logic to copy into another clinic. Model provider, RAG/KB provider and scheduler must sit behind adapters; V0 must not add credentials or provider SDK calls to the browser. `administrative_non_clinical` is a deliberate safety boundary, not a branding constant.
+
 ## Task / Calendar / workflow register
 
 The existing workflow-rules.ts catalog now describes automatic/suggested task types, due policy, mandatory next work, allowed outcome intent, enabled/configurability markers and a future automationWorkflowKey. Numeric SLA defaults are calendar time and require Daniel's approval; settings exposes the read-only matrix. Appointment/clinical policies require explicit dates; no provider or appointment is invented.

@@ -59,6 +59,18 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-2),
     careOwnerId: WERONIKA,
     contactable: true,
+    address: { line1: "ul. Dąbrowskiego 118/7", postalCode: "60-577", city: "Poznań", countryCode: "PL", source: "medical_crm", updatedAt: iso(-2) },
+    portalAccount: { accountId: "pa-100234", status: "active", registeredAt: iso(-720), verifiedAt: iso(-700), lastLoginAt: iso(-48) },
+    allergies: [
+      { id: "allergy-01", substance: "Penicylina", reaction: "Wysypka", severity: "moderate", status: "active", recordedAt: iso(-2400), source: "medical_crm" },
+      { id: "allergy-02", substance: "Lateks", severity: "unknown", status: "unconfirmed", recordedAt: iso(-120), source: "medical_crm" },
+    ],
+    medicalVisits: [
+      { id: "visit-01", externalVisitId: "PM-V-88201", clinicId: "pana-medica", doctorId: "doc-kowalska", procedureId: "proc-implant",
+        treatmentPlanId: "tp-01", startsAt: iso(72), endsAt: iso(73), status: "confirmed", source: "medical_crm", lastSyncAt: iso(-2) },
+      { id: "visit-00", externalVisitId: "PM-V-87011", clinicId: "pana-medica", doctorId: "doc-kowalska", procedureId: "proc-implant",
+        treatmentPlanId: "tp-01", startsAt: iso(-720), endsAt: iso(-719), status: "completed", source: "medical_crm", lastSyncAt: iso(-2) },
+    ],
     provenance: [
       { field: "firstName", source: "PaNa CRM", value: "Marek", updatedAt: iso(-2) },
       { field: "lastName", source: "PaNa CRM", value: "Nowicki", updatedAt: iso(-2) },
@@ -77,6 +89,10 @@ export const PATIENTS: Patient[] = [
       date: iso(-72),
       documentName: "plan-leczenia-nowicki-v2.pdf",
     },
+    treatmentPlans: [{
+      id: "tp-00", status: "completed", totalValue: 850, currency: "PLN",
+      items: [{ id: "tpi-0", name: "Higienizacja", price: 850 }], version: 1, date: iso(-1440), documentName: "plan-higienizacja-v1.pdf",
+    }],
   },
   {
     id: "pat-02",
@@ -777,7 +793,20 @@ export const INTERACTIONS: (Interaction | Call | SmsMessage)[] = [
   // New unassigned chat draft (case-1012) — the lead-from-chat scenario.
   {
     id: "int-11", caseId: "case-1012", type: "chat", direction: "incoming", at: iso(-0.05),
+    contactIdentityId: "ci-15", channel: "instagram",
     text: "Cześć! Piszę pierwszy raz, chciałabym zapytać o ceny wybielania zębów 🦷",
+  },
+  {
+    id: "int-12", caseId: "case-1012", type: "social", channel: "instagram", direction: "outgoing", at: iso(-0.04),
+    contactIdentityId: "ci-15", authorId: "bot-pana", senderKind: "bot",
+    text: "Cześć! Jestem wirtualnym asystentem PaNa. Mogę przekazać aktualne informacje organizacyjne o wybielaniu i połączyć Cię z konsultantem.",
+    aiTrace: {
+      runId: "ai-run-demo-1012", modelProvider: "demo", modelName: "kb-assistant", modelVersion: "prototype-1",
+      policyId: "ai-policy-global-v1", policyVersion: 1, promptTemplateId: "administrative-chat", promptTemplateVersion: 1,
+      generatedAt: iso(-0.04), inputInteractionIds: ["int-11"], userDisclosureShown: true, confidence: 0.91,
+      citations: [{ sourceId: "kb-procedure-whitening", sourceTitle: "Wybielanie zębów — informacje organizacyjne",
+        sourceVersion: "2026-09-15", section: "Zakres konsultacji", chunkId: "chunk-04", retrievedAt: iso(-0.041), relevance: 0.94 }],
+    },
   },
   {
     id: "sms-01", caseId: "case-1001", patientId: "pat-01", type: "sms", channel: "phone", direction: "outgoing",
