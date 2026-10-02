@@ -32,6 +32,9 @@ health_check
 8. Call-required tasks enforce disposition.
 9. `No answer` preserves work and requires next due time.
 10. Recording access follows separate permission and retention policy.
+11. Every call command enforces `call:handle` at the action boundary, not only by hiding UI controls.
+12. `Call.authorId` and related audit events store the canonical immutable `usr-*` user ID; display name and extension are resolved from the user directory.
+13. Retry outcomes keep the same task active and require a new future due date; a terminal disposition closes the related task.
 
 ## Provider-neutral call model
 
@@ -51,4 +54,3 @@ Keep direction, lifecycle status, timestamps, duration, disposition and recordin
 - multi-tenant number-to-clinic routing;
 - recording storage, retention and access;
 - migration from current Yeastar CDR identifiers.
-

@@ -337,6 +337,39 @@ Expected:
 - no active source file imports the removed flat CRM model or approximate queue;
 - historical migration documentation may name `CrmCase`, but no executable dependency remains.
 
+## UAT-19 — AIHub Admin activity access and user lifecycle controls
+
+1. Switch to the Administrator / AIHub Admin role.
+2. Open a case and verify that the Audit/Activity tab is visible and contains status, assignment and task-change history.
+3. Switch to Operator and open the same case.
+4. Verify that the Audit tab is hidden and audit-only events are absent from the combined timeline.
+5. Return to Administrator and open Users.
+6. Start password reset, session revocation and deactivation for another user.
+7. Verify that each action requires confirmation and creates an Audit Log event attributed to the current administrator.
+8. Verify that no Delete User action exists and that the current administrator cannot deactivate or change access for their own account.
+
+**Expected:** `audit:view` is enforced consistently at route and case level; sensitive user operations are confirmed, attributable and non-destructive.
+
+## UAT-20 — telephony permission and canonical call actor
+
+1. As Operator, start an outgoing call from a call-required task, hang up and select a retry outcome.
+2. Verify wrap-up cannot be dismissed, a future retry date is mandatory and the same task remains active with the new deadline.
+3. Complete another call with a terminal disposition and verify the related task closes.
+4. Open the patient/case interaction history and Audit Log as AIHub Admin.
+5. Verify the call and audit event resolve to the current user through the canonical `usr-*` identifier and correct extension.
+6. Remove `call:handle` from a test role and verify direct call commands are rejected even if invoked outside the normal button path.
+
+**Expected:** UI visibility and command execution use the same permission; call history never stores a display name as the actor identifier.
+
+## UAT-21 — runtime permissions inside the case workspace
+
+1. As AIHub Admin, remove one permission at a time from a test role: `call:handle`, `communication:view`, `patient:edit_local`, `task:work`.
+2. Switch to that role and reopen the same case after each change.
+3. Verify call buttons, conversation history, profile editing/patient matching and task controls respectively become unavailable.
+4. Restore the default role bundle and verify the actions return without reloading seed data.
+
+**Expected:** changing the runtime matrix affects protected case actions consistently, not only sidebar navigation.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.

@@ -10,8 +10,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import { useRole } from "@/lib/crm/role-context"
-import { ROLE_PROFILES } from "@/lib/crm/roles"
+import { useUserDirectory } from "@/lib/crm/user-directory"
 import type { CallDisposition } from "@/lib/crm/entities"
 
 /**
@@ -59,8 +58,8 @@ function defaultLocalDateTime(hoursFromNow: number) {
 export function CallOverlay() {
   const { phase, call, elapsedSec, answer, decline, hangUp, submitWrapUp } = useCall()
   const { cases, identities, patients } = useScopedEntityStore()
-  const { role } = useRole()
-  const actorId = ROLE_PROFILES[role].user.name
+  const { currentUser } = useUserDirectory()
+  const actorName = currentUser.name
   const [disposition, setDisposition] = useState<CallDisposition | null>(null)
   const [note, setNote] = useState("")
   const [rescheduleAt, setRescheduleAt] = useState(() => defaultLocalDateTime(24))
@@ -87,9 +86,9 @@ export function CallOverlay() {
 
   if (phase === "idle" || !call) return null
 
-  if (call.direction === "incoming" && call.dismissedBy.includes(actorId)) return null
+  if (call.direction === "incoming" && call.dismissedBy.includes(actorName)) return null
 
-  if (phase === "active" && call.claimedBy && call.claimedBy !== actorId) {
+  if (phase === "active" && call.claimedBy && call.claimedBy !== actorName) {
     return (
       <div className="fixed bottom-4 right-4 z-50 w-80 rounded-xl border border-border bg-card p-4 shadow-2xl">
         <p className="text-sm font-semibold text-foreground">Połączenie zostało odebrane</p>

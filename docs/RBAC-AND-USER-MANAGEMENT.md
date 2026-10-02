@@ -18,6 +18,9 @@ Hiding a menu item is not authorization. The backend must repeat every permissio
 - An administrator can initiate password reset but cannot see, set or retrieve the user's password.
 - An administrator can revoke all user sessions.
 - Role and clinic-scope changes must be auditable.
+- Password-reset requests, session revocation, activation and deactivation require an explicit confirmation and must be auditable.
+- The administrator performing the action is stored as the audit actor; a fixed technical user must never be substituted.
+- An administrator cannot deactivate their own account or change their own role/clinic scope from the user-management screen.
 - Marketing has no access to medical data or identifiable communication content.
 - Manual administrator overrides of cases, stages and assignments must be written to Audit Log.
 - PaNa Medical CRM remains the primary source for patient and clinical data; CRM permissions cannot grant more medical access than the source system permits.
@@ -31,7 +34,7 @@ Hiding a menu item is not authorization. The backend must repeat every permissio
 | Team Leader | Queue supervision, priorities, assignment and agent status | Contact Center teams under supervision |
 | Clinic Manager | Clinic operations, doctors, procedures and results | Assigned clinics only |
 | Marketing | Attribution and aggregated funnel analytics | Aggregated/de-identified data |
-| Administrator | Users, integrations, configuration and audit | All tenants/clinics, subject to source-system restrictions |
+| Administrator (AIHub Admin) | Users, integrations, configuration and full audit/activity history | All tenants/clinics, subject to source-system restrictions |
 
 ## 4. Permission matrix
 
@@ -115,6 +118,8 @@ Prototype behavior:
 - Command search, drawers and direct patient routes use the same scoped store as lists and boards.
 - An inactive/locked/invited demo user cannot be selected in the role switcher.
 - Marketing dashboard is a UI simulation of an aggregate projection. Production must calculate and return aggregates server-side without returning patient/contact rows.
+- `audit:view` controls both the global Audit Log route and the case-level Audit/Activity history. Users without it do not receive audit entries in the combined case timeline.
+- AIHub Admin (`admin`) has `audit:view` in the protected full-access bundle and can inspect case activity as well as the central log.
 
 ## 7. Enforcement points
 
@@ -127,6 +132,8 @@ Prototype behavior:
 | Command | Validate action permission before mutation |
 | Audit | Record user administration, access changes and administrator overrides |
 | Realtime | Filter incoming calls/messages by the same scope |
+
+Telephony commands use `call:handle` as an action-level guard. Audit and call records store the canonical user ID rather than a mutable display name; the user directory resolves the visible name and extension.
 
 ## 8. Prototype boundaries
 
@@ -141,6 +148,11 @@ Implemented in the prototype:
 - role-aware navigation;
 - user list, filters and statuses;
 - invitation, role/clinic update, deactivation/reactivation, password-reset request and session revocation emulation;
+- confirmation dialogs for password reset, session revocation and account activation/deactivation;
+- current-user attribution for permission and user-lifecycle audit events;
+- self-account protection for role/scope changes and deactivation;
+- case-level Audit/Activity visibility enforced through `audit:view`;
+- case-workspace actions react to the runtime permission matrix: call handling, communication history, local patient editing, patient matching, appointment entry and task work are disabled when their atomic permission is removed;
 - no delete action.
 
 Production dependencies:

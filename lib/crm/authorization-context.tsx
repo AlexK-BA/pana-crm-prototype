@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
-import type { RoleId } from "./roles"
+import { ROLE_PROFILES, type RoleId } from "./roles"
 import { ROLE_PERMISSIONS, ROUTE_PERMISSION, type Permission } from "./permissions"
 import { useRole } from "./role-context"
 import { useEntityStore } from "./entity-store"
@@ -44,14 +44,14 @@ export function AuthorizationProvider({ children }: { children: ReactNode }) {
       const enabled = prev[targetRole].includes(permission)
       return { ...prev, [targetRole]: enabled ? prev[targetRole].filter((item) => item !== permission) : [...prev[targetRole], permission] }
     })
-    recordAudit({ type: "assignment_change", actorId: "usr-mk", summary: `Zmieniono uprawnienie ${permission} dla roli ${targetRole}` })
-  }, [recordAudit])
+    recordAudit({ type: "assignment_change", actorId: ROLE_PROFILES[role].user.id, summary: `Zmieniono uprawnienie ${permission} dla roli ${targetRole}` })
+  }, [recordAudit, role])
 
   const resetRolePermissions = useCallback((targetRole: RoleId) => {
     if (targetRole === "admin") return
     setRolePermissions((prev) => ({ ...prev, [targetRole]: [...ROLE_PERMISSIONS[targetRole]] }))
-    recordAudit({ type: "assignment_change", actorId: "usr-mk", summary: `Przywrócono domyślne uprawnienia roli ${targetRole}` })
-  }, [recordAudit])
+    recordAudit({ type: "assignment_change", actorId: ROLE_PROFILES[role].user.id, summary: `Przywrócono domyślne uprawnienia roli ${targetRole}` })
+  }, [recordAudit, role])
 
   const value = useMemo(() => ({ rolePermissions, hasPermission, roleHasPermission, canAccessRoute, toggleRolePermission, resetRolePermissions }), [canAccessRoute, hasPermission, resetRolePermissions, roleHasPermission, rolePermissions, toggleRolePermission])
   return <AuthorizationContext.Provider value={value}>{children}</AuthorizationContext.Provider>
