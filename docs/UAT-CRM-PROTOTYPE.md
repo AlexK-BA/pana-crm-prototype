@@ -102,6 +102,7 @@ Expected:
 3. Enter a time in the past.
 4. Enter a valid future time and save.
 5. Return to the queue and reopen the case.
+6. Open the task and call history and verify that the task references the newly created call.
 
 Expected:
 
@@ -111,6 +112,8 @@ Expected:
 - its attempt counter increases;
 - its due date changes to the selected future time;
 - it returns to the queue and remains linked to the case and patient.
+- the task and Call share the same `callId`, actor and case context;
+- repeated invalid submissions do not add Calls or Activity entries.
 
 Repeat with `Zadzwonić później` and `Nie udało się dotrzeć`.
 
@@ -118,11 +121,13 @@ Repeat with `Zadzwonić później` and `Nie udało się dotrzeć`.
 
 1. As Operator, select `Symuluj połączenie` → `Nierozpoznany numer`.
 2. Verify that the call card says it is offered through a shared queue and shows the number of consultants.
-3. Click `Odrzuć`.
-4. Switch to Patient Care.
-5. Verify that the same incoming call is still ringing and the available consultant count is lower.
-6. Click `Odbierz`.
-7. Switch to another offered role during the active call.
+3. Verify that the matching case workspace opens automatically and shows the real patient/contact identity used by the call.
+4. Click `Odrzuć`.
+5. Switch to Patient Care.
+6. Verify that the same incoming call is still ringing and the available consultant count is lower.
+7. Click `Odbierz`.
+8. Switch to another offered role during the active call.
+9. Switch to a user whose clinic scope does not include the case clinic.
 
 Expected:
 
@@ -130,7 +135,9 @@ Expected:
 - the call remains available to the other offered consultants;
 - the first user to answer claims the call;
 - another user cannot answer it and sees who is handling it;
-- the call opens the linked patient/case context when available.
+- a user outside the clinic-scoped offer does not see or control the call;
+- the call opens the linked patient/case context when available;
+- offer, rejection and claim ownership are stored as canonical `usr-*` identifiers, not display names.
 
 ## UAT-07 — fully missed incoming call
 
@@ -361,9 +368,10 @@ Expected:
 1. As Operator, start an outgoing call from a call-required task, hang up and select a retry outcome.
 2. Verify wrap-up cannot be dismissed, a future retry date is mandatory and the same task remains active with the new deadline.
 3. Complete another call with a terminal disposition and verify the related task closes.
-4. Open the patient/case interaction history and Audit Log as AIHub Admin.
-5. Verify the call and audit event resolve to the current user through the canonical `usr-*` identifier and correct extension.
-6. Remove `call:handle` from a test role and verify direct call commands are rejected even if invoked outside the normal button path.
+4. While a call is active or waiting for wrap-up, try to start another call and verify it is rejected.
+5. Open the patient/case interaction history and Audit Log as AIHub Admin.
+6. Verify the call and audit event resolve to the current user through the canonical `usr-*` identifier and correct extension.
+7. Remove `call:handle` from a test role and verify direct call commands are rejected even if invoked outside the normal button path.
 
 **Expected:** UI visibility and command execution use the same permission; call history never stores a display name as the actor identifier.
 

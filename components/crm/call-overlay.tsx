@@ -58,8 +58,8 @@ function defaultLocalDateTime(hoursFromNow: number) {
 export function CallOverlay() {
   const { phase, call, elapsedSec, answer, decline, hangUp, submitWrapUp } = useCall()
   const { cases, identities, patients } = useScopedEntityStore()
-  const { currentUser } = useUserDirectory()
-  const actorName = currentUser.name
+  const { currentUser, users } = useUserDirectory()
+  const actorId = currentUser.id
   const [disposition, setDisposition] = useState<CallDisposition | null>(null)
   const [note, setNote] = useState("")
   const [rescheduleAt, setRescheduleAt] = useState(() => defaultLocalDateTime(24))
@@ -86,20 +86,23 @@ export function CallOverlay() {
 
   if (phase === "idle" || !call) return null
 
-  if (call.direction === "incoming" && call.dismissedBy.includes(actorName)) return null
+  if (call.direction === "incoming" && !call.offeredToUserIds.includes(actorId)) return null
 
-  if (phase === "active" && call.claimedBy && call.claimedBy !== actorName) {
+  if (call.direction === "incoming" && call.dismissedByUserIds.includes(actorId)) return null
+
+  if (phase === "active" && call.claimedByUserId && call.claimedByUserId !== actorId) {
+    const claimedBy = users.find((user) => user.id === call.claimedByUserId)?.name ?? call.claimedByUserId
     return (
-      <div className="fixed bottom-4 right-4 z-50 w-80 rounded-xl border border-border bg-card p-4 shadow-2xl">
+      <div className="fixed bottom-4 right-4 z-[70] w-80 rounded-xl border border-border bg-card p-4 shadow-2xl">
         <p className="text-sm font-semibold text-foreground">Połączenie zostało odebrane</p>
-        <p className="mt-1 text-xs text-muted-foreground">Obsługuje: {call.claimedBy}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Obsługuje: {claimedBy}</p>
       </div>
     )
   }
 
   if (phase === "incoming" || phase === "active") {
     return (
-      <div className="fixed bottom-4 right-4 z-50 w-80 overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+      <div className="fixed bottom-4 right-4 z-[70] w-80 overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
         <div
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-xs font-medium text-white",
@@ -133,7 +136,7 @@ export function CallOverlay() {
             </p>
             {call.direction === "incoming" && phase === "incoming" && (
               <p className="mt-1 text-[11px] text-emerald-700">
-                Wspólna kolejka · dostępne dla {call.offeredTo.length - call.dismissedBy.length} konsultantów
+                Wspólna kolejka · dostępne dla {call.offeredToUserIds.length - call.dismissedByUserIds.length} konsultantów
               </p>
             )}
           </div>
@@ -168,11 +171,12 @@ export function CallOverlay() {
 
   const handleSubmit = () => {
     if (!disposition) return
-    submitWrapUp(disposition, {
+    const submitted = submitWrapUp(disposition, {
       note: note.trim() || undefined,
       rescheduleAt: retryRequired ? new Date(rescheduleAt).toISOString() : undefined,
       duplicateOfCaseId: disposition === "duplicate" ? duplicateOfCaseId ?? undefined : undefined,
     })
+    if (!submitted) return
     setDisposition(null)
     setNote("")
     setRescheduleAt(defaultLocalDateTime(24))
@@ -183,7 +187,7 @@ export function CallOverlay() {
   // Mandatory wrap-up: no escape/backdrop dismissal until a disposition is submitted.
   return (
     <Dialog open disablePointerDismissal onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md [&>button]:hidden" showCloseButton={false}>
+      <DialogContent className="z-[80] sm:max-w-md [&>button]:hidden" showCloseButton={false}>
         <DialogHeader>
           <div className="flex items-center gap-2">
             {call.direction === "incoming" ? (

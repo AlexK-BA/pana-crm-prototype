@@ -34,6 +34,7 @@ import { useUserDirectory } from "@/lib/crm/user-directory"
 
 export function EngagementCaseDrawer() {
   const { activeCaseId, closeCase } = useCasePanel()
+  const { phase: callPhase } = useCall()
   const { hasPermission } = useAuthorization()
   const { cases } = useScopedEntityStore()
   const canViewCases = hasPermission("case:view")
@@ -41,7 +42,11 @@ export function EngagementCaseDrawer() {
   const engagementCase = isEntityCase ? cases.find((c) => c.id === activeCaseId) ?? getCase(activeCaseId!) : undefined
 
   return (
-    <Dialog open={!!engagementCase && canViewCases} onOpenChange={(open) => !open && closeCase()}>
+    <Dialog
+      open={!!engagementCase && canViewCases}
+      modal={callPhase === "idle"}
+      onOpenChange={(open) => !open && closeCase()}
+    >
       <DialogContent
         showCloseButton={false}
         className="flex h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-6xl"
