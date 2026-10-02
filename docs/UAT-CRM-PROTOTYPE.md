@@ -545,3 +545,20 @@ Base: `022e10371a9750320b6d94662ddfbb315c006598`; branch: `codex/task-calendar-w
 - `pnpm build`: passed.
 - `git diff --check`: passed.
 - Browser UAT deferred at the user's request; scripted command tests do not validate visual layout. No Chromium download attempted.
+
+## UAT-26 — Messenger channel workspace
+
+Source specification: docs/MESSENGER-UI-SPEC.md.
+
+Status: browser execution pending.
+
+- [ ] Channels are grouped once per patient and show latest activity, unread total and aggregate state.
+- [ ] Multiple case threads in one channel remain independently selectable and retain their own status.
+- [ ] Search, highlighting and all four filters work together without changing canonical data.
+- [ ] Normal message and emulated SMS sending preserve case, patient, task and ContactIdentity context.
+- [ ] Existing-thread channel selector is locked.
+- [ ] Bot banner states participation only; no production takeover is implied.
+- [ ] Demo attachments are visibly marked and phone attachments remain disabled.
+- [ ] Patient details action is available on every Engagement Case drawer tab.
+- [ ] Mobile list/detail navigation works.
+- [ ] Patient 360, Task/Calendar workflow, mandatory call wrap-up and SMS retry show no regression.

@@ -9,7 +9,7 @@
  * aggregated across all of a patient's cases in the Patient Profile.
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react"
-import { AlertTriangle, Check, CheckCheck, CircleAlert, Clock3, Loader2, Phone, MessageSquare, StickyNote, Send, Smartphone } from "lucide-react"
+import { AlertTriangle, Check, CheckCheck, CircleAlert, Clock3, Loader2, Paperclip, Phone, MessageSquare, StickyNote, Send, Smartphone, Smile, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -34,6 +34,9 @@ const SEND_CHANNELS: { value: ContactChannel; label: string; potential?: boolean
   { value: "email", label: "E-mail" },
   { value: "tiktok", label: "TikTok", potential: true },
 ]
+
+const EMOJIS = ["😊", "👍", "🙏", "😀", "😉", "❤️", "👋", "✅", "📅", "🦷", "😁", "🙂", "👌", "🎉", "😢", "🤝", "⏰", "📞", "✨", "💬"]
+const isBotAuthor = (id?: string) => Boolean(id && /^bot/i.test(id))
 
 const CHANNEL_TYPE: Partial<Record<ContactChannel, InteractionType>> = {
   website: "chat", phone: "sms", whatsapp: "whatsapp", telegram: "social", instagram: "social", facebook: "social", email: "email", tiktok: "social",
@@ -91,8 +94,10 @@ export function ConversationThread({
   emptyLabel = "Brak wiadomości w tej rozmowie.",
   patientSmsHistory = false,
   taskId,
-  threadChannel, threadIdentityId, threadKey, messageIds,
+  threadChannel, threadIdentityId, threadKey, messageIds, highlight,
 }: {
+  /** Search term from the inbox; matching messages get a visible marker. */
+  highlight?: string
   /** All case ids whose messages should appear merged in this thread. */
   caseIds: string[]
   /** Which case a new outgoing message gets attached to (defaults to caseIds[0]). */
@@ -112,6 +117,9 @@ export function ConversationThread({
   const { interactions, sendMessage, sendSms, retrySms, markRead, cases, patients, tasks, identities, smsProviderConfigurations, currentUser } = useScopedEntityStore()
   const { hasPermission } = useAuthorization()
   const [draft, setDraft] = useState("")
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const [attachments, setAttachments] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [channel, setChannel] = useState<ContactChannel>(threadChannel === "sms" ? "phone" : threadChannel ?? (patientSmsHistory ? "phone" : "website"))
   const [smsCaseId, setSmsCaseId] = useState("")
   const [chosenTaskId, setChosenTaskId] = useState<string | undefined>(taskId)
@@ -200,8 +208,8 @@ export function ConversationThread({
   }, [messages.length])
 
   function handleSend() {
-    if (!draft.trim() || !canSendMessage) return
-    const sentText = draft.trim()
+    if ((!draft.trim() && !attachments.length) || !canSendMessage) return
+    const sentText = [draft.trim(), ...attachments.map((name) => `[Załącznik: ${name}]`)].filter(Boolean).join("\n")
     const interactionType = CHANNEL_TYPE[channel] ?? "chat"
     if (channel === "phone") {
       if (!canSendCustomSms || !phoneIdentity || (!targetCaseId && !targetPatientId)) return
@@ -218,6 +226,8 @@ export function ConversationThread({
       } catch (error) { setSendError(error instanceof Error ? error.message : "Błąd wysyłki."); return }
     }
     setDraft("")
+    setAttachments([])
+    setEmojiOpen(false)
   }
 
   function handleRetry(m: (typeof messages)[number]) {
@@ -254,9 +264,10 @@ export function ConversationThread({
                     "max-w-[75%] rounded-lg px-3 py-2 text-sm",
                     incoming ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
                     status === "error" && "opacity-70",
-                  )}
+                                      )}
                 >
-                  <p className="whitespace-pre-wrap">{m.text}</p>
+                  {!incoming && isBotAuthor(m.authorId) && <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-80">Bot</p>}
+                  <p className="whitespace-pre-wrap"><Highlighted text={m.text ?? ""} term={highlight} /></p>
                   <div className={cn("mt-1 flex flex-wrap items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
                     <span>{m.type === "sms" ? "SMS" : TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
                     {m.type === "sms" && <span>· {incoming ? "Przychodzący" : "Wychodzący"} · {users.find((user) => user.id === m.authorId)?.name ?? (incoming ? "Pacjent (demo)" : m.authorId ?? "System")}</span>}
@@ -347,8 +358,32 @@ export function ConversationThread({
           Symuluj błąd wysyłki (test UAT)
         </label>
       </div>
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
+          {attachments.map((name) => (
+            <span key={name} className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-xs">
+              <Paperclip className="h-3 w-3" aria-hidden />
+              <span className="max-w-[160px] truncate">{name}</span>
+              <span className="text-[10px] text-muted-foreground">demo</span>
+              <button type="button" aria-label={`Usuń załącznik ${name}`} onClick={() => setAttachments((prev) => prev.filter((item) => item !== name))}><X className="h-3 w-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      {emojiOpen && (
+        <div className="flex flex-wrap gap-1 rounded-md border bg-background p-2" role="group" aria-label="Emoji">
+          {EMOJIS.map((emoji) => (
+            <button key={emoji} type="button" className="h-8 w-8 rounded text-lg hover:bg-accent" onClick={() => setDraft((prev) => prev + emoji)}>{emoji}</button>
+          ))}
+        </div>
+      )}
       <div className="flex items-end gap-2 border-t border-border pt-3">
-        <Select disabled={patientSmsHistory} value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
+        <input ref={fileInputRef} type="file" multiple className="sr-only" tabIndex={-1} onChange={(event) => {
+          const names = Array.from(event.target.files ?? []).map((file) => file.name)
+          setAttachments((prev) => [...new Set([...prev, ...names])])
+          event.target.value = ""
+        }} />
+        <Select disabled={patientSmsHistory || Boolean(threadKey)} value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
           <SelectTrigger className="h-9 w-[150px] shrink-0 text-xs" aria-label="Kanał wysyłki">
             <SelectValue />
           </SelectTrigger>
@@ -375,6 +410,12 @@ export function ConversationThread({
             )}
           </SelectContent>
         </Select>
+        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Emoji" aria-expanded={emojiOpen} onClick={() => setEmojiOpen((open) => !open)}>
+          <Smile className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Dodaj załącznik (demo)" title="Demo: pliki nie są wysyłane do pacjenta" disabled={channel === "phone"} onClick={() => fileInputRef.current?.click()}>
+          <Paperclip className="h-4 w-4" />
+        </Button>
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -389,7 +430,7 @@ export function ConversationThread({
           className="min-h-9 flex-1 resize-none text-sm"
           disabled={!canSendMessage || (channel !== "phone" && !targetCaseId) || (channel === "phone" && !canSendCustomSms)}
         />
-        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={!draft.trim() || !canSendMessage || (channel !== "phone" && !targetCaseId) || (channel === "phone" && (!canSendCustomSms || !phoneIdentity || !smsProvider))} aria-label="Wyślij">
+        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={(!draft.trim() && !attachments.length) || !canSendMessage || (channel !== "phone" && !targetCaseId) || (channel === "phone" && (!canSendCustomSms || !phoneIdentity || !smsProvider))} aria-label="Wyślij">
           <Send className="h-4 w-4" />
         </Button>
       </div>
@@ -411,4 +452,20 @@ function SmsStatus({ message }: { message: SmsMessage }) {
       {getSmsStatusLabel(message)} · {message.providerType}
     </span>
   )
+}
+
+function Highlighted({ text, term }: { text: string; term?: string }) {
+  if (!term) return <>{text}</>
+  const lower = text.toLowerCase()
+  const parts: React.ReactNode[] = []
+  let from = 0
+  let at = lower.indexOf(term, from)
+  while (at !== -1) {
+    if (at > from) parts.push(text.slice(from, at))
+    parts.push(<mark key={at} className="rounded-sm bg-amber-300 px-0.5 text-foreground">{text.slice(at, at + term.length)}</mark>)
+    from = at + term.length
+    at = lower.indexOf(term, from)
+  }
+  parts.push(text.slice(from))
+  return <>{parts}</>
 }
