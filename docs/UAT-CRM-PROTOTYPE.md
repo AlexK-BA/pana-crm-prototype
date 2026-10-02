@@ -562,3 +562,17 @@ Status: browser execution pending.
 - [ ] Patient details action is available on every Engagement Case drawer tab.
 - [ ] Mobile list/detail navigation works.
 - [ ] Patient 360, Task/Calendar workflow, mandatory call wrap-up and SMS retry show no regression.
+
+## UAT-27 — Bot/operator conversation handoff
+
+1. Open a non-phone patient thread and choose Przekaż botowi.
+2. Verify the state changes to Bot aktywny and the operator composer is blocked.
+3. Choose Przejmij rozmowę and verify the current user becomes the owner and can send.
+4. Return the thread to the bot, then choose Wstrzymaj bota; verify manual sending stays blocked until takeover.
+5. As another Operator, attempt to take an operator-owned thread and verify rejection without state mutation.
+6. As Team Leader or Admin, take over the same thread and verify the override succeeds.
+7. Verify every transition appears once in Audit with actor, reason, old/new mode and correlation.
+8. Verify bot-originated messages are accepted only in bot_active and human-originated messages are rejected while the bot owns the thread.
+9. Regress unread counts, channel/thread status, search, filters, SMS and phone workflows.
+
+Expected: bot and operator cannot send concurrently through the guarded EntityStore contract; ownership is visible and auditable. Real bot/provider enforcement remains a backend integration requirement.
