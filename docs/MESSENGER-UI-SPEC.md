@@ -25,19 +25,28 @@ EntityStore remains the source of truth. Messages are existing Interaction recor
 
 Unread state continues to use the existing thread read keys. Search/filter state, selected channel/thread, emoji picker and selected demo filenames are local UI state only.
 
+## Bot/operator handoff
+
+Conversation ownership is stored as a canonical ConversationControl keyed by threadKey. Supported modes are bot_active, operator_active, bot_paused and closed. The selected operator is stored as ownerId; the configured bot is stored as botId.
+
+- An operator must explicitly take over before replying while the bot is active or paused.
+- A bot-originated outgoing Interaction is accepted only while that conversation is bot_active.
+- A human outgoing Interaction is rejected while bot_active, bot_paused, closed, or owned by another operator.
+- Admin and Team Leader can override another operator's ownership; ordinary operators cannot.
+- Takeover, return-to-bot and pause actions write conversation_handoff Audit events with actor, before/after mode, reason and correlation.
+- Interaction.senderKind identifies patient, user, bot or system. A centralized compatibility selector recognizes old bot author IDs; UI components no longer contain their own authorId prefix heuristics.
+
+Provider orchestration is still future integration work: a real bot worker must read ConversationControl before dispatching any answer and stop when it no longer owns the thread.
+
 ## Explicit limitations
 
-- Bot participation is detected from the current prototype author convention. There is no canonical conversation owner or bot/operator handoff state.
-- Sending an operator message does not pause a bot and must not be presented as a production takeover.
+- Ownership is session-only and resets after reload.
+- No real bot worker consumes the ownership state yet; the prototype enforces the contract inside EntityStore.
 - Attachments are demo-only: the filename is inserted into message text; no binary upload, storage, scanning or download exists.
 - Search is client-side over the currently available scoped interactions.
 - Real WhatsApp, Telegram, Instagram, Facebook and email providers are not connected.
 - The prototype remains session-only and resets after reload.
 - Browser UAT and mobile regression are required after merge.
-
-## Future bot handoff contract
-
-Production implementation must add an explicit conversation ownership state such as bot_active, operator_active, bot_paused and closed. Commands must include take over, return to bot and pause bot, with permission checks, timestamp, actor and Audit event. Provider/bot orchestration must honor that state to prevent simultaneous bot and operator replies.
 
 ## Required browser UAT
 
@@ -50,9 +59,10 @@ Production implementation must add an explicit conversation ownership state such
 7. Exercise all, unread, awaiting-response and bot filters.
 8. Search mixed-case text and verify result counts, chronological preview selection and highlighted matches.
 9. Confirm the channel selector is locked inside an existing thread.
-10. Confirm bot wording says the bot participated and does not claim takeover.
-11. Add/remove emoji and demo attachments; verify the demo warning remains visible.
-12. Verify phone disables attachments and launches the existing call workflow.
-13. Verify patient details are available from every Case Drawer tab.
-14. Verify mobile list/detail/back navigation.
-15. Regress Patient 360, Task actions, Calendar, mandatory call wrap-up and SMS retry.
+10. Enable bot mode, verify operator sending is blocked, take over, then verify sending succeeds.
+11. Return the thread to the bot, pause it, and verify both transitions and Audit entries.
+12. Add/remove emoji and demo attachments; verify the demo warning remains visible.
+13. Verify phone disables attachments and launches the existing call workflow.
+14. Verify patient details are available from every Case Drawer tab.
+15. Verify mobile list/detail/back navigation.
+16. Regress Patient 360, Task actions, Calendar, mandatory call wrap-up and SMS retry.
