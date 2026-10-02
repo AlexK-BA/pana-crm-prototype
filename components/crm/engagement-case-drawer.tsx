@@ -16,12 +16,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Phone, MessageSquare, Calendar, History, CheckCircle2, Link2, Search, XIcon, UserRound, BriefcaseBusiness, Save } from "lucide-react"
+import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, UserRound, BriefcaseBusiness, Save } from "lucide-react"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import { getCase, getPatient, getIdentity, getTasksForCase, getCommentsForCase } from "@/lib/crm/entity-data"
+import { getCommentsForCase } from "@/lib/crm/entity-data"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
 import { getOperator, PRIORITY_TEXT_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
 import { getNextTaskForCase } from "@/lib/crm/entity-queue"
@@ -29,6 +29,7 @@ import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import type { SmsMessage } from "@/lib/crm/entities"
 import { getSmsStatusLabel, isSmsMessage } from "@/lib/crm/sms-service"
 import { cn } from "@/lib/utils"
+import { PatientLinkPanel } from "@/components/crm/patient-link-panel"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
 import { AppointmentSlotPicker } from "@/components/crm/appointment-slot-picker"
 import { useAuthorization } from "@/lib/crm/authorization-context"
@@ -41,7 +42,7 @@ export function EngagementCaseDrawer() {
   const { cases } = useScopedEntityStore()
   const canViewCases = hasPermission("case:view")
   const isEntityCase = !!activeCaseId && activeCaseId.startsWith("case-")
-  const engagementCase = isEntityCase ? cases.find((c) => c.id === activeCaseId) ?? getCase(activeCaseId!) : undefined
+  const engagementCase = isEntityCase ? cases.find((c) => c.id === activeCaseId) : undefined
 
   return (
     <Dialog
@@ -67,12 +68,12 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const canViewCommunication = hasPermission("communication:view")
   const canEditPatient = hasPermission("patient:edit_local")
   const canWorkTasks = hasPermission("task:work")
-  const { tasks, cases, patients, identities, interactions, auditEvents, retrySms, completeTask, reopenTask, skipTask, matchCaseToPatient, saveCaseContactProfile } = useScopedEntityStore()
+  const { tasks, cases, patients, identities, interactions, auditEvents, retrySms, completeTask, reopenTask, skipTask, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
   const { t } = useLanguage()
-  const engagementCase = cases.find((c) => c.id === caseId) ?? getCase(caseId)!
-  const patient = patients.find((item) => item.id === engagementCase.patientId) ?? getPatient(engagementCase.patientId)
-  const identity = identities.find((item) => item.id === engagementCase.contactIdentityId) ?? getIdentity(engagementCase.contactIdentityId)
+  const engagementCase = cases.find((c) => c.id === caseId)!
+  const patient = patients.find((item) => item.id === engagementCase.patientId)
+  const identity = identities.find((item) => item.id === engagementCase.contactIdentityId)
   const clinic = getClinic(engagementCase.clinicId)
   const procedure = getProcedure(engagementCase.serviceInterest)
   const doctor = getDoctor(engagementCase.doctorId)
@@ -115,14 +116,15 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const [skipReason, setSkipReason] = useState("")
   const [skipTaskId, setSkipTaskId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState(patient ? "timeline" : "profile")
-  const [matchResult, setMatchResult] = useState<"matched" | "none" | null>(null)
+  const [profileError, setProfileError] = useState("")
   const patientIdentities = identities.filter((item) => item.patientId === patient?.id)
   const [profileDraft, setProfileDraft] = useState({
-    firstName: patient?.firstName ?? "",
-    lastName: patient?.lastName ?? "",
-    pesel: patient?.pesel ?? "",
-    phone: patientIdentities.find((item) => item.channel === "phone")?.value ?? (identity?.channel === "phone" ? identity.value : ""),
-    email: patientIdentities.find((item) => item.channel === "email")?.value ?? (identity?.channel === "email" ? identity.value : ""),
+    firstName: engagementCase.contactProfile?.firstName ?? patient?.firstName ?? "",
+    lastName: engagementCase.contactProfile?.lastName ?? patient?.lastName ?? "",
+    pesel: engagementCase.contactProfile?.pesel ?? "",
+    externalPatientId: engagementCase.contactProfile?.externalPatientId ?? "",
+    phone: engagementCase.contactProfile?.phone ?? patientIdentities.find((item) => item.channel === "phone")?.value ?? (identity?.channel === "phone" ? identity.value : ""),
+    email: engagementCase.contactProfile?.email ?? patientIdentities.find((item) => item.channel === "email")?.value ?? (identity?.channel === "email" ? identity.value : ""),
   })
   const [profileSaved, setProfileSaved] = useState(false)
 
@@ -135,17 +137,14 @@ function DrawerBody({ caseId }: { caseId: string }) {
     startOutgoingCall({ caseId, taskId: nextTask?.id })
   }
 
-  const handleMatchPatient = () => {
-    if (!canEditPatient) return
-    const result = matchCaseToPatient(caseId, currentUser.id)
-    setMatchResult(result.matched ? "matched" : "none")
-  }
-
   const handleSaveProfile = () => {
     if (!canEditPatient || !profileDraft.firstName.trim() || !profileDraft.lastName.trim()) return
-    saveCaseContactProfile({ caseId, ...profileDraft, actorId: currentUser.id })
-    setProfileSaved(true)
-    setTimeout(() => setProfileSaved(false), 1800)
+    try {
+      setProfileError("")
+      saveCaseContactProfile({ caseId, ...profileDraft, actorId: currentUser.id })
+      setProfileSaved(true)
+      setTimeout(() => setProfileSaved(false), 1800)
+    } catch (error) { setProfileError(error instanceof Error ? error.message : "Nie udało się zapisać danych.") }
   }
 
   return (
@@ -216,24 +215,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
           </Popover>
         </div>
 
-        {!patient && (
-          <div className="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
-            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-              {matchResult === "matched"
-                ? t("matched_note")
-                : matchResult === "none"
-                  ? t("none_matched_note")
-                  : t("not_linked_note")}
-            </p>
-            {matchResult !== "matched" && (
-              <Button size="sm" variant="outline" disabled={!canEditPatient} className="h-7 shrink-0 gap-1.5 text-xs" onClick={handleMatchPatient}>
-                <Link2 className="h-3 w-3" />
-                {t("check_in_crm")}
-              </Button>
-            )}
-          </div>
-        )}
+        <PatientLinkPanel caseId={caseId} />
       </DialogHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
@@ -271,14 +253,14 @@ function DrawerBody({ caseId }: { caseId: string }) {
             <div className="rounded-lg border border-border bg-muted/20 p-4">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold">Dane kontaktu i pacjenta</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Dane można uzupełnić ręcznie podczas rozmowy. Medical CRM pozostaje źródłem głównym po synchronizacji.</p>
+                  <h3 className="text-sm font-semibold">Lokalne dane kontaktu sprawy</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Dane do wyszukania pacjenta. Zapis nie tworzy Patient i nie zmienia danych Medical CRM.</p>
                 </div>
-                <Badge variant="outline">{patient ? "Profil istnieje" : "Nowy profil lokalny"}</Badge>
+                <Badge variant="outline">{patient ? "Profil istnieje" : "Kontakt bez Patient"}</Badge>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {([
-                  ["firstName", "Imię"], ["lastName", "Nazwisko"], ["pesel", "PESEL"], ["phone", "Telefon"], ["email", "E-mail"],
+                  ["firstName", "Imię"], ["lastName", "Nazwisko"], ["pesel", "PESEL do wyszukania"], ["externalPatientId", "Medical CRM ID do wyszukania"], ["phone", "Telefon"], ["email", "E-mail"],
                 ] as const).map(([field, label]) => (
                   <div key={field} className="space-y-1.5">
                     <Label htmlFor={`profile-${field}`} className="text-xs text-muted-foreground">{label}</Label>
@@ -287,18 +269,19 @@ function DrawerBody({ caseId }: { caseId: string }) {
                 ))}
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground">Pola zapisane ręcznie otrzymują źródło „User-entered” i są widoczne w historii zmian.</p>
+                <p className="text-xs text-muted-foreground">Dane kontaktu pozostają w sprawie; decyzja powiązania ma własną historię.</p>
                 <Button size="sm" className="gap-1.5" disabled={!canEditPatient || !profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
-                  <Save className="h-3.5 w-3.5" />{profileSaved ? "Zapisano" : patient ? "Zapisz zmiany" : "Utwórz profil"}
+                  <Save className="h-3.5 w-3.5" />{profileSaved ? "Zapisano" : "Zapisz kontakt i wyszukaj"}
                 </Button>
               </div>
             </div>
+            {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
             {patient && (
               <div className="rounded-lg border border-border p-4">
                 <h3 className="mb-2 text-sm font-semibold">Źródło i synchronizacja</h3>
                 <div className="flex flex-wrap gap-2 text-xs">
                   <Badge variant="outline">{patient.integrationState}</Badge>
-                  {patient.externalPatientId && <Badge variant="secondary">Medical CRM ID: {patient.externalPatientId}</Badge>}
+                  {hasPermission("patient:view_medical") && patient.externalPatientId && <Badge variant="secondary">Medical CRM ID: {patient.externalPatientId}</Badge>}
                   {patient.lastSyncAt && <span className="text-muted-foreground">Ostatnia synchronizacja: {formatDateTime(patient.lastSyncAt)}</span>}
                 </div>
               </div>

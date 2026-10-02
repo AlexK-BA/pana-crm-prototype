@@ -21,10 +21,7 @@ import {
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { useRole } from "@/lib/crm/role-context"
 import { useLanguage, type Language } from "@/lib/crm/language-context"
-import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { CLINICS, getClinicTone } from "@/lib/crm/catalog"
 import { getQueue } from "@/lib/crm/entity-queue"
 import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
@@ -54,18 +51,23 @@ const CHANNEL_LABEL: Record<ContactChannel, string> = {
 
 export function AppTopbar({ title, subtitle }: { title: string; subtitle?: string }) {
   const [showKbd] = useState(true)
-  const { simulateIncomingCall } = useCall()
-  const { tasks, cases, createDraftCase, assignClinicToCase } = useScopedEntityStore()
+  const { simulateIncomingCall, routeIncomingCall } = useCall()
+  const { tasks, cases, createDraftCase } = useScopedEntityStore()
   const { openCase } = useCasePanel()
-  const { role } = useRole()
   const { language, setLanguage, t } = useLanguage()
   const { hasPermission } = useAuthorization()
-  const meName = ROLE_PROFILES[role].user.name
-  const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
   const canHandleCalls = hasPermission("call:handle")
   const canViewTasks = hasPermission("task:view")
   const canCreateCase = hasPermission("case:edit")
 
+  const [incomingOpen, setIncomingOpen] = useState(false)
+  const [incomingPhone, setIncomingPhone] = useState("")
+  const [incomingResult, setIncomingResult] = useState<{ caseIds: string[]; message: string } | null>(null)
+  const [callError, setCallError] = useState("")
+  function simulateCaseCall(input: Parameters<typeof simulateIncomingCall>[0]) {
+    try { setCallError(""); simulateIncomingCall(input) }
+    catch (error) { setCallError(error instanceof Error ? error.message : "Nie udało się otworzyć połączenia.") }
+  }
   const [newCaseOpen, setNewCaseOpen] = useState(false)
   const [newCaseChannel, setNewCaseChannel] = useState<ContactChannel>("phone")
   const [newCaseFirstName, setNewCaseFirstName] = useState("")
@@ -73,11 +75,13 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
   const [newCasePhone, setNewCasePhone] = useState("")
   const [newCaseEmail, setNewCaseEmail] = useState("")
   const [newCasePatientId, setNewCasePatientId] = useState("")
+  const [newCasePesel, setNewCasePesel] = useState("")
+  const [newCaseError, setNewCaseError] = useState("")
   const [newCaseMessage, setNewCaseMessage] = useState("")
   const [newCaseClinic, setNewCaseClinic] = useState<string>("none")
   const [creating, setCreating] = useState(false)
 
-  const hasIdentifier = Boolean(newCasePhone.trim() || newCaseEmail.trim() || newCasePatientId.trim())
+  const hasIdentifier = Boolean(newCasePhone.trim() || newCaseEmail.trim() || newCasePatientId.trim() || newCasePesel.trim() || (newCaseFirstName.trim() && newCaseLastName.trim()))
 
   const notifications = useMemo(() => {
     if (!canViewTasks) return []
@@ -95,6 +99,8 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
     setNewCasePhone("")
     setNewCaseEmail("")
     setNewCasePatientId("")
+    setNewCasePesel("")
+    setNewCaseError("")
     setNewCaseMessage("")
     setNewCaseClinic("none")
   }
@@ -102,22 +108,24 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
   function handleCreateCase() {
     if (!hasIdentifier) return
     setCreating(true)
-    const { caseId } = createDraftCase({
-      channel: newCaseChannel,
-      firstName: newCaseFirstName.trim() || undefined,
-      lastName: newCaseLastName.trim() || undefined,
-      phone: newCasePhone.trim() || undefined,
-      email: newCaseEmail.trim() || undefined,
-      externalPatientId: newCasePatientId.trim() || undefined,
-      text: newCaseMessage.trim() || "Nowa sprawa utworzona ręcznie",
-    })
-    if (newCaseClinic !== "none") {
-      assignClinicToCase(caseId, newCaseClinic as ClinicId, actorId)
-    }
-    setCreating(false)
-    setNewCaseOpen(false)
-    resetNewCase()
-    openCase(caseId)
+    try {
+      setNewCaseError("")
+      const { caseId } = createDraftCase({
+        channel: newCaseChannel,
+        firstName: newCaseFirstName.trim() || undefined,
+        lastName: newCaseLastName.trim() || undefined,
+        phone: newCasePhone.trim() || undefined,
+        email: newCaseEmail.trim() || undefined,
+        externalPatientId: newCasePatientId.trim() || undefined,
+        pesel: newCasePesel.trim() || undefined,
+        clinicId: newCaseClinic !== "none" ? newCaseClinic as ClinicId : undefined,
+        text: newCaseMessage.trim() || "Nowa sprawa utworzona ręcznie",
+      })
+      setNewCaseOpen(false)
+      resetNewCase()
+      openCase(caseId)
+    } catch (error) { setNewCaseError(error instanceof Error ? error.message : "Nie udało się utworzyć sprawy.") }
+    finally { setCreating(false) }
   }
 
   return (
@@ -176,8 +184,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           <DropdownMenuGroup>
             <DropdownMenuLabel className="text-xs text-muted-foreground">{t("demo_incoming_call")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => { setIncomingResult(null); setIncomingOpen(true) }}>Sprawdź znany numer (Patient Matching)</DropdownMenuItem>
             {DEMO_INCOMING_CALLS.map((demo) => (
-              <DropdownMenuItem key={demo.caseId} onClick={() => simulateIncomingCall(demo)}>
+              <DropdownMenuItem key={demo.caseId} onClick={() => simulateCaseCall(demo)}>
                 {demo.label}
               </DropdownMenuItem>
             ))}
@@ -185,6 +194,16 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
         </DropdownMenuContent>
       </DropdownMenu>}
 
+      {callError && <p role="alert" className="text-xs text-destructive">{callError}</p>}
+      <Dialog open={incomingOpen} onOpenChange={setIncomingOpen}>
+        <DialogContent><DialogHeader><DialogTitle>Routing znanego numeru · demo</DialogTitle></DialogHeader>
+          <Input aria-label="Numer przychodzący" value={incomingPhone} onChange={event => setIncomingPhone(event.target.value)} placeholder="+48 611 924 357" />
+          <Button onClick={() => { try { setIncomingResult(routeIncomingCall(incomingPhone)) } catch (error) { setIncomingResult({ caseIds: [], message: error instanceof Error ? error.message : "Brak dostępu." }) } }}>Sprawdź i otwórz unikalną sprawę</Button>
+          {incomingResult && <p role="status" className="text-sm">{incomingResult.message}</p>}
+          {incomingResult?.caseIds.map(id => <Button key={id} variant="outline" onClick={() => { simulateCaseCall({ caseId: id }); setIncomingOpen(false) }}>Wybierz {id}</Button>)}
+          <Button variant="outline" disabled={!canCreateCase} onClick={() => { setNewCasePhone(incomingPhone); setIncomingOpen(false); setNewCaseOpen(true) }}>Utwórz sprawę świadomie</Button>
+        </DialogContent>
+      </Dialog>
       {canViewTasks && <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -306,9 +325,11 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
                 placeholder="np. MED-10234"
               />
               <p className="text-[11px] text-muted-foreground">
-                Podanie ID, telefonu lub e-mailu istniejącego pacjenta natychmiast połączy sprawę z jego profilem.
+                Tylko unikalne, bezpieczne dopasowanie połączy sprawę automatycznie. Pozostałe wyniki wymagają weryfikacji.
               </p>
             </div>
+            <div className="space-y-1.5"><Label className="text-xs">PESEL do wyszukania (opcjonalny)</Label><Input value={newCasePesel} onChange={(event) => setNewCasePesel(event.target.value)} /></div>
+            {newCaseError && <p role="alert" className="text-sm text-destructive">{newCaseError}</p>}
             <div className="space-y-1.5">
               <Label className="text-xs">Pierwsza notatka / wiadomość</Label>
               <Textarea

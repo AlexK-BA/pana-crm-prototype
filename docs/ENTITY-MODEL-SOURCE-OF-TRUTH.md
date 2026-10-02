@@ -59,3 +59,11 @@ When adding a screen or integration:
 ## SMS Stage 1 ownership
 
 Patient-level SMS may omit `caseId`; Calls and non-SMS send commands retain a case. SMS is stored exactly once in `EntityStore.interactions`. Patient history, case timeline and Inbox are projections, not replicated message stores. `sms-service.ts` holds configuration defaults and the stateless adapter contract; delivery transitions and retry writes belong to EntityStore. The scoped store reuses runtime permissions and UserDirectory for SMS action/scope guards. Configuration drafts in the settings form are unsaved form state, not a second configuration source.
+
+## Patient Matching ownership
+
+Contact intake no longer creates or edits a Patient. Medical CRM remains primary. Operator lookup input belongs to `EngagementCase.contactProfile`; additional contacts are canonical `ContactIdentity` references in `contactIdentityIds`. `MatchCandidate` contains Patient IDs, never copied Patient records. `MatchDecision` history belongs to the existing EntityStore; the matching service is a stateless evaluator, not a store.
+
+Safe linking preserves Patient medical fields/provenance/integration state, case attribution and existing task/interaction records. Reused identities are not recreated; pre-existing unlinked intake identities may remain for attribution history. Patient Profile/history projections discover the case through its canonical `patientId`. No other unlinked case is automatically merged. The drawer's local contact editor is now lookup/intake editing, not local Patient creation. Existing explicit Medical CRM synchronization behavior remains separate.
+
+See [PATIENT-MATCHING-SPEC.md](PATIENT-MATCHING-SPEC.md) for thresholds, ownership conflicts, decision lifecycle, scope, audit and backend concurrency requirements.

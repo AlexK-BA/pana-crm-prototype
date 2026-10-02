@@ -169,7 +169,8 @@ export function ConversationThread({
       if (!failed) {
         if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
         autoReplyTimer.current = setTimeout(() => {
-          sendMessage({ caseId: targetCaseId!, patientId, text: pickAutoReply(sentText), type: interactionType, channel: sentChannel, direction: "incoming" })
+          try { sendMessage({ caseId: targetCaseId!, patientId, text: pickAutoReply(sentText), type: interactionType, channel: sentChannel, direction: "incoming" }) }
+          catch (error) { setSendError(error instanceof Error ? error.message : "Nie udało się obsłużyć wiadomości przychodzącej.") }
         }, 1500)
       }
     }, 600)

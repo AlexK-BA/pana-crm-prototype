@@ -10,6 +10,7 @@ export type Permission =
   | "patient:view_basic"
   | "patient:view_medical"
   | "patient:edit_local"
+  | "patient:match_approve"
   | "communication:view"
   | "communication:send"
   | "sms:send_custom"
@@ -43,6 +44,7 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { id: "patient:view_basic", group: "Pacjent", label: "Dane podstawowe", description: "Kontakt i podstawowy profil pacjenta." },
   { id: "patient:view_medical", group: "Pacjent", label: "Dane medyczne", description: "Plan leczenia i dane kliniczne." },
   { id: "patient:edit_local", group: "Pacjent", label: "Edycja lokalna", description: "Uzupełnianie danych niezarządzanych przez Medical CRM." },
+  { id: "patient:match_approve", group: "Pacjent", label: "Zatwierdzanie dopasowania", description: "Kontrolowane powiązanie pacjenta ze sprawą w zakresie klinik." },
   { id: "communication:view", group: "Komunikacja", label: "Podgląd komunikacji", description: "Inbox i historia rozmów." },
   { id: "communication:send", group: "Komunikacja", label: "Wysyłanie wiadomości", description: "Chat, e-mail i kanały społecznościowe." },
   { id: "sms:send_custom", group: "SMS", label: "Dowolny tekst SMS", description: "Wysyłanie ręcznie wpisanego tekstu." },
@@ -64,7 +66,7 @@ export const ALL_PERMISSIONS: Permission[] = PERMISSION_DEFINITIONS.map((item) =
 
 const ALL: Permission[] = [
   "case:view", "case:edit", "case:move", "task:view", "task:work", "task:assign",
-  "patient:view_basic", "patient:view_medical", "patient:edit_local", "communication:view",
+  "patient:view_basic", "patient:view_medical", "patient:edit_local", "patient:match_approve", "communication:view",
   "communication:send", "sms:send_custom", "sms:send_template", "sms:retry", "sms:match_patient", "sms:template_manage", "sms:provider_manage", "call:handle", "call:recording_view", "report:view_operational", "report:view_marketing",
   "audit:view", "configuration:manage", "users:manage",
 ]
@@ -72,8 +74,8 @@ const ALL: Permission[] = [
 export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
   operator: ["case:view", "case:edit", "case:move", "task:view", "task:work", "patient:view_basic", "patient:edit_local", "communication:view", "communication:send", "sms:send_custom", "sms:send_template", "sms:retry", "call:handle"],
   patient_care: ["case:view", "case:edit", "case:move", "task:view", "task:work", "patient:view_basic", "patient:view_medical", "patient:edit_local", "communication:view", "communication:send", "sms:send_custom", "sms:send_template", "sms:retry", "call:handle"],
-  team_leader: ["case:view", "case:edit", "case:move", "task:view", "task:work", "task:assign", "patient:view_basic", "patient:view_medical", "patient:edit_local", "communication:view", "communication:send", "sms:send_custom", "sms:send_template", "sms:retry", "sms:match_patient", "call:handle", "call:recording_view", "report:view_operational", "audit:view"],
-  clinic_manager: ["case:view", "case:edit", "case:move", "task:view", "task:work", "task:assign", "patient:view_basic", "patient:view_medical", "patient:edit_local", "communication:view", "communication:send", "sms:send_custom", "sms:send_template", "sms:retry", "call:handle", "call:recording_view", "report:view_operational"],
+  team_leader: ["case:view", "case:edit", "case:move", "task:view", "task:work", "task:assign", "patient:view_basic", "patient:view_medical", "patient:edit_local", "patient:match_approve", "communication:view", "communication:send", "sms:send_custom", "sms:send_template", "sms:retry", "sms:match_patient", "call:handle", "call:recording_view", "report:view_operational", "audit:view"],
+  clinic_manager: ["case:view", "case:edit", "case:move", "task:view", "task:work", "task:assign", "patient:view_basic", "patient:view_medical", "patient:edit_local", "patient:match_approve", "communication:view", "communication:send", "sms:send_custom", "sms:send_template", "sms:retry", "call:handle", "call:recording_view", "report:view_operational"],
   marketing: ["report:view_marketing"],
   admin: ALL,
 }

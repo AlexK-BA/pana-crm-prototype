@@ -455,3 +455,34 @@ These scenarios are the manual acceptance specification; execution evidence and 
 - The transition confirmation uses current prototype workflow defaults; final stage names, allowed transition graph, closure-reason catalog and SLA values still require Daniel/Pasha approval.
 - Prototype RBAC blocks client routes and actions demonstrationally; production authorization must be repeated by Frappe/FastAPI and the identity provider.
 - Password reset, invitation and session revocation are emulated; the production identity-provider API is not connected.
+
+## Patient Matching & Contact Linking Flow
+
+Baseline: `main d6d291d450f506cd7bfad341aac0a9f71a992515`. Start a fresh session; use the existing role switcher and **New case** dialog. Inspect **Patient Link** in the case drawer; **Profil** edits only case-local lookup input. Approval/rejection opens one confirmation with a required reason. No Patient creation or medical-field write should occur.
+
+Automated fixture suite: `node --test tests/patient-matching.test.cjs tests/rbac-user-hardening.test.cjs`. Fixtures are synthetic and isolated: `p1 / EXT-1 / 11111111111 / Test One / pana-medica`, `p2 / EXT-2 / 22222222222 / Test Two / pana-comfort`, verified `+48 611 924 357`, `+48 712 483 209`, and `test.one@example.test`. PESELs are format-only dummy values; these tests do not modify Medical CRM/demo Patient seeds. Fixture-only scenarios below are command/unit UAT, not claims of browser execution.
+
+| # | Reproducible action | Expected result / evidence |
+|---|---|---|
+| 1 | New case with `MED-100234`, or fixture `externalPatientId: ' EXT-1 '` | Unique external ID auto-links, confidence 1.0; one Patient, system audit. |
+| 2 | Fixture `pesel: '111 111 111 11'` | Exact normalized 11 digits auto-links at 0.98; invalid `123` has no match. |
+| 3 | New case with `611924357` (same as seeded `+48 611 924 357`) | Verified phone auto-links; canonical existing identity reused. |
+| 4 | Fixture email ` TEST.ONE@EXAMPLE.TEST ` | Trim/lowercase verified email auto-links at 0.95. |
+| 5 | Fixture name `Test One`; or enter only the name of a seeded Patient | Suggestion, no automatic Patient reference; case remains workable. |
+| 6 | Fixture adds p2 identity with p1 phone/email | Ambiguous; two candidates; neither is selected automatically, even if p2 is outside operator clinic. |
+| 7 | Fixture external ID `EXT-1` + PESEL `22222222222` | Conflict with named hard-ID signals; no automatic link. |
+| 8 | Switch to Operator; inspect name-only suggestion, call approve directly with Operator capability | Safe notice, no candidate details/approve UI; direct command throws without data/audit writes. |
+| 9 | Team Leader/Admin approve current name-only p1 suggestion with reason | Confirmation required; canonical actor, approved decision, linked case; no Patient fields overwritten. |
+| 10 | Clinic Manager scoped to Medica reviews p2 suggestion in a Medica case | p2 is hidden; direct approve (and full out-of-scope rejection) denied with no mutation/audit. |
+| 11 | Admin rejects current suggestion with reason | Decision and candidates retained as rejected; case remains unlinked. |
+| 12 | Edit an unlinked case's local contact to a unique external ID; save/search again | New current decision; only older unresolved decisions become expired, previous rejected/approved history remains; stale approve denied. |
+| 13 | Create another case with p1's normalized existing phone | No added phone identity; `contact_identity_reused` audit, new case uses existing contact ID. |
+| 14 | Fixture approves case with an existing task and attribution | Task ID/status/deadline/attempts and original attribution unchanged; only missing same-case Patient references populated. Other cases unchanged. |
+| 15 | Open linked Patient 360 after new-case link | New case and its communication are projected through the same store; no Patient duplicate or moved task. Command suite verifies canonical references; screen requires browser UAT. |
+| 16 | Fixture approval reason contains phone, PESEL and email; inspect shared Audit Log | Audit summary/reason contain redacted placeholders; correlation/decision IDs and signal names remain. |
+| 17 | Fixture incoming route with shared phone; topbar known-number routing with 0/2 active cases | Ambiguous route has no selected Patient/case. Unique Patient with zero/multiple cases asks to create/select explicitly; no silent case creation. Browser flow uses **Simulate call → Sprawdź znany numer**. |
+| 18 | Call create/search/save/approve/reject/incoming-message core commands without capability; repeat approve/reject as Operator | Controlled error before state/audit writes. Marketing projection empty. Prior RBAC command tests continue passing. |
+
+Additional checks: forbidden case/contact transfer remains rejected even for Admin; incoming known-identity chat performs system matching before recording its canonical Patient reference; incoming phone keeps the existing answer/decline/wrap-up workflow. Leaving a suggestion unresolved does not close/redistribute tasks. External Medical CRM ID in candidate details requires `patient:view_medical`. No Delete Patient, automatic case merge or credentials were added.
+
+Validation distinction: command/unit checks execute real provider/service source in an isolated hook host. They do not execute browser rendering, dialog controls, call card or Patient 360 screen. Chromium is unavailable in this environment; browser UAT is **not performed**, and no repeated browser download is required. TypeScript/build results belong in the PR validation record.
