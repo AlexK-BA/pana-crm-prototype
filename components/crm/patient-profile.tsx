@@ -1,425 +1,143 @@
 "use client"
 
 import { useState } from "react"
-import { notFound } from "next/navigation"
-import { Phone, Mail, MessageSquare, Share2, StickyNote, FileText, AlertTriangle, RefreshCw, Send, Check } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
-import { getClinic, getClinicTone, getProcedure, getDoctor } from "@/lib/crm/catalog"
+import { Textarea } from "@/components/ui/textarea"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
-import {
-  getOperator,
-  getCommentsForPatient,
-  PRIORITY_TONE,
-  priorityLabel,
-} from "@/lib/crm/entity-selectors"
+import { Patient360Actions } from "@/components/crm/patient-360-actions"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useAuthorization } from "@/lib/crm/authorization-context"
-import { useRole } from "@/lib/crm/role-context"
-import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { INITIAL_USERS } from "@/lib/crm/user-catalog"
-import type { Call } from "@/lib/crm/entities"
+import { useUserDirectory } from "@/lib/crm/user-directory"
+import { useCall } from "@/lib/crm/call-context"
+import { selectPatient360, isCaseActive, patientTaskGroup } from "@/lib/crm/patient-360-selectors"
+import { isOverdue } from "@/lib/crm/entity-queue"
+import { getClinic, getClinicTone, getProcedure, getDoctor } from "@/lib/crm/catalog"
+import { BOARD_COLUMNS } from "@/lib/crm/boards"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
+import { getSmsStatusLabel, isSmsMessage } from "@/lib/crm/sms-service"
 import { cn } from "@/lib/utils"
-import { getQueue } from "@/lib/crm/entity-queue"
 
-const CHANNEL_ICON: Record<string, typeof Phone> = {
-  phone: Phone,
-  email: Mail,
-  whatsapp: MessageSquare,
-  telegram: MessageSquare,
-  tiktok: Share2,
-  viber: MessageSquare,
-  instagram: Share2,
-  facebook: Share2,
-  website: Share2,
-  personal_account: StickyNote,
-}
+const integration: Record<string, string> = { linked: "Powiązano", match_suggested: "Sugerowane dopasowanie", conflict: "Konflikt", sync_pending: "Synchronizacja w toku", sync_failed: "Medical CRM niedostępne / błąd sync", unlinked: "Niepowiązano" }
+const taskGroups = { overdue: "Przeterminowane", today: "Na dziś", upcoming: "Nadchodzące", completed: "Zakończone", cancelled: "Anulowane", failed: "Nieudane" }
 
-const INTEGRATION_LABEL: Record<string, string> = {
-  linked: "Powiązano",
-  match_suggested: "Sugerowane dopasowanie",
-  conflict: "Konflikt",
-  sync_pending: "Synchronizacja w toku",
-  sync_failed: "Błąd synchronizacji",
-  unlinked: "Niepowiązano",
-}
-
-const INTEGRATION_TONE: Record<string, string> = {
-  linked: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  match_suggested: "border-amber-200 bg-amber-50 text-amber-700",
-  conflict: "border-red-200 bg-red-50 text-red-700",
-  sync_pending: "border-sky-200 bg-sky-50 text-sky-700",
-  sync_failed: "border-red-200 bg-red-50 text-red-700",
-  unlinked: "border-slate-200 bg-slate-50 text-slate-600",
-}
-
+/** Same Patient route/profile; every section is a scoped projection of canonical records. */
 export function PatientProfile({ patientId }: { patientId: string }) {
-  const {
-    patients,
-    cases: allCases,
-    identities: allIdentities,
-    tasks: allTasks,
-    interactions: allInteractions,
-    auditEvents,
-    syncPatientWithMedicalCrm,
-    sendTreatmentPlanTask,
-  } = useScopedEntityStore()
-  const { openCase } = useCasePanel()
+  const store = useScopedEntityStore()
   const { hasPermission } = useAuthorization()
-  const foundPatient = patients.find((item) => item.id === patientId)
-  if (!foundPatient) return notFound()
-  const patient = foundPatient
-
-  const clinic = getClinic(patient.primaryClinicId)
-  const careOwner = getOperator(patient.careOwnerId)
-  const cases = allCases.filter((item) => item.patientId === patient.id)
-  const caseIds = new Set(cases.map((item) => item.id))
-  const identities = allIdentities.filter((item) => item.patientId === patient.id)
-  const tasks = allTasks.filter((item) => item.patientId === patient.id || Boolean(item.caseId && caseIds.has(item.caseId)))
-  const openTasks = getQueue(tasks)
-  const interactions = allInteractions
-    .filter((item) => item.patientId === patient.id || Boolean(item.caseId && caseIds.has(item.caseId)))
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-  const comments = getCommentsForPatient(patient.id)
-  const audit = auditEvents
-    .filter((item) => item.patientId === patient.id || (item.caseId ? caseIds.has(item.caseId) : false))
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-
-  const { role } = useRole()
-  const meName = ROLE_PROFILES[role].user.name
-  const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
-  const [justSynced, setJustSynced] = useState(false)
-  const [planSent, setPlanSent] = useState(false)
-  const primaryCase = cases[0]
-
-  function handleSync() {
-    syncPatientWithMedicalCrm(patient.id, actorId)
-    setJustSynced(true)
-    setTimeout(() => setJustSynced(false), 2500)
-  }
-
-  function handleSendPlan() {
-    if (!primaryCase) return
-    sendTreatmentPlanTask(patient.id, primaryCase.id, actorId)
-    setPlanSent(true)
-    setTimeout(() => setPlanSent(false), 2500)
-  }
-
+  if (!hasPermission("patient:view_basic")) return <div role="alert" className="rounded border p-6">Brak dostępu do Patient 360.</div>
+  if (!store.patients.some(item => item.id === patientId)) return <div role="status" className="rounded border p-6">Pacjent nie został znaleziony lub jest poza zakresem Twoich klinik.</div>
+  return <PatientWorkspace patientId={patientId} />
+}
+function PatientWorkspace({ patientId }: { patientId: string }) {
+  const store = useScopedEntityStore()
+  const view = selectPatient360(patientId, store)
+  const patient = view.patient!
+  const { hasPermission } = useAuthorization()
+  const { users } = useUserDirectory()
+  const { openCase } = useCasePanel()
+  const { startOutgoingCall } = useCall()
+  const [section, setSection] = useState("overview")
+  const [communicationCase, setCommunicationCase] = useState("")
+  const [communicationSms, setCommunicationSms] = useState(false)
+  const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
+  const [commentCase, setCommentCase] = useState("")
+  const [comment, setComment] = useState("")
+  const primaryCase = view.cases.find(item => item.id === view.nextTask?.caseId) ?? view.cases.find(isCaseActive) ?? view.cases[0]
+  const phone = view.identities.find(item => item.channel === "phone" && item.isPrimary) ?? view.identities.find(item => item.channel === "phone")
+  const email = view.identities.find(item => item.channel === "email" && item.isPrimary) ?? view.identities.find(item => item.channel === "email")
   const name = `${patient.firstName} ${patient.lastName}`
-  const initials = `${patient.firstName[0] ?? ""}${patient.lastName[0] ?? ""}`.toUpperCase()
-
-  return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* Header */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="size-14">
-              <AvatarFallback className="text-lg">{initials || "—"}</AvatarFallback>
-            </Avatar>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">{name}</h2>
-              <p className="text-sm text-muted-foreground">
-                {clinic?.name ?? "—"} {patient.externalPatientId ? `· ${patient.externalPatientId}` : ""}
-              </p>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline" className={cn("text-[11px]", INTEGRATION_TONE[patient.integrationState])}>
-                  {INTEGRATION_LABEL[patient.integrationState]}
-                </Badge>
-                {!patient.contactable && (
-                  <Badge variant="outline" className="border-red-200 bg-red-50 text-[11px] text-red-700">
-                    Nie kontaktować
-                  </Badge>
-                )}
-                {patient.lastSyncAt && (
-                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <RefreshCw className="h-3 w-3" />
-                    Sync {formatRelative(patient.lastSyncAt)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="text-right text-xs text-muted-foreground">
-              <p>Care owner</p>
-              <p className="font-medium text-foreground">{careOwner?.name ?? "Nieprzypisane"}</p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleSync}>
-                {justSynced ? <Check className="h-3 w-3 text-emerald-600" /> : <RefreshCw className="h-3 w-3" />}
-                {justSynced ? "Zsynchronizowano" : "Synchronizuj z PaNa CRM"}
-              </Button>
-              {primaryCase && (
-                <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleSendPlan}>
-                  {planSent ? <Check className="h-3 w-3 text-emerald-600" /> : <Send className="h-3 w-3" />}
-                  {planSent ? "Zadanie utworzone" : "Wyślij plan leczenia"}
-                </Button>
-              )}
-            </div>
-          </div>
+  const actor = (id?: string) => id === "system" ? "System" : users.find(item => item.id === id)?.name ?? id ?? "Nieprzypisane"
+  const latest = view.activity[0]?.at
+  const currentMatches = view.matches.filter(item => ["pending", "conflict"].includes(item.status))
+  function command(work: () => void) { try { setError(""); setNotice(""); work() } catch (error) { setError(error instanceof Error ? error.message : "Nie udało się wykonać operacji.") } }
+  function communication(caseId = primaryCase?.id ?? "", sms = false) { setCommunicationCase(caseId); setCommunicationSms(sms); setSection("communications") }
+  const detail = (label: string, value: React.ReactNode) => <div className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 break-words text-sm">{value || "Brak danych"}</dd></div>
+  return <div className="mx-auto min-w-0 max-w-7xl space-y-5">
+    <header className="space-y-4 rounded-xl border bg-card p-4 md:p-6">
+      <div className="flex flex-wrap justify-between gap-4">
+        <div className="min-w-0 space-y-2"><h2 className="break-words text-xl font-semibold">{name}</h2><p className="break-all text-xs text-muted-foreground">Patient ID: {patient.id} · External Medical CRM ID: {patient.externalPatientId ?? "Brak"}</p>
+          <div className="flex flex-wrap gap-2"><Badge variant="outline">{getClinic(patient.primaryClinicId)?.name}</Badge><Badge variant="outline">{integration[patient.integrationState]}</Badge><Badge variant="secondary">{patient.externalPatientId ? "Istniejący w Medical CRM" : "Nowy / niepowiązany z Medical CRM"}</Badge>{!patient.contactable && <Badge variant="destructive">Nie kontaktować</Badge>}{view.overdue.length > 0 && <Badge variant="destructive">{view.overdue.length} przeterminowanych</Badge>}</div>
         </div>
-
-        {patient.conflicts && patient.conflicts.length > 0 && (
-          <div className="mt-4 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <div className="space-y-0.5">
-              {patient.conflicts.map((c) => (
-                <p key={c.field}>
-                  Konflikt danych <span className="font-medium">{c.field}</span>: lokalnie &quot;{c.localValue}&quot;, w PaNa CRM &quot;
-                  {c.medicalValue}&quot;
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="space-y-1 text-xs"><p>Odpowiedzialny: {actor(patient.careOwnerId ?? primaryCase?.responsibleTeamId)}</p><p>Język: {patient.preferredLanguage.toUpperCase()}</p><p>Ostatnia aktywność: {latest ? formatRelative(latest) : "Brak"}</p><p>Sync: {patient.lastSyncAt ? formatDateTime(patient.lastSyncAt) : "Nie synchronizowano"}</p></div>
       </div>
-
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Przegląd</TabsTrigger>
-          <TabsTrigger value="chat">Czat</TabsTrigger>
-          {hasPermission("communication:view") && <TabsTrigger value="sms">SMS</TabsTrigger>}
-          <TabsTrigger value="cases">Sprawy ({cases.length})</TabsTrigger>
-          <TabsTrigger value="interactions">Interakcje ({interactions.length})</TabsTrigger>
-          {patient.treatmentPlan && <TabsTrigger value="plan">Plan leczenia</TabsTrigger>}
-          <TabsTrigger value="comments">Komentarze ({comments.length})</TabsTrigger>
-          <TabsTrigger value="audit">Historia zmian ({audit.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <section className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-foreground">Dane podstawowe</h3>
-              <Badge variant="outline" className="text-[10px]">Patient 360</Badge>
+      <p className="break-all text-sm">Telefon: {phone?.value ?? "Brak"} · E-mail: {email?.value ?? "Brak"}</p>
+      <div className="flex flex-wrap gap-1">{patient.localTags?.map(tag => <Badge key={tag} variant="outline" className="max-w-full break-all whitespace-normal">{tag}</Badge>)}</div>
+      <p className="text-sm"><strong>Następne działanie:</strong> {view.nextTask ? `${view.nextTask.title} · ${view.nextTask.dueAt ? formatDateTime(view.nextTask.dueAt) : "Bez terminu"}` : "Nie ustalono — utwórz zadanie we właściwej sprawie"}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" disabled={!hasPermission("call:handle") || !primaryCase || !phone} onClick={() => command(() => { if (primaryCase) startOutgoingCall({ caseId: primaryCase.id, taskId: view.nextTask?.id, contactIdentityId: phone?.id }) })}>Zadzwoń</Button>
+        <Button size="sm" variant="outline" disabled={!hasPermission("communication:view") || !hasPermission("communication:send") || !hasPermission("sms:send_custom")} onClick={() => communication("", true)}>Wyślij SMS</Button>
+        <Button size="sm" variant="outline" disabled={!hasPermission("communication:view")} onClick={() => communication()}>Otwórz komunikacje</Button>
+        {hasPermission("patient:view_medical") && hasPermission("patient:edit_local") && <Button size="sm" variant="outline" onClick={() => command(() => { store.syncPatientWithMedicalCrm(patient.id, store.currentUser.id); setNotice("Zakończono emulację synchronizacji (bez API).") })}>Synchronizuj Medical CRM · demo</Button>}
+      </div>
+      <Patient360Actions patientId={patientId} />
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}{notice && <p role="status" className="text-sm">{notice}</p>}
+    </header>
+    {currentMatches.length > 0 && <div role="status" className="space-y-2 rounded border border-amber-300 bg-amber-50 p-3 text-sm">Patient Matching wymaga weryfikacji.{currentMatches.map(item => <p key={item.id}>{item.status === "conflict" ? "Conflict" : "Matching pending"} · <button className="underline" onClick={() => openCase(item.caseId)}>{item.caseId}</button></p>)}</div>}
+    <Tabs value={section} onValueChange={setSection}>
+      <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
+        <TabsTrigger value="overview">Przegląd</TabsTrigger>{hasPermission("case:view") && <TabsTrigger value="cases">Sprawy ({view.cases.length})</TabsTrigger>}{hasPermission("task:view") && <TabsTrigger value="tasks">Zadania ({view.tasks.length})</TabsTrigger>}
+        {hasPermission("communication:view") && <TabsTrigger value="communications">Komunikacje</TabsTrigger>}{(hasPermission("communication:view") || hasPermission("audit:view")) && <TabsTrigger value="activity">Activity Timeline</TabsTrigger>}
+        {hasPermission("case:view") && <TabsTrigger value="comments">Komentarze ({view.comments.length})</TabsTrigger>}{hasPermission("patient:view_medical") && <TabsTrigger value="medical">Medical CRM</TabsTrigger>}
+      </TabsList>
+      <TabsContent value="overview" className="space-y-4">
+        <section className="rounded-xl border p-4"><h3 className="mb-3 font-semibold">Patient 360 · podsumowanie</h3><dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {detail("Kontakty", `${phone?.value ?? "Brak telefonu"} / ${email?.value ?? "Brak e-mailu"}`)}{detail("Klinika", getClinic(patient.primaryClinicId)?.name)}{detail("Lekarz w bieżącej sprawie", getDoctor(primaryCase?.doctorId)?.name)}{detail("Procedura", getProcedure(primaryCase?.serviceInterest)?.name)}
+          {detail("Pierwsze zgłoszenie", view.firstTouch ? formatDateTime(view.firstTouch.at) : undefined)}{detail("First-touch source (immutable)", view.firstTouch ? `${view.firstTouch.source} · ${view.firstTouch.channel}` : undefined)}
+          {detail("Aktywne sprawy", view.cases.filter(isCaseActive).length.toString())}{detail("Najbliższa czynność", view.nextTask?.title)}{detail("Przeterminowane zadania", view.overdue.length.toString())}{detail("Ostatnie wykonane działanie", view.lastAction ? `${view.lastAction.type} · ${formatDateTime(view.lastAction.at)}` : undefined)}{detail("Ostatnia wiadomość przychodząca", view.lastIncoming?.text ?? view.lastIncoming?.type)}
+          {hasPermission("patient:view_medical") && detail("Plan leczenia", patient.treatmentPlan ? `v${patient.treatmentPlan.version} · ${patient.treatmentPlan.status}` : "Brak planu z Medical CRM")}
+        </dl></section>
+        <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">Kanały kontaktu</h3>{view.identities.length === 0 && <p className="text-sm text-muted-foreground">Brak kontaktów.</p>}{view.identities.map(item => <div key={item.id} className="flex flex-wrap gap-2 text-sm"><strong>{item.channel}</strong><span className="break-all">{item.displayName ?? item.value} {item.displayName && `· ${item.value}`}</span><Badge variant="outline">{item.verified ? "Zweryfikowany · read-only" : "Lokalny / niezweryfikowany"}</Badge>{!item.patientId && <Badge variant="outline">Unlinked contact</Badge>}</div>)}<p className="whitespace-pre-wrap break-words text-sm">{patient.localNote || "Brak lokalnej notatki."}</p></section>
+      </TabsContent>
+      {hasPermission("case:view") && <TabsContent value="cases" className="space-y-3">
+        {!view.cases.length && <p className="rounded border p-4 text-sm">Pacjent nie ma spraw. Utwórz nowy Engagement Case z istniejącą identity.</p>}
+        {view.cases.map(item => {
+          const caseTasks = view.tasks.filter(task => task.caseId === item.id)
+          const next = caseTasks.find(task => !["completed", "cancelled", "failed"].includes(task.status))
+          const last = view.interactions.find(interaction => interaction.caseId === item.id)
+          const unread = view.threads.filter(thread => thread.caseId === item.id).reduce((sum, thread) => sum + thread.unread, 0)
+          const matching = view.matches.filter(decision => decision.caseId === item.id).at(-1)
+          return <article key={item.id} className={cn("space-y-3 rounded-lg border-l-4 bg-card p-4", getClinicTone(item.clinicId).chip)}>
+            <div className="flex flex-wrap justify-between gap-2"><strong>{item.id} · {item.board}</strong><span>{BOARD_COLUMNS[item.board].find(stage => stage.id === item.status)?.label ?? item.status} · {isCaseActive(item) ? "Active" : "Closed"}</span></div>
+            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{detail("Klinika / usługa", `${getClinic(item.clinicId)?.name ?? "Nieprzypisana"} / ${getProcedure(item.serviceInterest)?.name ?? "Brak"}`)}{detail("Lekarz", getDoctor(item.doctorId)?.name)}{detail("Źródło / kanał", `${item.attribution.caseCreationTouch.source} / ${item.attribution.caseCreationTouch.channel}`)}{detail("Odpowiedzialny", actor(item.responsibleTeamId))}{detail("Utworzono", formatDateTime(item.createdAt))}{detail("Ostatnie działanie", last ? `${last.type} · ${formatDateTime(last.at)}` : undefined)}{detail("Następna czynność / zadanie", next ? `${next.title} · ${next.dueAt ? formatDateTime(next.dueAt) : "Bez terminu"}` : "Nie ustalono")}{detail("Patient Link / unread", `${matching?.decision ?? "Linked"} / ${unread}`)}</dl>
+            {caseTasks.some(task => isOverdue(task)) && <Badge variant="destructive">Przeterminowane zadanie</Badge>}
+            <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openCase(item.id)}>Otwórz drawer</Button>{hasPermission("communication:view") && <Button size="sm" variant="outline" onClick={() => communication(item.id)}>Komunikacja sprawy</Button>}<Patient360Actions patientId={patientId} caseId={item.id} /></div>
+          </article>
+        })}
+      </TabsContent>}
+      {hasPermission("task:view") && <TabsContent value="tasks" className="space-y-4">
+        {!view.tasks.length && <p className="rounded border p-4 text-sm">Brak zadań pacjenta.</p>}
+        {Object.entries(taskGroups).map(([group, label]) => {
+          const tasks = view.tasks.filter(item => patientTaskGroup(item) === group)
+          return <section key={group} className="space-y-2"><h3 className="font-semibold">{label} ({tasks.length})</h3>{tasks.map(task => <article key={task.id} className="space-y-2 rounded border p-3 text-sm">
+            <div className="flex flex-wrap justify-between gap-2"><strong>{task.priority} · {task.title}</strong><span>{task.dueAt ? formatDateTime(task.dueAt) : "Bez terminu"}</span></div>
+            <p>{task.caseId} · {task.status} · owner: {actor(task.ownerId)} · typ: {task.requiresCall ? "Call" : task.workflowRuleId ?? "Operacyjny"} · requiresCall: {task.requiresCall ? "Tak" : "Nie"} · próby: {task.attempts}</p>
+            <p>Ostatnie: {task.outcome ?? task.skipReason ?? "Brak wyniku"} · Następne: {["completed", "cancelled", "failed"].includes(task.status) ? "Zachowane w historii" : task.requiresCall ? "Połączenie + disposition w wrap-up" : task.title}</p>
+            <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openCase(task.caseId)}>Sprawa</Button>
+              {hasPermission("task:work") && !["completed", "cancelled", "failed"].includes(task.status) && (task.requiresCall ? <Button size="sm" disabled={!hasPermission("call:handle")} onClick={() => command(() => startOutgoingCall({ caseId: task.caseId, taskId: task.id, contactIdentityId: phone?.id }))}>Zadzwoń / wrap-up</Button> : <Button size="sm" onClick={() => command(() => store.completePatientTask(task.id))}>Zakończ czynność</Button>)}
             </div>
-            <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-              <div><dt className="text-xs text-muted-foreground">Imię i nazwisko</dt><dd className="mt-0.5 font-medium">{name}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">PESEL</dt><dd className="mt-0.5 font-medium">{patient.pesel ?? "Nie uzupełniono"}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Preferowany język</dt><dd className="mt-0.5 font-medium uppercase">{patient.preferredLanguage}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Zgoda na kontakt</dt><dd className="mt-0.5 font-medium">{patient.contactable ? "Tak" : "Nie"}</dd></div>
-            </dl>
-          </section>
-          <section className="rounded-xl border border-border bg-card p-4">
-            <h3 className="mb-3 text-sm font-semibold text-foreground">Kanały kontaktu</h3>
-            <div className="space-y-2">
-              {identities.length === 0 && <p className="text-sm text-muted-foreground">Brak zarejestrowanych kanałów.</p>}
-              {identities.map((identity) => {
-                const Icon = CHANNEL_ICON[identity.channel] ?? StickyNote
-                return (
-                  <div key={identity.id} className="flex items-center gap-2 text-sm">
-                    <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="text-foreground">{identity.value}</span>
-                    {identity.isPrimary && (
-                      <Badge variant="outline" className="text-[10px]">
-                        Główny
-                      </Badge>
-                    )}
-                    {!identity.verified && (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                        Niezweryfikowany
-                      </Badge>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-border bg-card p-4">
-            <h3 className="mb-3 text-sm font-semibold text-foreground">Pochodzenie danych</h3>
-            <div className="space-y-2">
-              {patient.provenance.map((p, idx) => (
-                <div key={`${p.field}-${idx}`} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{p.field}</span>
-                  <span className="text-foreground">{p.value}</span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {p.source}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-border bg-card p-4">
-            <h3 className="mb-3 text-sm font-semibold text-foreground">Otwarte zadania</h3>
-            <div className="space-y-2">
-              {openTasks.length === 0 && (
-                <p className="text-sm text-muted-foreground">Brak otwartych zadań.</p>
-              )}
-              {openTasks.map((task) => (
-                  <button
-                    key={task.id}
-                    type="button"
-                    onClick={() => openCase(task.caseId)}
-                    className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-sm hover:bg-secondary"
-                  >
-                    <span
-                      className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white", PRIORITY_TONE[task.priority])}
-                      title={priorityLabel(task.priority)}
-                    >
-                      {task.priority}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-foreground">{task.title}</span>
-                    {task.dueAt && <span className="text-xs text-muted-foreground">{formatRelative(task.dueAt)}</span>}
-                    <span className="text-xs text-muted-foreground">{getOperator(task.ownerId)?.name ?? "Nieprzypisane"}</span>
-                  </button>
-              ))}
-            </div>
-          </section>
-        </TabsContent>
-
-        <TabsContent value="chat" className="mt-0">
-          <div className="h-[540px] overflow-hidden rounded-xl border border-border bg-card">
-            <PatientConversationWorkspace patientId={patient.id} currentCaseId={primaryCase?.id ?? ""} authorId={actorId} />
-          </div>
-        </TabsContent>
-
-        {hasPermission("communication:view") && <TabsContent value="sms" className="mt-0">
-          <div className="h-[580px] overflow-hidden rounded-lg border border-border">
-            <PatientConversationWorkspace patientId={patient.id} currentCaseId={primaryCase?.id ?? ""} authorId={actorId} initialView="sms" />
-          </div>
-        </TabsContent>}
-
-        <TabsContent value="cases" className="space-y-3">
-          {cases.length === 0 && <p className="text-sm text-muted-foreground">Ten pacjent nie ma jeszcze przypisanych spraw.</p>}
-          {cases.map((c) => {
-            const procedure = getProcedure(c.serviceInterest)
-            const doctor = getDoctor(c.doctorId)
-            const caseClinic = getClinic(c.clinicId)
-            const tone = getClinicTone(c.clinicId)
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => openCase(c.id)}
-                className="flex w-full items-stretch overflow-hidden rounded-lg border border-border bg-card text-left transition-colors hover:border-primary/40 hover:bg-secondary/20"
-              >
-                <span className={cn("w-1 shrink-0", tone.bar)} aria-hidden="true" />
-                <div className="min-w-0 flex-1 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground capitalize">{c.board}</p>
-                    <Badge variant="outline" className="text-[10px]">
-                      {c.status}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    <span className={cn("mr-1 inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium", tone.chip)}>
-                      {caseClinic?.name ?? "Klinika nieprzypisana"}
-                    </span>
-                    {procedure?.name ?? "Brak usługi"}
-                    {doctor ? ` · ${doctor.name}` : ""}
-                  </p>
-                </div>
-              </button>
-            )
-          })}
-        </TabsContent>
-
-        <TabsContent value="interactions" className="space-y-3">
-          {interactions.length === 0 && <p className="text-sm text-muted-foreground">Brak zarejestrowanych interakcji.</p>}
-          {interactions.map((interaction) => {
-            const isCall = interaction.type === "call"
-            const call = isCall ? (interaction as Call) : undefined
-            return (
-              <div key={interaction.id} className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
-                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary">
-                  {isCall ? <Phone className="h-3.5 w-3.5" /> : <MessageSquare className="h-3.5 w-3.5" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground">
-                      {isCall ? (call?.direction === "incoming" ? "Połączenie przychodzące" : "Połączenie wychodzące") : interaction.type}
-                    </p>
-                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(interaction.at)}</span>
-                  </div>
-                  {isCall && (
-                    <p className="text-xs text-muted-foreground">
-                      {call?.telcoStatus === "missed" ? "Nieodebrane" : call?.disposition ?? call?.telcoStatus}
-                      {call?.talkTimeSec ? ` · ${Math.round(call.talkTimeSec / 60)} min` : ""}
-                    </p>
-                  )}
-                  {interaction.text && <p className="mt-0.5 text-sm text-foreground">{interaction.text}</p>}
-                </div>
-              </div>
-            )
-          })}
-        </TabsContent>
-
-        {patient.treatmentPlan && (
-          <TabsContent value="plan" className="space-y-3">
-            <div className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">Plan leczenia · v{patient.treatmentPlan.version}</h3>
-                <Badge variant="outline" className="text-[10px] capitalize">
-                  {patient.treatmentPlan.status}
-                </Badge>
-              </div>
-              <div className="mt-3 space-y-1.5">
-                {patient.treatmentPlan.items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between text-sm">
-                    <span className="text-foreground">{item.name}</span>
-                    {item.price !== undefined && (
-                      <span className="text-muted-foreground">
-                        {item.price} {patient.treatmentPlan?.currency}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <Separator className="my-3" />
-              <div className="flex items-center justify-between text-sm font-medium">
-                <span className="text-foreground">Razem</span>
-                <span className="text-foreground">
-                  {patient.treatmentPlan.totalValue} {patient.treatmentPlan.currency}
-                </span>
-              </div>
-              {patient.treatmentPlan.documentName && (
-                <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <FileText className="h-3 w-3" />
-                  {patient.treatmentPlan.documentName}
-                </p>
-              )}
-            </div>
-          </TabsContent>
-        )}
-
-        <TabsContent value="comments" className="space-y-2">
-          {comments.length === 0 && <p className="text-sm text-muted-foreground">Brak komentarzy.</p>}
-          {comments.map((comment) => {
-            const author = getOperator(comment.authorId)
-            return (
-              <div key={comment.id} className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
-                <Avatar className="size-6 shrink-0">
-                  <AvatarFallback className="text-[10px]">{author?.initials ?? "—"}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground">{author?.name ?? "Nieznany"}</p>
-                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(comment.at)}</span>
-                  </div>
-                  <p className="text-sm text-foreground">{comment.text}</p>
-                </div>
-              </div>
-            )
-          })}
-        </TabsContent>
-
-        <TabsContent value="audit" className="space-y-2">
-          {audit.length === 0 && <p className="text-sm text-muted-foreground">Brak zmian systemowych.</p>}
-          {audit.map((event) => (
-            <div key={event.id} className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">
-              <span className="min-w-0 flex-1 truncate">{event.summary}</span>
-              <span className="shrink-0">{formatDateTime(event.at)}</span>
-            </div>
-          ))}
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
+          </article>)}</section>
+        })}
+      </TabsContent>}
+      {hasPermission("communication:view") && <TabsContent value="communications"><div className="h-[min(760px,80vh)] min-h-[460px] overflow-hidden rounded-xl border"><PatientConversationWorkspace key={`${patientId}/${communicationCase}/${communicationSms}`} patientId={patientId} currentCaseId={communicationCase || primaryCase?.id || ""} authorId={store.currentUser.id} initialView={communicationSms ? "sms" : undefined} /></div></TabsContent>}
+      {(hasPermission("communication:view") || hasPermission("audit:view")) && <TabsContent value="activity" className="space-y-2">
+        {!view.activity.length && <p className="p-4 text-sm text-muted-foreground">Brak aktywności w dozwolonym zakresie.</p>}
+        {view.activity.map(entry => <article key={entry.id} className="space-y-1 rounded border p-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>{entry.interaction ? `${entry.interaction.type} · ${entry.interaction.direction ?? "System"}` : "Operacja CRM"}</strong><span className="text-xs">{formatDateTime(entry.at)}</span></div><p className="whitespace-pre-wrap break-words">{entry.interaction?.text ?? entry.events[0]?.summary ?? "Połączenie"}</p>{entry.interaction && <p className="text-xs">{actor(entry.interaction.authorId)} {isSmsMessage(entry.interaction) && `· ${getSmsStatusLabel(entry.interaction)}`}</p>}{entry.caseId && <button className="text-xs underline" onClick={() => openCase(entry.caseId!)}>{entry.caseId}</button>}{entry.events.length > 0 && <details className="text-xs"><summary>{entry.events.length} powiązanych zdarzeń audit · jedna operacja</summary>{entry.events.map(event => <p key={event.id}>{actor(event.actorId)} · {event.summary}</p>)}</details>}</article>)}
+      </TabsContent>}
+      {hasPermission("case:view") && <TabsContent value="comments" className="space-y-3">
+        {hasPermission("case:edit") && <div className="space-y-2 rounded border p-3"><select aria-label="Sprawa komentarza" className="max-w-full rounded border bg-background p-2 text-sm" value={commentCase} onChange={event => setCommentCase(event.target.value)}><option value="">Wybierz sprawę komentarza</option>{view.cases.map(item => <option key={item.id}>{item.id}</option>)}</select><Textarea aria-label="Komentarz pracownika" value={comment} onChange={event => setComment(event.target.value)} /><Button size="sm" disabled={!comment.trim() || !commentCase} onClick={() => command(() => { store.addCaseComment(commentCase, comment); setComment("") })}>Dodaj komentarz</Button></div>}
+        {!view.comments.length && <p className="text-sm text-muted-foreground">Brak komentarzy pracowników.</p>}{view.comments.map(item => <article key={item.id} className="rounded border p-3 text-sm"><p className="text-xs">{actor(item.authorId)} · {formatDateTime(item.at)} · <button className="underline" onClick={() => openCase(item.caseId)}>{item.caseId}</button></p><p className="whitespace-pre-wrap break-words">{item.text}</p></article>)}
+      </TabsContent>}
+      {hasPermission("patient:view_medical") && <TabsContent value="medical" className="space-y-4"><section className="space-y-3 rounded border p-4"><h3 className="font-semibold">Medical CRM · read-only</h3><p className="text-xs text-muted-foreground">Primary source of truth. Brak lokalnej edycji danych medycznych.</p><dl className="grid gap-4 sm:grid-cols-2">{detail("External Patient ID", patient.externalPatientId)}{detail("Integration state", integration[patient.integrationState])}{detail("Ostatnia synchronizacja", patient.lastSyncAt ? formatDateTime(patient.lastSyncAt) : undefined)}{detail("PESEL", patient.pesel)}{detail("Klinika", getClinic(patient.primaryClinicId)?.name)}{detail("Medical summary", "Brak oddzielnego summary w obecnej projekcji Medical CRM")}</dl>
+        {["sync_failed", "unlinked", "sync_pending"].includes(patient.integrationState) && <p role="status" className="text-amber-700">{integration[patient.integrationState]} — dane mogą być nieaktualne lub niedostępne.</p>}
+        {patient.conflicts?.map(item => <p key={item.field} className="break-words text-sm text-destructive">Konflikt {item.field}: {item.localValue} / Medical CRM: {item.medicalValue}</p>)}
+        {patient.treatmentPlan ? <div className="space-y-2"><h4 className="font-medium">Plan leczenia v{patient.treatmentPlan.version} · {patient.treatmentPlan.status}</h4>{patient.treatmentPlan.items.map(item => <p key={item.id}>{item.name} {item.price !== undefined && `${item.price} ${patient.treatmentPlan?.currency}`}</p>)}<p>Razem: {patient.treatmentPlan.totalValue} {patient.treatmentPlan.currency}</p><p>Dokument: {patient.treatmentPlan.documentName ?? "Brak dokumentu"}</p>{primaryCase && hasPermission("task:work") && <Button size="sm" variant="outline" onClick={() => command(() => { store.sendTreatmentPlanTask(patientId, primaryCase.id, store.currentUser.id); setNotice("Utworzono istniejące zadanie wysyłki planu.") })}>Utwórz zadanie wysyłki planu</Button>}</div> : <p className="text-sm text-muted-foreground">Brak planu leczenia / dokumentów z Medical CRM.</p>}
+        <h4 className="font-medium">Lekarze i procedury powiązanych spraw</h4>{view.cases.map(item => <p key={item.id} className="text-sm">{item.id} · {getDoctor(item.doctorId)?.name ?? "Brak lekarza"} · {getProcedure(item.serviceInterest)?.name ?? "Brak procedury"}</p>)}
+        <h4 className="font-medium">Pochodzenie dostępnych danych</h4>{patient.provenance.map((item, index) => <p key={`${item.field}/${index}`} className="break-words text-xs">{item.field}: {item.value} · {item.source}</p>)}
+      </section></TabsContent>}
+    </Tabs>
+  </div>
 }

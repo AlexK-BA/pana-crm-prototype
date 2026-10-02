@@ -75,6 +75,9 @@ export interface Patient {
   primaryClinicId: ClinicId
   integrationState: IntegrationState
   lastSyncAt?: string
+  /** CRM-owned operational annotations; never synchronized over Medical CRM fields. */
+  localTags?: string[]
+  localNote?: string
   careOwnerId?: string
   contactable: boolean
   consentNote?: string
@@ -141,6 +144,8 @@ export interface EngagementCase {
   contactIdentityIds?: string[]
   /** Local intake facts; never overwrite Medical CRM Patient fields. */
   contactProfile?: PatientMatchInput
+  /** Review context for a conflicting local contact; does not link or transfer the case. */
+  requestedPatientId?: string
   board: CaseBoard
   /** Legacy status id, kept 1:1 with lib/crm/boards.ts columns. */
   status: string
@@ -250,6 +255,8 @@ export interface Interaction {
   caseId?: string
   patientId?: string
   taskId?: string
+  /** Canonical contact for channel-specific threading; legacy events derive it from the case. */
+  contactIdentityId?: string
   type: InteractionType
   /** Concrete delivery channel for generic chat/social interactions. */
   channel?: ContactChannel
@@ -360,6 +367,9 @@ export interface Comment {
 }
 
 export type AuditEventType =
+  | "case_created"
+  | "comment_added"
+  | "patient_local_updated"
   | "status_change"
   | "assignment_change"
   | "task_change"

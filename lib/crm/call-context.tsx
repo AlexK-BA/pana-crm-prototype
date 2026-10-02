@@ -26,6 +26,7 @@ export type CallPhase = "idle" | "incoming" | "active" | "wrapup"
 export interface ActiveCall {
   caseId: string
   taskId?: string
+  contactIdentityId?: string
   patientId?: string
   direction: "incoming" | "outgoing"
   callerLabel: string
@@ -43,7 +44,7 @@ interface CallContextValue {
   elapsedSec: number
   simulateIncomingCall: (input: { caseId: string; taskId?: string; unknown?: boolean }) => void
   routeIncomingCall: (phone: string, clinicId?: ClinicId) => { caseIds: string[]; message: string }
-  startOutgoingCall: (input: { caseId: string; taskId?: string }) => void
+  startOutgoingCall: (input: { caseId: string; taskId?: string; contactIdentityId?: string }) => void
   answer: () => void
   decline: () => void
   hangUp: () => void
@@ -79,12 +80,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }, [stopTimer])
 
   const buildCall = useCallback(
-    (input: { caseId: string; taskId?: string; unknown?: boolean; direction: "incoming" | "outgoing" }): ActiveCall | null => {
+    (input: { caseId: string; taskId?: string; contactIdentityId?: string; unknown?: boolean; direction: "incoming" | "outgoing" }): ActiveCall | null => {
       const engagementCase = cases.find((item) => item.id === input.caseId)
       if (!engagementCase) return null
       const clinicName = getClinic(engagementCase.clinicId)?.name ?? "Nieprzypisana klinika"
       const patient = patients.find((item) => item.id === engagementCase.patientId)
-      const primaryIdentity = identities.find((item) => item.id === engagementCase.contactIdentityId)
+      const primaryIdentity = identities.find((item) => item.id === (input.contactIdentityId ?? engagementCase.contactIdentityId))
+      if (input.contactIdentityId && (!primaryIdentity || primaryIdentity.channel !== "phone" || (!(engagementCase.patientId && primaryIdentity.patientId === engagementCase.patientId) && !(engagementCase.contactIdentityIds ?? [engagementCase.contactIdentityId]).includes(primaryIdentity.id)))) throw new Error("Numer nie należy do pacjenta / sprawy.")
       const offeredToUserIds = input.direction === "incoming"
         ? users
             .filter((user) => user.status === "active")
@@ -95,6 +97,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       return {
         caseId: input.caseId,
         taskId: input.taskId,
+        contactIdentityId: primaryIdentity?.id,
         patientId: engagementCase.patientId,
         direction: input.direction,
         callerLabel: input.unknown
@@ -152,7 +155,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }
 
   const startOutgoingCall = useCallback(
-    (input: { caseId: string; taskId?: string }) => {
+    (input: { caseId: string; taskId?: string; contactIdentityId?: string }) => {
+      if (input.contactIdentityId) assertMatchingAccess(matchingAccess, "call:handle", cases.find(item => item.id === input.caseId))
       if (!hasPermission("call:handle") || phase !== "idle") return
       const next = buildCall({ ...input, direction: "outgoing" })
       if (!next) return
@@ -161,7 +165,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       openCase(next.caseId)
       startTimer()
     },
-    [buildCall, hasPermission, openCase, phase, startTimer],
+    [buildCall, hasPermission, openCase, phase, startTimer, cases, currentUser, role],
   )
 
   const answer = useCallback(() => {
@@ -185,6 +189,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       logCall({
         caseId: call.caseId,
         taskId: call.taskId,
+        contactIdentityId: call.contactIdentityId,
         patientId: call.patientId,
         direction: call.direction,
         actorId,
@@ -223,6 +228,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const loggedCall = logCall({
         caseId: call.caseId,
         taskId: call.taskId,
+        contactIdentityId: call.contactIdentityId,
         patientId: call.patientId,
         direction: call.direction,
         actorId,

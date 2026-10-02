@@ -67,3 +67,11 @@ Contact intake no longer creates or edits a Patient. Medical CRM remains primary
 Safe linking preserves Patient medical fields/provenance/integration state, case attribution and existing task/interaction records. Reused identities are not recreated; pre-existing unlinked intake identities may remain for attribution history. Patient Profile/history projections discover the case through its canonical `patientId`. No other unlinked case is automatically merged. The drawer's local contact editor is now lookup/intake editing, not local Patient creation. Existing explicit Medical CRM synchronization behavior remains separate.
 
 See [PATIENT-MATCHING-SPEC.md](PATIENT-MATCHING-SPEC.md) for thresholds, ownership conflicts, decision lifecycle, scope, audit and backend concurrency requirements.
+
+## Patient 360 projections and ownership
+
+See [PATIENT-360-SPEC.md](PATIENT-360-SPEC.md). Patient is not EngagementCase: one Patient has many cases, and one case has many tasks/messages. Medical CRM remains primary for identity and medical data; local CRM owns operational work and explicitly local tags/notes/contacts. No second Patient, case, task or communication store is introduced.
+
+Patient first-touch is immutable; each new case stores its own caseCreationTouch. Creating a case from a Patient reuses Patient and owned ContactIdentity, creates a workflow starter task, and preserves previous history. Foreign contacts are not transferred: requestedPatientId records review context on an unlinked matching case, never a confirmed Patient link. Interaction.contactIdentityId carries optional canonical recipient metadata; old records are projected without migration or copies.
+
+Existing Comment records now live in EntityStore alongside the other canonical entities. Activity selectors group correlated technical audit rows without changing Audit Log. Scoped medical projections explicitly allowlist basic fields when patient:view_medical is absent. Medical summary absent from the model is shown as missing, not synthesized. Session-only state still requires backend persistence, transactional matching and authorization before production.

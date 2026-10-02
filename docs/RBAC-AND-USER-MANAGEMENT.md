@@ -225,3 +225,11 @@ Operator may edit case-local contact lookup input with `patient:edit_local`, rer
 EntityStore create/search/profile/approve/reject commands throw `AccessCommandError` before mutation/audit when capability or scope is missing. Manual approve/reject confirmations require reasons; approval checks current decision/input revision and contact/case ownership again. Scoped command adapters reuse the live existing AuthorizationContext and UserDirectory. They do not create new users/roles or another authorization system. Capability objects in a client prototype must be replaced with authenticated server-side checks in production.
 
 Patient matching events reuse the same Audit Log and `audit:view`; no new audit route or Operator access is introduced. See [PATIENT-MATCHING-SPEC.md](PATIENT-MATCHING-SPEC.md) and matching UAT.
+
+## Patient 360 enforcement
+
+The existing permission matrix and live ScopedEntityStore capabilities govern the workspace; no new role/permission system is added. Basic access requires patient:view_basic; case/task/communication/audit projections independently require case:view, task:view, communication:view and audit:view. Medical fields require patient:view_medical and are read-only for every role. Basic-only projections allowlist safe fields rather than exposing the complete Patient object. Marketing receives no Patient 360 or PII. Clinic Manager sees assigned clinics only; global roles retain their existing scope.
+
+Operator can use basic operations/local contacts/calls/SMS as permitted, without medical details or matching approval. Patient Care can see permitted medical data. Team Leader and Clinic Manager use existing patient:match_approve within scope. Admin retains all capabilities but cannot overwrite Medical CRM fields locally.
+
+Core Patient 360 commands reject absent permission, inactive capability, foreign clinic, invalid target or ownership before mutation/audit. Case creation requires case:edit, task creation case:edit + task:work, local contacts/tags patient:edit_local, comments case:edit. Medical sync requires patient:view_medical + patient:edit_local. Call-required tasks cannot be completed through the workspace completion command: existing call wrap-up/disposition remains mandatory. UI errors display controlled command failures. Production repeats these guards on the backend.
