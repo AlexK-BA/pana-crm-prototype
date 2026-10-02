@@ -11,6 +11,8 @@ import type {
   Broadcast,
   Call,
   CallDisposition,
+  CaseBoard,
+  Comment,
   ClinicId,
   ContactChannel,
   ContactIdentity,
@@ -28,11 +30,12 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "./entities"
-import { AUDIT_EVENTS, BROADCASTS, CONTACT_IDENTITIES, ENGAGEMENT_CASES, INTERACTIONS, PATIENTS, TASKS, iso } from "./entity-data"
+import { AUDIT_EVENTS, BROADCASTS, COMMENTS, CONTACT_IDENTITIES, ENGAGEMENT_CASES, INTERACTIONS, PATIENTS, TASKS, iso } from "./entity-data"
 import { AccessCommandError } from "./permissions"
 import { assessPatientMatch, assertMatchingAccess, caseMatchingInput, normalizedIdentityValue, normalizeMatchInput,
   normalizeMatchingEmail, normalizeMatchingPhone, normalizeMatchingPesel, patientWithinMatchingScope, redactMatchingReason,
   type MatchingAccess } from "./patient-matching-service"
+import { CLINICS, getProcedure } from "./catalog"
 import { BOARD_COLUMNS } from "./boards"
 import { buildAutomaticTask, getWorkflowStageRule } from "./workflow-rules"
 import { calculateSmsParts, emulatedSmsAdapter, isSmsMessage, INITIAL_SMS_PROVIDER_CONFIGS, selectSmsProvider } from "./sms-service"
@@ -49,6 +52,15 @@ export interface SmsSendInput {
   simulateError?: boolean
 }
 
+export interface PatientCaseInput {
+  patientId: string; contactIdentityId: string; clinicId: ClinicId; serviceInterest?: string; board: CaseBoard; channel: ContactChannel
+}
+export interface PatientTaskInput {
+  caseId: string; title: string; dueAt: string; priority: TaskPriority; requiresCall?: boolean
+}
+export interface PatientContactInput {
+  patientId: string; caseId?: string; channel: ContactChannel; value: string; displayName?: string
+}
 interface EntityStoreValue {
   tasks: Task[]
   cases: EngagementCase[]
@@ -59,6 +71,13 @@ interface EntityStoreValue {
   broadcasts: Broadcast[]
   smsProviderConfigurations: SmsProviderConfiguration[]
   matchDecisions: MatchDecision[]
+  comments: Comment[]
+  createPatientCase: (input: PatientCaseInput, access?: MatchingAccess) => EngagementCase
+  createPatientTask: (input: PatientTaskInput, access?: MatchingAccess) => Task
+  completePatientTask: (taskId: string, access?: MatchingAccess) => void
+  addPatientContact: (input: PatientContactInput, access?: MatchingAccess) => { identityId?: string; conflictCaseId?: string }
+  updatePatientLocal: (patientId: string, input: { localTags: string[]; localNote: string }, access?: MatchingAccess) => void
+  addCaseComment: (caseId: string, text: string, access?: MatchingAccess) => Comment
   readAt: Record<string, string>
   recordAudit: (event: Omit<AuditEvent, "id" | "at">) => void
   completeTask: (taskId: string, outcome: TaskOutcome, options?: { actorId?: string; callId?: string }) => void
@@ -84,6 +103,7 @@ interface EntityStoreValue {
     disposition?: CallDisposition
     talkTimeSec?: number
     note?: string
+    contactIdentityId?: string
   }) => Call
   /** Sends/records a message on any text channel (chat, SMS, WhatsApp...). */
   sendMessage: (input: {
@@ -94,6 +114,7 @@ interface EntityStoreValue {
     channel?: ContactChannel
     direction: InteractionDirection
     authorId?: string
+    contactIdentityId?: string
   }, access?: MatchingAccess) => Interaction
   sendSms: (input: SmsSendInput) => SmsMessage
   retrySms: (id: string, authorId: string, simulateError?: boolean) => SmsMessage
@@ -121,6 +142,7 @@ interface EntityStoreValue {
     phone?: string
     email?: string
     externalPatientId?: string
+    requestedPatientId?: string
     pesel?: string
     clinicId?: ClinicId
     /** Identifier for non-phone/e-mail channels (Instagram handle, website form id...). */
@@ -130,7 +152,7 @@ interface EntityStoreValue {
   /** Triage: assign a clinic to a case that doesn't have one yet. */
   assignClinicToCase: (caseId: string, clinicId: ClinicId, actorId: string) => void
   /** Pulls the patient into "linked" state, as if matched by phone/e-mail in the Medical CRM. */
-  syncPatientWithMedicalCrm: (patientId: string, actorId: string) => void
+  syncPatientWithMedicalCrm: (patientId: string, actorId: string, access?: MatchingAccess) => void
   /**
    * Scenario 1 of the Medical CRM link: a lead/deal case with no patientId yet
    * looks itself up in the Medical CRM by its contact identity (phone/e-mail).
@@ -154,7 +176,7 @@ interface EntityStoreValue {
     actorId: string
   }, access?: MatchingAccess) => { patientId?: string }
   /** Creates a task to send the patient's current treatment plan (pulled from Medical CRM). */
-  sendTreatmentPlanTask: (patientId: string, caseId: string, actorId: string) => Task
+  sendTreatmentPlanTask: (patientId: string, caseId: string, actorId: string, access?: MatchingAccess) => Task
   /** Links two engagement cases as duplicates and records both audit entries. */
   linkDuplicateCase: (caseId: string, duplicateOfCaseId: string, actorId: string) => void
   /** Sends an SMS notification campaign to a filtered audience. */
@@ -218,6 +240,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const [matchDecisions, setMatchDecisions] = useState<MatchDecision[]>([])
   const matchingState = useRef({ cases, patients, identities, matchDecisions })
   matchingState.current = { cases, patients, identities, matchDecisions }
+  const [comments, setComments] = useState<Comment[]>(COMMENTS ?? [])
   const [readAt, setReadAt] = useState<Record<string, string>>({})
 
   const smsRequests = useRef(new Set<AbortController>())
@@ -231,11 +254,11 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addAudit = useCallback((event: Omit<AuditEvent, "id" | "at">) => {
-    setAuditEvents((prev) => [...prev, { ...event, id: nextAuditId(), at: iso(0) }])
+    setAuditEvents((prev) => [...prev, { ...event, id: nextAuditId(), at: new Date().toISOString() }])
   }, [])
 
   const assessCase = (targetCase: EngagementCase) => assessPatientMatch(caseMatchingInput(targetCase, matchingState.current.identities),
-    matchingState.current.patients, matchingState.current.identities, { casePatientId: targetCase.patientId,
+    matchingState.current.patients, matchingState.current.identities, { casePatientId: targetCase.patientId ?? targetCase.requestedPatientId,
       contactValues: matchingState.current.identities.filter(item => (targetCase.contactIdentityIds ?? [targetCase.contactIdentityId]).includes(item.id)),
       identityPatientIds: matchingState.current.identities.filter(item => (targetCase.contactIdentityIds ?? [targetCase.contactIdentityId]).includes(item.id)).map(item => item.patientId).filter((id): id is string => Boolean(id)) })
   const writeDecisions = (next: MatchDecision[]) => { matchingState.current.matchDecisions = next; setMatchDecisions(next) }
@@ -354,7 +377,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       const status: TaskStatus = outcome === "wrong_number" || outcome === "resignation" ? "cancelled" : "completed"
       const task = tasks.find((item) => item.id === taskId)
       patchTask(taskId, { status, outcome, callId: options?.callId, attempts: (task?.attempts ?? 0) + 1 })
-      addAudit({ caseId: task?.caseId, patientId: task?.patientId, type: "task_change", actorId: options?.actorId ?? "system", summary: `Zadanie zakończone · wynik: ${outcome}` })
+      addAudit({ caseId: task?.caseId, patientId: task?.patientId, type: "task_change", actorId: options?.actorId ?? "system", correlationId: options?.callId ?? `complete:${taskId}:${Date.now()}`, summary: `Zadanie zakończone · wynik: ${outcome}` })
     },
     [addAudit, patchTask, tasks],
   )
@@ -468,13 +491,15 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       disposition?: CallDisposition
       talkTimeSec?: number
       note?: string
+      contactIdentityId?: string
     }) => {
-      const endAt = iso(0)
+      const endAt = new Date().toISOString()
       const call: Call = {
         id: nextCallId(),
         caseId: input.caseId,
         patientId: input.patientId,
         taskId: input.taskId,
+        contactIdentityId: input.contactIdentityId,
         type: "call",
         direction: input.direction,
         at: input.startAt,
@@ -495,6 +520,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       }
       setInteractions((prev) => [...prev, call])
       addAudit({
+        correlationId: call.id,
         caseId: input.caseId,
         patientId: input.patientId,
         type: "task_change",
@@ -551,22 +577,29 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const sendMessage = useCallback(
-    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string }, access?: MatchingAccess) => {
+    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string; contactIdentityId?: string }, access?: MatchingAccess) => {
+      if (access && input.direction === "outgoing") assertMatchingAccess(access, "communication:send", matchingState.current.cases.find(item => item.id === input.caseId))
+      if (input.contactIdentityId) {
+        const target = matchingState.current.cases.find(item => item.id === input.caseId)
+        const identity = matchingState.current.identities.find(item => item.id === input.contactIdentityId)
+        if (!target || !identity || (!(target.contactIdentityIds ?? [target.contactIdentityId]).includes(identity.id) && (!target.patientId || identity.patientId !== target.patientId)) || (input.channel && identity.channel !== input.channel)) throw new AccessCommandError("Kontakt nie należy do kanału tej sprawy.")
+      }
       const matched = input.direction === "incoming" ? matchCaseToPatient(input.caseId, access?.actorId ?? "system", access, "incoming_message") : undefined
       const interaction: Interaction = {
         id: nextInteractionId(),
         caseId: input.caseId,
         patientId: input.direction === "incoming" ? matched?.patientId ?? matchingState.current.cases.find(item => item.id === input.caseId)?.patientId : input.patientId,
+        contactIdentityId: input.contactIdentityId,
         type: input.type,
         channel: input.channel,
         direction: input.direction,
-        at: iso(0),
+        at: new Date().toISOString(),
         authorId: input.authorId,
         text: input.text,
       }
       setInteractions((prev) => [...prev, interaction])
       if (input.direction === "outgoing") {
-        setReadAt((prev) => ({ ...prev, [input.caseId]: iso(0) }))
+        setReadAt((prev) => ({ ...prev, [input.caseId]: interaction.at }))
       }
       return interaction
     },
@@ -662,7 +695,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   }, [addAudit, smsProviderConfigurations])
 
   const markRead = useCallback((caseId: string) => {
-    setReadAt((prev) => ({ ...prev, [caseId]: iso(0) }))
+    setReadAt((prev) => ({ ...prev, [caseId]: new Date().toISOString() }))
   }, [])
 
   const bookAppointment = useCallback(
@@ -688,13 +721,18 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     [addAudit, patchTask, sendMessage],
   )
 
-  const createDraftCase = useCallback((input: PatientMatchInput & { channel: ContactChannel; value?: string; text: string }, access?: MatchingAccess) => {
+  const createDraftCase = useCallback((input: PatientMatchInput & { channel: ContactChannel; value?: string; text: string; requestedPatientId?: string }, access?: MatchingAccess) => {
     assertMatchingAccess(access, "case:edit", { clinicId: input.clinicId } as EngagementCase)
+    if (input.requestedPatientId) {
+      const requested = matchingState.current.patients.find(item => item.id === input.requestedPatientId)
+      assertMatchingAccess(access, "patient:edit_local", undefined, requested)
+      if (!requested) throw new AccessCommandError("Nie znaleziono pacjenta do oceny kontaktu.")
+    }
     const n = nextDraftSeq()
     const displayName = [input.firstName?.trim(), input.lastName?.trim()].filter(Boolean).join(" ") || undefined
     const profile: PatientMatchInput = { externalPatientId: input.externalPatientId?.trim(), pesel: input.pesel?.trim(), phone: input.phone?.trim(), email: input.email?.trim(), clinicId: input.clinicId,
       firstName: input.firstName?.trim(), lastName: input.lastName?.trim() }
-    const assessment = assessPatientMatch(profile, matchingState.current.patients, matchingState.current.identities, { contactValues: input.value ? [{ channel: input.channel, value: input.value }] : [] })
+    const assessment = assessPatientMatch(profile, matchingState.current.patients, matchingState.current.identities, { casePatientId: input.requestedPatientId, contactValues: input.value ? [{ channel: input.channel, value: input.value }] : [] })
     const candidate = assessment.decision === "auto_link" ? matchingState.current.patients.find(item => item.id === assessment.candidates[0]?.candidatePatientId) : undefined
     const safePatient = candidate && patientWithinMatchingScope(candidate, access) ? candidate : undefined
     const newIdentities: ContactIdentity[] = []
@@ -716,7 +754,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     const caseId = `case-live-${n}`
     const now = new Date().toISOString()
     const draft: EngagementCase = { id: caseId, contactIdentityId: contactIds[0], contactIdentityIds: contactIds,
-      contactProfile: profile, board: "leads", status: "new", clinicId: input.clinicId,
+      contactProfile: profile, requestedPatientId: input.requestedPatientId, board: "leads", status: "new", clinicId: input.clinicId,
       responsibleTeamId: "system", createdAt: now,
       attribution: { firstTouch: { type: "first_touch", source: "Czat", channel: input.channel, language: "pl", clinicIntentId: input.clinicId ?? "pana-medica", at: now, sourceRecordId: contactIds[0] },
         caseCreationTouch: { type: "case_creation", source: "Czat", channel: input.channel, language: "pl", clinicIntentId: input.clinicId ?? "pana-medica", at: now, sourceRecordId: contactIds[0] } } }
@@ -739,8 +777,103 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     [addAudit],
   )
 
+  const requirePatient = (patientId: string, permission: Parameters<MatchingAccess["hasPermission"]>[0], access?: MatchingAccess) => {
+    const patient = matchingState.current.patients.find(item => item.id === patientId)
+    assertMatchingAccess(access, permission, undefined, patient)
+    if (!patient || !access.hasPermission("patient:view_basic")) throw new AccessCommandError("Pacjent nie istnieje lub nie masz dostępu do profilu.")
+    return patient
+  }
+  const createPatientCase = useCallback((input: PatientCaseInput, access?: MatchingAccess) => {
+    const patient = requirePatient(input.patientId, "case:edit", access)
+    assertMatchingAccess(access, "case:edit", { clinicId: input.clinicId } as EngagementCase, patient)
+    if (!CLINICS.some(item => item.id === input.clinicId)) throw new AccessCommandError("Wybierz istniejącą klinikę.")
+    const identity = matchingState.current.identities.find(item => item.id === input.contactIdentityId)
+    if (!identity || identity.patientId !== patient.id || identity.channel !== input.channel) throw new AccessCommandError("Wybierz kontakt należący do tego pacjenta i zgodny z kanałem.")
+    if (input.serviceInterest && getProcedure(input.serviceInterest)?.clinicId !== input.clinicId) throw new AccessCommandError("Usługa nie należy do wybranej kliniki.")
+    const initial = { leads: "new", deals: "scheduled", patients: "new_patient" }[input.board]
+    const rule = initial && getWorkflowStageRule(input.board, initial)?.automaticTask
+    if (!rule) throw new AccessCommandError("Brak początkowej reguły workflow dla tej lejka.")
+    const now = new Date().toISOString()
+    const id = `case-live-${nextDraftSeq()}`
+    const touch: EngagementCase["attribution"]["caseCreationTouch"] = { type: "case_creation", source: "Patient 360", channel: input.channel, language: patient.preferredLanguage, clinicIntentId: input.clinicId, serviceIntent: input.serviceInterest, at: now, sourceRecordId: id }
+    const original = matchingState.current.cases.filter(item => item.patientId === patient.id).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))[0]?.attribution.firstTouch
+    const engagementCase: EngagementCase = { id, patientId: patient.id, contactIdentityId: identity.id, contactIdentityIds: [identity.id], clinicId: input.clinicId, serviceInterest: input.serviceInterest,
+      board: input.board, status: initial, responsibleTeamId: access.actorId, createdAt: now, attribution: { firstTouch: original ?? { ...touch, type: "first_touch" }, caseCreationTouch: touch } }
+    const generated = buildAutomaticTask(rule, engagementCase, new Date(now)); generated.id = nextTaskId()
+    matchingState.current.cases = [...matchingState.current.cases, engagementCase]; setCases(matchingState.current.cases)
+    setTasks(prev => [...prev, generated])
+    addAudit({ type: "case_created", caseId: id, patientId: patient.id, actorId: access.actorId, summary: "Utworzono kolejny Engagement Case z Patient 360", before: "no_case", after: id, correlationId: id })
+    addAudit({ type: "task_change", caseId: id, patientId: patient.id, actorId: "system", summary: `Automatyzacja ${rule.id} · utworzono zadanie startowe`, after: generated.id, correlationId: id })
+    return engagementCase
+  }, [addAudit])
+  const createPatientTask = useCallback((input: PatientTaskInput, access?: MatchingAccess) => {
+    const target = matchingState.current.cases.find(item => item.id === input.caseId)
+    assertMatchingAccess(access, "task:work", target)
+    if (!target?.patientId || !access.hasPermission("case:edit")) throw new AccessCommandError("Wybierz dostępną sprawę pacjenta i uprawnienie case:edit.")
+    requirePatient(target.patientId, "task:work", access)
+    if (typeof input.title !== "string" || !input.title.trim() || !Number.isFinite(Date.parse(input.dueAt)) || !["P0", "P1", "P2", "P3", "P4"].includes(input.priority)) throw new AccessCommandError("Podaj tytuł, poprawny termin i priorytet.")
+    const task: Task = { id: nextTaskId(), caseId: target.id, patientId: target.patientId, title: input.title.trim(), status: "planned", priority: input.priority, dueAt: new Date(input.dueAt).toISOString(), requiresCall: Boolean(input.requiresCall), ownerId: access.actorId, attempts: 0, createdAt: new Date().toISOString() }
+    setTasks(prev => [...prev, task])
+    addAudit({ type: "task_change", caseId: target.id, patientId: target.patientId, actorId: access.actorId, summary: "Utworzono zadanie pacjenta", after: task.id, correlationId: task.id })
+    return task
+  }, [addAudit])
+  const completePatientTask = useCallback((id: string, access?: MatchingAccess) => {
+    const task = tasks.find(item => item.id === id)
+    const target = matchingState.current.cases.find(item => item.id === task?.caseId)
+    assertMatchingAccess(access, "task:work", target)
+    if (!task || !target?.patientId) throw new AccessCommandError("Zadanie nie istnieje.")
+    requirePatient(target.patientId, "task:work", access)
+    if (task.requiresCall) throw new AccessCommandError("Zadanie wymaga połączenia i disposition. Zakończ je w obowiązkowym call wrap-up.")
+    if (["completed", "cancelled", "failed"].includes(task.status)) throw new AccessCommandError("Zadanie jest już zakończone.")
+    completeTask(id, "done", { actorId: access.actorId })
+  }, [tasks, completeTask])
+  const addPatientContact = useCallback((input: PatientContactInput, access?: MatchingAccess) => {
+    const patient = requirePatient(input.patientId, "patient:edit_local", access)
+    const target = input.caseId ? matchingState.current.cases.find(item => item.id === input.caseId) : undefined
+    assertMatchingAccess(access, "patient:edit_local", target, patient)
+    if (input.caseId && (!target || target.patientId !== patient.id)) throw new AccessCommandError("Sprawa nie należy do tego pacjenta.")
+    if (!["phone", "email", "instagram", "facebook", "whatsapp", "telegram", "tiktok", "viber", "website", "personal_account"].includes(input.channel)) throw new AccessCommandError("Nieznany kanał.")
+    if (typeof input.value !== "string") throw new AccessCommandError("Podaj identyfikator kontaktu.")
+    const normalized = normalizedIdentityValue({ channel: input.channel, value: input.value })
+    if (!normalized) throw new AccessCommandError("Podaj poprawny telefon, e-mail lub handle.")
+    const same = matchingState.current.identities.filter(item => item.channel === input.channel && normalizedIdentityValue(item) === normalized)
+    if (same.some(item => item.patientId && item.patientId !== patient.id)) {
+      if (!access.hasPermission("case:edit")) throw new AccessCommandError("Konflikt kontaktu. Zleć ocenę w Patient Matching osobie uprawnionej do pracy ze sprawą.")
+      const draft = createDraftCase({ channel: input.channel, value: normalized, phone: input.channel === "phone" ? normalized : undefined, email: input.channel === "email" ? normalized : undefined,
+        requestedPatientId: patient.id, externalPatientId: patient.externalPatientId, firstName: patient.firstName, lastName: patient.lastName, clinicId: target?.clinicId ?? patient.primaryClinicId, text: "Kontakt lokalny wymaga oceny Patient Matching; nie przeniesiono istniejącej identity." }, access)
+      addAudit({ type: "patient_match_conflict", patientId: patient.id, caseId: draft.caseId, actorId: access.actorId, summary: "Konflikt lokalnego kontaktu przekazano do Patient Matching", correlationId: matchingState.current.matchDecisions.filter(item => item.caseId === draft.caseId).at(-1)?.id ?? draft.caseId })
+      return { conflictCaseId: draft.caseId }
+    }
+    const reused = same.find(item => item.patientId === patient.id)
+    const identity: ContactIdentity = reused ?? { id: `ci-local-${nextDraftSeq()}`, patientId: patient.id, channel: input.channel, value: normalized, displayName: input.displayName?.trim() || undefined, verified: false, isPrimary: !matchingState.current.identities.some(item => item.patientId === patient.id && item.channel === input.channel) }
+    if (!reused) { matchingState.current.identities = [...matchingState.current.identities, identity]; setIdentities(matchingState.current.identities) }
+    if (target) { matchingState.current.cases = matchingState.current.cases.map(item => item.id === target.id ? { ...item, contactIdentityIds: [...new Set([...(item.contactIdentityIds ?? [item.contactIdentityId]), identity.id])] } : item); setCases(matchingState.current.cases) }
+    addAudit({ type: reused ? "contact_identity_reused" : "contact_identity_linked", caseId: target?.id, patientId: patient.id, actorId: access.actorId, summary: reused ? "Użyto istniejącej identity pacjenta" : "Dodano niezweryfikowany lokalny kontakt pacjenta", before: reused ? identity.id : "no_contact", after: identity.id, correlationId: `contact:${nextAuditId()}` })
+    return { identityId: identity.id }
+  }, [addAudit, createDraftCase])
+  const updatePatientLocal = useCallback((id: string, input: { localTags: string[]; localNote: string }, access?: MatchingAccess) => {
+    const patient = requirePatient(id, "patient:edit_local", access)
+    assertMatchingAccess(access, "patient:edit_local", undefined, patient)
+    if (!Array.isArray(input.localTags) || input.localTags.some(tag => typeof tag !== "string") || typeof input.localNote !== "string") throw new AccessCommandError("Nieprawidłowe pola lokalne.")
+    const patch = { localTags: [...new Set(input.localTags.map(tag => tag.trim()).filter(Boolean))].slice(0, 20), localNote: input.localNote.trim().slice(0, 2000) }
+    matchingState.current.patients = matchingState.current.patients.map(item => item.id === id ? { ...item, ...patch } : item); setPatients(matchingState.current.patients)
+    addAudit({ type: "patient_local_updated", patientId: id, actorId: access.actorId, summary: "Zapisano lokalne tagi i notatkę operacyjną", before: "local_annotations", after: "local_annotations_updated", correlationId: `patient-local:${nextAuditId()}` })
+  }, [addAudit])
+  const addCaseComment = useCallback((id: string, text: string, access?: MatchingAccess) => {
+    const target = matchingState.current.cases.find(item => item.id === id)
+    assertMatchingAccess(access, "case:edit", target)
+    if (!target || typeof text !== "string" || !text.trim() || !access.hasPermission("patient:view_basic")) throw new AccessCommandError("Wybierz sprawę i wpisz komentarz.")
+    const comment: Comment = { id: `comment-${nextAuditId()}`, caseId: id, authorId: access.actorId, at: new Date().toISOString(), text: text.trim().slice(0, 4000) }
+    setComments(prev => [...prev, comment])
+    addAudit({ type: "comment_added", caseId: id, patientId: target.patientId, actorId: access.actorId, summary: "Dodano komentarz pracownika", after: comment.id, correlationId: comment.id })
+    return comment
+  }, [addAudit])
+
   const syncPatientWithMedicalCrm = useCallback(
-    (patientId: string, actorId: string) => {
+    (patientId: string, _actorId: string, access?: MatchingAccess) => {
+      requirePatient(patientId, "patient:view_medical", access)
+      assertMatchingAccess(access, "patient:edit_local")
+      const actorId = access.actorId
       setPatients((prev) => prev.map((p) => (p.id === patientId ? { ...p, integrationState: "linked", lastSyncAt: iso(0), conflicts: undefined } : p)))
       addAudit({ patientId, type: "sync", actorId, summary: "Pacjent zsynchronizowany z Medical CRM (dopasowanie po numerze/e-mailu)" })
     },
@@ -748,7 +881,12 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const sendTreatmentPlanTask = useCallback(
-    (patientId: string, caseId: string, actorId: string) => {
+    (patientId: string, caseId: string, _actorId: string, access?: MatchingAccess) => {
+      requirePatient(patientId, "patient:view_medical", access)
+      const target = matchingState.current.cases.find(item => item.id === caseId)
+      assertMatchingAccess(access, "task:work", target)
+      if (target?.patientId !== patientId) throw new AccessCommandError("Sprawa nie należy do pacjenta.")
+      const actorId = access.actorId
       const task: Task = {
         id: nextTaskId(),
         caseId,
@@ -823,6 +961,8 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       broadcasts,
       smsProviderConfigurations,
       matchDecisions,
+      comments,
+      createPatientCase, createPatientTask, completePatientTask, addPatientContact, updatePatientLocal, addCaseComment,
       readAt,
       recordAudit: addAudit,
       completeTask,
@@ -862,6 +1002,8 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       broadcasts,
       smsProviderConfigurations,
       matchDecisions,
+      comments,
+      createPatientCase, createPatientTask, completePatientTask, addPatientContact, updatePatientLocal, addCaseComment,
       readAt,
       completeTask,
       reopenTask,

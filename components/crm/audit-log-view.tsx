@@ -28,6 +28,9 @@ import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 
 const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldCheck; className: string }> = {
+  case_created: { label: "Utworzenie sprawy", icon: Link2, className: "bg-teal-100 text-teal-700" },
+  comment_added: { label: "Komentarz pracownika", icon: UserCog, className: "bg-slate-100 text-slate-700" },
+  patient_local_updated: { label: "Lokalne dane pacjenta", icon: UserCog, className: "bg-teal-100 text-teal-700" },
   patient_match_searched: { label: "Wyszukanie pacjenta", icon: Link2, className: "bg-teal-100 text-teal-700" },
   patient_match_suggested: { label: "Propozycja dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
   patient_auto_linked: { label: "Automatyczne powiązanie pacjenta", icon: Link2, className: "bg-teal-100 text-teal-700" },
@@ -63,6 +66,7 @@ const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldChec
 }
 
 const TYPE_ORDER: AuditEventType[] = [
+  "case_created", "comment_added", "patient_local_updated",
   "patient_match_searched", "patient_match_suggested", "patient_auto_linked", "patient_match_approved", "patient_match_rejected", "patient_match_conflict", "contact_identity_linked", "contact_identity_reused",
   "user_invited", "user_activated", "user_deactivated", "user_password_reset_requested", "user_sessions_revoked", "user_access_changed", "role_permissions_changed", "role_permissions_reset", "access_denied",
   "sms_send", "sms_failed", "sms_retry", "sms_provider_change", "sms_provider_test", "sms_provider_config",

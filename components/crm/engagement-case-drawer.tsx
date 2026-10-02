@@ -21,7 +21,6 @@ import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import { getCommentsForCase } from "@/lib/crm/entity-data"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
 import { getOperator, PRIORITY_TEXT_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
 import { getNextTaskForCase } from "@/lib/crm/entity-queue"
@@ -68,7 +67,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const canViewCommunication = hasPermission("communication:view")
   const canEditPatient = hasPermission("patient:edit_local")
   const canWorkTasks = hasPermission("task:work")
-  const { tasks, cases, patients, identities, interactions, auditEvents, retrySms, completeTask, reopenTask, skipTask, saveCaseContactProfile } = useScopedEntityStore()
+  const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, retrySms, completeTask, reopenTask, skipTask, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
   const { t } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId)!
@@ -78,7 +77,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const procedure = getProcedure(engagementCase.serviceInterest)
   const doctor = getDoctor(engagementCase.doctorId)
   const caseTasks = useMemo(() => tasks.filter((t) => t.caseId === caseId), [tasks, caseId])
-  const comments = getCommentsForCase(caseId)
+  const comments = allComments.filter(item => item.caseId === caseId)
   const audit = auditEvents.filter((event) => event.caseId === caseId)
   const caseSms = interactions.filter(isSmsMessage).filter((message) => message.caseId === caseId)
   const [smsError, setSmsError] = useState("")

@@ -25,8 +25,8 @@ export function useScopedEntityStore() {
   return useMemo(() => {
     const mayTriageUnassigned = role === "operator" || role === "patient_care" || role === "team_leader" || role === "admin"
     const hasGlobalScope = role === "admin" || role === "team_leader"
-    const operationalAccess = role !== "marketing"
-    const cases = operationalAccess
+    const operationalAccess = role !== "marketing" && currentUser.status === "active"
+    const cases = operationalAccess && hasPermission("case:view")
       ? store.cases.filter((item) => hasGlobalScope || (item.clinicId ? currentUser.clinicIds.includes(item.clinicId) : mayTriageUnassigned))
       : []
     const caseIds = new Set(cases.map((item) => item.id))
@@ -34,7 +34,7 @@ export function useScopedEntityStore() {
     const canReview = operationalAccess && hasPermission("patient:match_approve") && hasPermission("patient:view_basic")
     const matchingPatients = canReview ? store.patients.filter(patient => patientWithinMatchingScope(patient, matchingAccess)) : []
     const matchingPatientIds = new Set(matchingPatients.map(patient => patient.id))
-    const patientIds = new Set(cases.map((item) => item.patientId).filter((id): id is string => Boolean(id)))
+    const patientIds = new Set(store.patients.filter(item => operationalAccess && hasPermission("patient:view_basic") && (hasGlobalScope || currentUser.clinicIds.includes(item.primaryClinicId))).map(item => item.id))
     const identityIds = new Set(cases.flatMap((item) => item.contactIdentityIds ?? [item.contactIdentityId]))
 
     const interactions = store.interactions.filter((item) => item.caseId ? caseIds.has(item.caseId)
@@ -55,12 +55,24 @@ export function useScopedEntityStore() {
     return {
       ...store,
       cases,
-      tasks: store.tasks.filter((item) => caseIds.has(item.caseId)),
-      patients: store.patients.filter((item) => patientIds.has(item.id) || matchingPatientIds.has(item.id)),
+      tasks: hasPermission("task:view") ? store.tasks.filter((item) => caseIds.has(item.caseId)) : [],
+      comments: operationalAccess && hasPermission("case:view") ? store.comments.filter(item => caseIds.has(item.caseId)) : [],
+      patients: store.patients.filter((item) => patientIds.has(item.id) || matchingPatientIds.has(item.id)).map(item => {
+        if (hasPermission("patient:view_medical")) return item
+        return { id: item.id, externalPatientId: item.externalPatientId, firstName: item.firstName, lastName: item.lastName, preferredLanguage: item.preferredLanguage, primaryClinicId: item.primaryClinicId, integrationState: item.integrationState, lastSyncAt: item.lastSyncAt, careOwnerId: item.careOwnerId, contactable: item.contactable, consentNote: item.consentNote, localTags: item.localTags, localNote: item.localNote, provenance: [] }
+      }),
       matchDecisions: store.matchDecisions.filter(item => caseIds.has(item.caseId)).map(item => ({ ...item,
         candidates: canReview ? item.candidates.filter(candidate => matchingPatientIds.has(candidate.candidatePatientId)) : [],
         candidatePatientId: canReview && item.candidatePatientId && matchingPatientIds.has(item.candidatePatientId) ? item.candidatePatientId : undefined,
         reason: canReview ? item.reason : "Powiązanie pacjenta wymaga bezpiecznej weryfikacji. Sprawa nadal pozostaje dostępna do pracy." })),
+      createPatientCase: (input: Parameters<typeof store.createPatientCase>[0]) => store.createPatientCase(input, matchingAccessRef.current),
+      createPatientTask: (input: Parameters<typeof store.createPatientTask>[0]) => store.createPatientTask(input, matchingAccessRef.current),
+      completePatientTask: (id: string) => store.completePatientTask(id, matchingAccessRef.current),
+      addPatientContact: (input: Parameters<typeof store.addPatientContact>[0]) => store.addPatientContact(input, matchingAccessRef.current),
+      updatePatientLocal: (id: string, input: Parameters<typeof store.updatePatientLocal>[1]) => store.updatePatientLocal(id, input, matchingAccessRef.current),
+      addCaseComment: (id: string, text: string) => store.addCaseComment(id, text, matchingAccessRef.current),
+      syncPatientWithMedicalCrm: (id: string, _actorId: string) => store.syncPatientWithMedicalCrm(id, matchingAccessRef.current.actorId, matchingAccessRef.current),
+      sendTreatmentPlanTask: (patientId: string, caseId: string, _actorId: string) => store.sendTreatmentPlanTask(patientId, caseId, matchingAccessRef.current.actorId, matchingAccessRef.current),
       createDraftCase: (input: Parameters<typeof store.createDraftCase>[0]) => store.createDraftCase(input, matchingAccessRef.current),
       matchCaseToPatient: (id: string, _actorId: string) => {
         if (!caseIds.has(id)) throw new AccessCommandError("Sprawa poza zakresem dostępu.")
@@ -82,7 +94,7 @@ export function useScopedEntityStore() {
         return store.saveCaseContactProfile({ ...input, actorId: matchingAccessRef.current.actorId }, matchingAccessRef.current)
       },
       identities: store.identities.filter((item) => identityIds.has(item.id) || Boolean(item.patientId && (patientIds.has(item.patientId) || matchingPatientIds.has(item.patientId)))),
-      interactions,
+      interactions: hasPermission("communication:view") ? interactions : [],
       sendMessage: (input: Parameters<typeof store.sendMessage>[0]) => {
         if (!caseIds.has(input.caseId)) throw new AccessCommandError("Sprawa poza zakresem dostępu.")
         return store.sendMessage({ ...input, authorId: input.direction === "outgoing" ? currentUser.id : undefined }, matchingAccessRef.current)
@@ -121,7 +133,7 @@ export function useScopedEntityStore() {
         }
         store.testSmsProviderConfiguration(id, currentUser.id)
       },
-      auditEvents: store.auditEvents.filter((item) => !item.caseId || caseIds.has(item.caseId)),
+      auditEvents: hasPermission("audit:view") ? store.auditEvents.filter((item) => item.caseId ? caseIds.has(item.caseId) : !item.patientId || patientIds.has(item.patientId)) : [],
       broadcasts: store.broadcasts.filter((item) => hasGlobalScope || !item.clinicId || currentUser.clinicIds.includes(item.clinicId)),
       currentUser,
     }

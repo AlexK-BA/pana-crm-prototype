@@ -2,8 +2,8 @@
 
 ## Test environment
 
-- Branch under test: `codex/rbac-user-hardening` (base: `main`, `60f489712dccbdf091210661312fa8625ed8e518`).
-- Preview: use the deployment attached to the RBAC/User Management PR when available; the prior foundation preview is not evidence for this branch.
+- Branch under test: `codex/patient-360-workspace` (base: `main`, `0201bb28fde9d226f4bdc87a96caf657135aa4cb`).
+- Preview: use the deployment attached to the Patient 360 PR when available; the prior foundation preview is not evidence for this branch.
 - Test data is reset after a page reload.
 - Run the scenarios in the order below when testing state changes in one session.
 
@@ -486,3 +486,27 @@ Automated fixture suite: `node --test tests/patient-matching.test.cjs tests/rbac
 Additional checks: forbidden case/contact transfer remains rejected even for Admin; incoming known-identity chat performs system matching before recording its canonical Patient reference; incoming phone keeps the existing answer/decline/wrap-up workflow. Leaving a suggestion unresolved does not close/redistribute tasks. External Medical CRM ID in candidate details requires `patient:view_medical`. No Delete Patient, automatic case merge or credentials were added.
 
 Validation distinction: command/unit checks execute real provider/service source in an isolated hook host. They do not execute browser rendering, dialog controls, call card or Patient 360 screen. Chromium is unavailable in this environment; browser UAT is **not performed**, and no repeated browser download is required. TypeScript/build results belong in the PR validation record.
+
+## Patient 360 acceptance scenarios
+
+Use the Patient 360 PR preview and a fresh session. Automated validation: `node --test tests/*.test.cjs` (48 passing), `pnpm exec tsc --noEmit`, `pnpm build`, `git diff --check`. Browser UAT was not executed in this implementation environment: Chromium and its Playwright cache are absent; no download was attempted. The following are reproducible acceptance scenarios, not a claim of executed browser testing.
+
+| Scenario | Steps and expected result |
+|---|---|
+| All cases, no foreign records | Open an existing Patient; compare Cases/Tasks with canonical Patient-linked cases. All accessible cases appear; another Patient's records do not. |
+| Clinic scope | Switch to Clinic Manager; open an out-of-scope Patient URL. Access is denied/not available and foreign cases/medical data are absent. |
+| Marketing | Switch to Marketing and open the same URL. No Patient 360 or PII is returned. |
+| Medical permission | Compare Operator and Patient Care. Operator sees basic details; treatment/PESEL/provenance are absent. Medical fields remain read-only for Admin too. |
+| New case | Create a case from Patient using owned contact, scoped clinic/service/channel and initial funnel. Patient count and original case remain unchanged; firstTouch stays identical; distinct caseCreationTouch and workflow starter task appear. |
+| Task history/order | Review overdue/P0/P1/due ordering and Completed/Cancelled sections. Terminal tasks remain. A requiresCall task cannot use direct completion and requires call/disposition/wrap-up. |
+| Threads | Open communications, choose case/channel/contact threads and aggregate SMS. Each message appears once in its concrete thread; Patient SMS includes unbound messages. Dates, author/direction/delivery and unread counts update. |
+| SMS error/retry | Enable existing demo failure, send SMS, retry failed message with failure disabled. Original failed record remains; new retryOfId record delivers; linked task is not silently completed. |
+| Activity versus comments | Add an employee comment. Comments shows it once with case/author/time; audit metadata stays in Activity/Audit Log. A correlated SMS/call audit does not duplicate its message activity. |
+| Local contacts | Add phone/email/social identity, then reuse a verified own identity. Confirm no verified value or medical field is overwritten. Enter another Patient's contact: no transfer/merge; unlinked review case opens existing matching flow. |
+| Matching regression | Review pending/conflict and approve only with patient:match_approve in scope. Existing PR #12 behavior and immutable attribution remain. |
+| Direct command denial | Invoke each new protected command with missing capability. Controlled error; entity counts/content and audit unchanged (automated command harness covers this). |
+| Calls regression | Start selected canonical phone call, hang up and complete wrap-up; shared incoming claim opens the same case. Foreign recipient is rejected; required disposition remains mandatory. |
+| Empty/error states | Open missing/inaccessible Patient; inspect Patient without cases/tasks/messages and unlinked Medical CRM. Clear empty/not-found/denied/unavailable states, no fictional medical content. |
+| Layout/loading | Check initial skeleton and narrow navigation, long IDs/tags, dialogs/drawer and communication list/detail back navigation. No overflow or inaccessible actions. |
+
+Existing RBAC/User Management, Patient Matching, SMS and call lifecycle tests remain in the full suite. The command harness uses the real providers/services with mocked React hooks; it verifies state transitions and guards, not browser rendering or actual provider/backend integration. Reload discards session-only changes.
