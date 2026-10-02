@@ -11,13 +11,12 @@
  */
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react"
 import type { CallDisposition } from "./entities"
-import { getCase } from "./entity-data"
-import { ROLE_PROFILES } from "./roles"
 import { getClinic } from "./catalog"
 import { useEntityStore } from "./entity-store"
 import { getNextTaskForCase } from "./entity-queue"
 import { useUserDirectory } from "./user-directory"
 import { useAuthorization } from "./authorization-context"
+import { useCasePanel } from "./panel-context"
 
 export type CallPhase = "idle" | "incoming" | "active" | "wrapup"
 
@@ -30,9 +29,9 @@ export interface ActiveCall {
   callerNumber: string
   clinicName: string
   startAt: string
-  offeredTo: string[]
-  dismissedBy: string[]
-  claimedBy?: string
+  offeredToUserIds: string[]
+  dismissedByUserIds: string[]
+  claimedByUserId?: string
 }
 
 interface CallContextValue {
@@ -44,23 +43,22 @@ interface CallContextValue {
   answer: () => void
   decline: () => void
   hangUp: () => void
-  submitWrapUp: (disposition: CallDisposition, opts?: { rescheduleAt?: string; note?: string; duplicateOfCaseId?: string }) => void
+  submitWrapUp: (disposition: CallDisposition, opts?: { rescheduleAt?: string; note?: string; duplicateOfCaseId?: string }) => boolean
 }
 
 const CallContext = createContext<CallContextValue | null>(null)
 
 export function CallProvider({ children }: { children: ReactNode }) {
-  const { currentUser } = useUserDirectory()
+  const { currentUser, users } = useUserDirectory()
   const { hasPermission } = useAuthorization()
-  const { tasks, logCall, completeTask, rescheduleTask, ensureMissedCallTask, linkDuplicateCase } = useEntityStore()
+  const { openCase } = useCasePanel()
+  const { tasks, cases, patients, identities, logCall, completeTask, rescheduleTask, ensureMissedCallTask, linkDuplicateCase } = useEntityStore()
   const [phase, setPhase] = useState<CallPhase>("idle")
   const [call, setCall] = useState<ActiveCall | null>(null)
   const [elapsedSec, setElapsedSec] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const actorId = currentUser.id
-  const actorName = currentUser.name
-
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
@@ -76,65 +74,80 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const buildCall = useCallback(
     (input: { caseId: string; taskId?: string; unknown?: boolean; direction: "incoming" | "outgoing" }): ActiveCall | null => {
-      const engagementCase = getCase(input.caseId)
+      const engagementCase = cases.find((item) => item.id === input.caseId)
       if (!engagementCase) return null
       const clinicName = getClinic(engagementCase.clinicId)?.name ?? "Nieprzypisana klinika"
+      const patient = patients.find((item) => item.id === engagementCase.patientId)
+      const primaryIdentity = identities.find((item) => item.id === engagementCase.contactIdentityId)
+      const offeredToUserIds = input.direction === "incoming"
+        ? users
+            .filter((user) => user.status === "active")
+            .filter((user) => user.roles.some((role) => ["operator", "patient_care", "clinic_manager"].includes(role)))
+            .filter((user) => !engagementCase.clinicId || user.clinicIds.includes(engagementCase.clinicId))
+            .map((user) => user.id)
+        : [actorId]
       return {
         caseId: input.caseId,
         taskId: input.taskId,
         patientId: engagementCase.patientId,
         direction: input.direction,
-        callerLabel: input.unknown || !engagementCase.patientId ? "Nierozpoznany kontakt" : "Pacjent",
-        callerNumber: "+48 592 817 364",
+        callerLabel: input.unknown
+          ? "Nierozpoznany kontakt"
+          : patient
+            ? `${patient.firstName} ${patient.lastName}`
+            : primaryIdentity?.displayName ?? "Nierozpoznany kontakt",
+        callerNumber: primaryIdentity?.channel === "phone" ? primaryIdentity.value : "Numer nierozpoznany",
         clinicName,
         startAt: new Date().toISOString(),
-        offeredTo: input.direction === "incoming"
-          ? [ROLE_PROFILES.operator.user.name, ROLE_PROFILES.patient_care.user.name, ROLE_PROFILES.clinic_manager.user.name]
-          : [actorName],
-        dismissedBy: [],
-        claimedBy: input.direction === "outgoing" ? actorName : undefined,
+        offeredToUserIds,
+        dismissedByUserIds: [],
+        claimedByUserId: input.direction === "outgoing" ? actorId : undefined,
       }
     },
-    [actorName],
+    [actorId, cases, identities, patients, users],
   )
 
   const simulateIncomingCall = useCallback(
     (input: { caseId: string; taskId?: string; unknown?: boolean }) => {
-      if (!hasPermission("call:handle")) return
+      if (!hasPermission("call:handle") || phase !== "idle") return
       const next = buildCall({ ...input, direction: "incoming" })
       if (!next) return
       setCall(next)
       setPhase("incoming")
+      openCase(next.caseId)
     },
-    [buildCall, hasPermission],
+    [buildCall, hasPermission, openCase, phase],
   )
 
   const startOutgoingCall = useCallback(
     (input: { caseId: string; taskId?: string }) => {
-      if (!hasPermission("call:handle")) return
+      if (!hasPermission("call:handle") || phase !== "idle") return
       const next = buildCall({ ...input, direction: "outgoing" })
       if (!next) return
       setCall(next)
       setPhase("active")
+      openCase(next.caseId)
       startTimer()
     },
-    [buildCall, hasPermission, startTimer],
+    [buildCall, hasPermission, openCase, phase, startTimer],
   )
 
   const answer = useCallback(() => {
-    if (!hasPermission("call:handle") || !call || call.claimedBy) return
-    setCall((current) => (current ? { ...current, claimedBy: actorName } : current))
+    if (!hasPermission("call:handle") || !call || call.claimedByUserId || !call.offeredToUserIds.includes(actorId)) return
+    setCall((current) => (current ? { ...current, claimedByUserId: actorId } : current))
     setPhase("active")
+    openCase(call.caseId)
     startTimer()
-  }, [actorName, call, hasPermission, startTimer])
+  }, [actorId, call, hasPermission, openCase, startTimer])
 
   const decline = useCallback(() => {
     if (!hasPermission("call:handle")) return
     if (call?.direction === "incoming") {
-      const dismissedBy = [...new Set([...call.dismissedBy, actorName])]
-      const remaining = call.offeredTo.filter((operator) => !dismissedBy.includes(operator))
+      if (!call.offeredToUserIds.includes(actorId)) return
+      const dismissedByUserIds = [...new Set([...call.dismissedByUserIds, actorId])]
+      const remaining = call.offeredToUserIds.filter((userId) => !dismissedByUserIds.includes(userId))
       if (remaining.length > 0) {
-        setCall({ ...call, dismissedBy })
+        setCall({ ...call, dismissedByUserIds })
         return
       }
       logCall({
@@ -144,7 +157,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         direction: call.direction,
         actorId,
         extension: currentUser.telephonyExtension ?? "101",
-        clinicId: getCase(call.caseId)?.clinicId ?? "pana-medica",
+        clinicId: cases.find((item) => item.id === call.caseId)?.clinicId ?? "pana-medica",
         startAt: call.startAt,
         answered: false,
       })
@@ -153,7 +166,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     stopTimer()
     setPhase("idle")
     setCall(null)
-  }, [actorId, actorName, call, currentUser.telephonyExtension, ensureMissedCallTask, hasPermission, logCall, stopTimer])
+  }, [actorId, call, cases, currentUser.telephonyExtension, ensureMissedCallTask, hasPermission, logCall, stopTimer])
 
   const hangUp = useCallback(() => {
     if (!hasPermission("call:handle")) return
@@ -163,19 +176,26 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const submitWrapUp = useCallback(
     (disposition: CallDisposition, opts?: { rescheduleAt?: string; note?: string; duplicateOfCaseId?: string }) => {
-      if (!hasPermission("call:handle")) return
+      if (!hasPermission("call:handle")) return false
       if (!call) {
         setPhase("idle")
-        return
+        return false
       }
-      logCall({
+
+      const relatedTask = call.taskId ?? getNextTaskForCase(tasks, call.caseId)?.id
+      const requiresRetry = disposition === "call_later" || disposition === "no_answer" || disposition === "not_reached" || disposition === "contact_failed"
+      const retryAt = opts?.rescheduleAt ? new Date(opts.rescheduleAt).getTime() : Number.NaN
+      if (requiresRetry && (!Number.isFinite(retryAt) || retryAt <= Date.now())) return false
+      if (disposition === "duplicate" && (!opts?.duplicateOfCaseId || opts.duplicateOfCaseId === call.caseId)) return false
+
+      const loggedCall = logCall({
         caseId: call.caseId,
         taskId: call.taskId,
         patientId: call.patientId,
         direction: call.direction,
         actorId,
         extension: currentUser.telephonyExtension ?? "101",
-        clinicId: getCase(call.caseId)?.clinicId ?? "pana-medica",
+        clinicId: cases.find((item) => item.id === call.caseId)?.clinicId ?? "pana-medica",
         startAt: call.startAt,
         answered: disposition !== "no_answer" && disposition !== "not_reached",
         disposition,
@@ -187,24 +207,21 @@ export function CallProvider({ children }: { children: ReactNode }) {
         linkDuplicateCase(call.caseId, opts.duplicateOfCaseId, actorId)
       }
 
-      const relatedTask = call.taskId ?? getNextTaskForCase(tasks, call.caseId)?.id
-      const requiresRetry = disposition === "call_later" || disposition === "no_answer" || disposition === "not_reached" || disposition === "contact_failed"
-
       if (relatedTask) {
         if (requiresRetry) {
-          if (!opts?.rescheduleAt) return
-          const reason = opts.note || (disposition === "call_later" ? "Ustalono kolejny kontakt po rozmowie" : `Nie udało się skontaktować · ${disposition}`)
-          rescheduleTask(relatedTask, opts.rescheduleAt, reason)
+          const reason = opts?.note || (disposition === "call_later" ? "Ustalono kolejny kontakt po rozmowie" : `Nie udało się skontaktować · ${disposition}`)
+          rescheduleTask(relatedTask, opts!.rescheduleAt!, reason, { actorId, callId: loggedCall.id })
         } else {
-          completeTask(relatedTask, disposition)
+          completeTask(relatedTask, disposition, { actorId, callId: loggedCall.id })
         }
       }
 
       setCall(null)
       setElapsedSec(0)
       setPhase("idle")
+      return true
     },
-    [actorId, call, completeTask, currentUser.telephonyExtension, elapsedSec, hasPermission, linkDuplicateCase, logCall, rescheduleTask, tasks],
+    [actorId, call, cases, completeTask, currentUser.telephonyExtension, elapsedSec, hasPermission, linkDuplicateCase, logCall, rescheduleTask, tasks],
   )
 
   const value = useMemo(

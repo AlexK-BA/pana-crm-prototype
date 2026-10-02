@@ -45,11 +45,11 @@ interface EntityStoreValue {
   smsProviderConfigurations: SmsProviderConfiguration[]
   readAt: Record<string, string>
   recordAudit: (event: Omit<AuditEvent, "id" | "at">) => void
-  completeTask: (taskId: string, outcome: TaskOutcome) => void
+  completeTask: (taskId: string, outcome: TaskOutcome, options?: { actorId?: string; callId?: string }) => void
   /** Reverts a completed/cancelled task back to an open state (undo a checkbox). */
   reopenTask: (taskId: string) => void
   skipTask: (taskId: string, reason: string) => void
-  rescheduleTask: (taskId: string, dueAtIso: string, reason?: string) => void
+  rescheduleTask: (taskId: string, dueAtIso: string, reason?: string, options?: { actorId?: string; callId?: string }) => void
   /** Creates or reactivates the shared P1 callback after a fully missed incoming call. */
   ensureMissedCallTask: (caseId: string, patientId?: string) => Task
   assignTask: (taskId: string, ownerId: string, actorId: string) => void
@@ -219,10 +219,11 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const completeTask = useCallback(
-    (taskId: string, outcome: TaskOutcome) => {
+    (taskId: string, outcome: TaskOutcome, options?: { actorId?: string; callId?: string }) => {
       const status: TaskStatus = outcome === "wrong_number" || outcome === "resignation" ? "cancelled" : "completed"
-      patchTask(taskId, { status, outcome })
-      addAudit({ caseId: tasks.find((t) => t.id === taskId)?.caseId, type: "task_change", actorId: "system", summary: `Zadanie zakończone · wynik: ${outcome}` })
+      const task = tasks.find((item) => item.id === taskId)
+      patchTask(taskId, { status, outcome, callId: options?.callId, attempts: (task?.attempts ?? 0) + 1 })
+      addAudit({ caseId: task?.caseId, patientId: task?.patientId, type: "task_change", actorId: options?.actorId ?? "system", summary: `Zadanie zakończone · wynik: ${outcome}` })
     },
     [addAudit, patchTask, tasks],
   )
@@ -244,12 +245,14 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const rescheduleTask = useCallback(
-    (taskId: string, dueAtIso: string, reason?: string) => {
-      patchTask(taskId, { status: "planned", dueAt: dueAtIso, outcome: "rescheduled", attempts: (tasks.find((t) => t.id === taskId)?.attempts ?? 0) + 1 })
+    (taskId: string, dueAtIso: string, reason?: string, options?: { actorId?: string; callId?: string }) => {
+      const task = tasks.find((item) => item.id === taskId)
+      patchTask(taskId, { status: "planned", dueAt: dueAtIso, outcome: "rescheduled", callId: options?.callId, attempts: (task?.attempts ?? 0) + 1 })
       addAudit({
-        caseId: tasks.find((t) => t.id === taskId)?.caseId,
+        caseId: task?.caseId,
+        patientId: task?.patientId,
         type: "task_change",
-        actorId: "system",
+        actorId: options?.actorId ?? "system",
         summary: reason ? `Termin przełożony · ${reason}` : "Termin zadania przełożony",
       })
     },
