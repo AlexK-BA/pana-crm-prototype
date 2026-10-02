@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, UserRound, BriefcaseBusiness, Save } from "lucide-react"
+import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, UserRound, BriefcaseBusiness, Save, ChevronDown } from "lucide-react"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { CreateCaseTask, TaskActions } from "@/components/crm/task-actions"
@@ -30,6 +30,7 @@ import type { SmsMessage } from "@/lib/crm/entities"
 import { getSmsStatusLabel, isSmsMessage } from "@/lib/crm/sms-service"
 import { cn } from "@/lib/utils"
 import { PatientLinkPanel } from "@/components/crm/patient-link-panel"
+import { Patient360Actions } from "@/components/crm/patient-360-actions"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
 import { AppointmentSlotPicker } from "@/components/crm/appointment-slot-picker"
 import { useAuthorization } from "@/lib/crm/authorization-context"
@@ -125,6 +126,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
     email: engagementCase.contactProfile?.email ?? patientIdentities.find((item) => item.channel === "email")?.value ?? (identity?.channel === "email" ? identity.value : ""),
   })
   const [profileSaved, setProfileSaved] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   const openTasks = caseTasks.filter((t) => !["completed", "cancelled", "failed"].includes(t.status))
   const nextTask = getNextTaskForCase(caseTasks, caseId)
@@ -181,7 +183,10 @@ function DrawerBody({ caseId }: { caseId: string }) {
           <Badge variant="outline">{engagementCase.board === "leads" ? t("board_lead") : engagementCase.board === "deals" ? t("board_deal") : t("board_patient_care")}</Badge>
           {procedure && <Badge variant="secondary">{procedure.name}</Badge>}
           {doctor && <Badge variant="secondary">{doctor.name}</Badge>}
-          {patient && <Badge variant="outline">{patient.integrationState}</Badge>}
+          {patient && <Badge variant="outline">{patient.integrationState}</Badge>
+          {patient && <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
+            Szczegóły <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", detailsOpen && "rotate-180")} />
+          </Button>}
         </div>
 
         <div className="flex gap-2">
@@ -214,6 +219,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
         </div>
 
         <PatientLinkPanel caseId={caseId} />
+        {detailsOpen && patient && <div className="max-h-40 overflow-y-auto"><Patient360Actions patientId={patient.id} caseId={caseId} /></div>}
       </DialogHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
