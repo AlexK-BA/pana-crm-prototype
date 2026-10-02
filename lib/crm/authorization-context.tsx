@@ -1,8 +1,8 @@
 "use client"
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
-import { ROLE_PROFILES, type RoleId } from "./roles"
-import { ROLE_PERMISSIONS, ROUTE_PERMISSION, type Permission } from "./permissions"
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react"
+import { ROLE_ORDER, ROLE_PROFILES, type RoleId } from "./roles"
+import { AccessCommandError, ALL_PERMISSIONS, ROLE_PERMISSIONS, ROUTE_PERMISSION, type Permission } from "./permissions"
 import { useRole } from "./role-context"
 import { useEntityStore } from "./entity-store"
 
@@ -28,7 +28,10 @@ export function AuthorizationProvider({ children }: { children: ReactNode }) {
   const { recordAudit } = useEntityStore()
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMap>(cloneDefaults)
 
-  const roleHasPermission = useCallback((targetRole: RoleId, permission: Permission) => rolePermissions[targetRole].includes(permission), [rolePermissions])
+  const commandSnapshot = useRef({ role, rolePermissions })
+  commandSnapshot.current = { role, rolePermissions }
+  const roleHasPermission = useCallback((targetRole: RoleId, permission: Permission) =>
+    (targetRole === "admin" ? ALL_PERMISSIONS : commandSnapshot.current.rolePermissions[targetRole] ?? []).includes(permission), [rolePermissions])
   const hasPermission = useCallback((permission: Permission) => roleHasPermission(role, permission), [role, roleHasPermission])
   const canAccessRoute = useCallback((pathname: string) => {
     if (pathname === "/") return true
@@ -38,20 +41,42 @@ export function AuthorizationProvider({ children }: { children: ReactNode }) {
     return rule.permission ? roleHasPermission(role, rule.permission) : true
   }, [role, roleHasPermission])
 
+  const requireConfiguration = () => {
+    const { role: actorRole, rolePermissions: current } = commandSnapshot.current
+    if (!(actorRole === "admin" ? ALL_PERMISSIONS : current[actorRole]).includes("configuration:manage")) {
+      throw new AccessCommandError("Brak uprawnienia configuration:manage do zmiany macierzy ról.")
+    }
+    return ROLE_PROFILES[actorRole].user.id
+  }
+  const validateTargetRole = (targetRole: RoleId) => {
+    if (!ROLE_ORDER.includes(targetRole)) throw new AccessCommandError("Nieznana rola.")
+    if (targetRole === "admin") throw new AccessCommandError("Systemowa rola admin jest chroniona i zachowuje pełne uprawnienia.")
+  }
   const toggleRolePermission = useCallback((targetRole: RoleId, permission: Permission) => {
-    if (targetRole === "admin") return
-    setRolePermissions((prev) => {
-      const enabled = prev[targetRole].includes(permission)
-      return { ...prev, [targetRole]: enabled ? prev[targetRole].filter((item) => item !== permission) : [...prev[targetRole], permission] }
-    })
-    recordAudit({ type: "assignment_change", actorId: ROLE_PROFILES[role].user.id, summary: `Zmieniono uprawnienie ${permission} dla roli ${targetRole}` })
-  }, [recordAudit, role])
+    const actorId = requireConfiguration()
+    validateTargetRole(targetRole)
+    if (!ALL_PERMISSIONS.includes(permission)) throw new AccessCommandError("Nieznane uprawnienie.")
+    const previous = commandSnapshot.current.rolePermissions
+    const before = previous[targetRole]
+    const after = before.includes(permission) ? before.filter((item) => item !== permission) : [...before, permission]
+    const next = { ...previous, [targetRole]: after }
+    commandSnapshot.current.rolePermissions = next
+    setRolePermissions(next)
+    recordAudit({ type: "role_permissions_changed", actorId, targetRole, correlationId: `role:${targetRole}`,
+      before: before.join(", "), after: after.join(", "), summary: `Zmieniono uprawnienie ${permission} dla roli ${targetRole}` })
+  }, [recordAudit])
 
   const resetRolePermissions = useCallback((targetRole: RoleId) => {
-    if (targetRole === "admin") return
-    setRolePermissions((prev) => ({ ...prev, [targetRole]: [...ROLE_PERMISSIONS[targetRole]] }))
-    recordAudit({ type: "assignment_change", actorId: ROLE_PROFILES[role].user.id, summary: `Przywrócono domyślne uprawnienia roli ${targetRole}` })
-  }, [recordAudit, role])
+    const actorId = requireConfiguration()
+    validateTargetRole(targetRole)
+    const previous = commandSnapshot.current.rolePermissions
+    const after = [...ROLE_PERMISSIONS[targetRole]]
+    const next = { ...previous, [targetRole]: after }
+    commandSnapshot.current.rolePermissions = next
+    setRolePermissions(next)
+    recordAudit({ type: "role_permissions_reset", actorId, targetRole, correlationId: `role:${targetRole}`,
+      before: previous[targetRole].join(", "), after: after.join(", "), summary: `Przywrócono domyślne uprawnienia roli ${targetRole}` })
+  }, [recordAudit])
 
   const value = useMemo(() => ({ rolePermissions, hasPermission, roleHasPermission, canAccessRoute, toggleRolePermission, resetRolePermissions }), [canAccessRoute, hasPermission, resetRolePermissions, roleHasPermission, rolePermissions, toggleRolePermission])
   return <AuthorizationContext.Provider value={value}>{children}</AuthorizationContext.Provider>

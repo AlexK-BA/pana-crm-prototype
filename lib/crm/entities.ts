@@ -336,6 +336,15 @@ export type AuditEventType =
   | "sms_provider_change"
   | "sms_provider_test"
   | "sms_provider_config"
+  | "user_invited"
+  | "user_activated"
+  | "user_deactivated"
+  | "user_password_reset_requested"
+  | "user_sessions_revoked"
+  | "user_access_changed"
+  | "role_permissions_changed"
+  | "role_permissions_reset"
+  | "access_denied"
 
 /** §2.7 Audit Event — system-generated change record, grouped/deduplicated in UI. */
 export interface AuditEvent {
@@ -344,6 +353,8 @@ export interface AuditEvent {
   patientId?: string
   type: AuditEventType
   actorId: string
+  targetUserId?: string
+  targetRole?: import("./roles").RoleId
   at: string
   summary: string
   before?: string

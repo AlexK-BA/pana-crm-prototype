@@ -52,7 +52,7 @@ export function RoleSwitcher() {
           {ROLE_ORDER.map((id) => {
             const profile = ROLE_PROFILES[id]
             const demoUser = users.find((user) => user.id === profile.user.id)
-            const available = demoUser?.status === "active"
+            const available = demoUser?.status === "active" && demoUser.roles.includes(id)
             return (
               <DropdownMenuItem key={id} disabled={!available} onClick={() => available && setRole(id)} className="flex items-start gap-2 py-2">
                 <div

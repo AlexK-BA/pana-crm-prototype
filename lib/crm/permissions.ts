@@ -103,3 +103,11 @@ export function canAccessRoute(role: RoleId, pathname: string) {
   if (rule.roles) return rule.roles.includes(role)
   return rule.permission ? hasPermission(role, rule.permission) : true
 }
+
+/** Expected command rejection, safe to display. Rejections do not mutate state or audit. */
+export class AccessCommandError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "AccessCommandError"
+  }
+}
