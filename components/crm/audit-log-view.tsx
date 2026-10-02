@@ -48,6 +48,7 @@ const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldChec
   role_permissions_changed: { label: "Zmiana uprawnień roli", icon: UserCog, className: "bg-amber-100 text-amber-700" },
   role_permissions_reset: { label: "Reset uprawnień roli", icon: UserCog, className: "bg-amber-100 text-amber-700" },
   access_denied: { label: "Odmowa dostępu", icon: ShieldCheck, className: "bg-red-100 text-red-700" },
+  conversation_handoff: { label: "Przekazanie rozmowy", icon: UserCog, className: "bg-violet-100 text-violet-700" },
 
   sms_send: { label: "Wysyłka SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
   sms_failed: { label: "Błąd SMS", icon: ShieldCheck, className: "bg-red-100 text-red-700" },
@@ -66,7 +67,7 @@ const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldChec
 }
 
 const TYPE_ORDER: AuditEventType[] = [
-  "case_created", "comment_added", "patient_local_updated",
+  "case_created", "comment_added", "patient_local_updated", "conversation_handoff",
   "patient_match_searched", "patient_match_suggested", "patient_auto_linked", "patient_match_approved", "patient_match_rejected", "patient_match_conflict", "contact_identity_linked", "contact_identity_reused",
   "user_invited", "user_activated", "user_deactivated", "user_password_reset_requested", "user_sessions_revoked", "user_access_changed", "role_permissions_changed", "role_permissions_reset", "access_denied",
   "sms_send", "sms_failed", "sms_retry", "sms_provider_change", "sms_provider_test", "sms_provider_config",
