@@ -18,6 +18,7 @@ import {
 } from "@/lib/crm/entity-selectors"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
 import { INITIAL_USERS } from "@/lib/crm/user-catalog"
@@ -69,6 +70,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
     sendTreatmentPlanTask,
   } = useScopedEntityStore()
   const { openCase } = useCasePanel()
+  const { hasPermission } = useAuthorization()
   const foundPatient = patients.find((item) => item.id === patientId)
   if (!foundPatient) return notFound()
   const patient = foundPatient
@@ -78,10 +80,10 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const cases = allCases.filter((item) => item.patientId === patient.id)
   const caseIds = new Set(cases.map((item) => item.id))
   const identities = allIdentities.filter((item) => item.patientId === patient.id)
-  const tasks = allTasks.filter((item) => item.patientId === patient.id || caseIds.has(item.caseId))
+  const tasks = allTasks.filter((item) => item.patientId === patient.id || Boolean(item.caseId && caseIds.has(item.caseId)))
   const openTasks = getQueue(tasks)
   const interactions = allInteractions
-    .filter((item) => item.patientId === patient.id || caseIds.has(item.caseId))
+    .filter((item) => item.patientId === patient.id || Boolean(item.caseId && caseIds.has(item.caseId)))
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
   const comments = getCommentsForPatient(patient.id)
   const audit = auditEvents
@@ -182,6 +184,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         <TabsList>
           <TabsTrigger value="overview">Przegląd</TabsTrigger>
           <TabsTrigger value="chat">Czat</TabsTrigger>
+          {hasPermission("communication:view") && <TabsTrigger value="sms">SMS</TabsTrigger>}
           <TabsTrigger value="cases">Sprawy ({cases.length})</TabsTrigger>
           <TabsTrigger value="interactions">Interakcje ({interactions.length})</TabsTrigger>
           {patient.treatmentPlan && <TabsTrigger value="plan">Plan leczenia</TabsTrigger>}
@@ -276,6 +279,12 @@ export function PatientProfile({ patientId }: { patientId: string }) {
             <PatientConversationWorkspace patientId={patient.id} currentCaseId={primaryCase?.id ?? ""} authorId={actorId} />
           </div>
         </TabsContent>
+
+        {hasPermission("communication:view") && <TabsContent value="sms" className="mt-0">
+          <div className="h-[580px] overflow-hidden rounded-lg border border-border">
+            <PatientConversationWorkspace patientId={patient.id} currentCaseId={primaryCase?.id ?? ""} authorId={actorId} initialView="sms" />
+          </div>
+        </TabsContent>}
 
         <TabsContent value="cases" className="space-y-3">
           {cases.length === 0 && <p className="text-sm text-muted-foreground">Ten pacjent nie ma jeszcze przypisanych spraw.</p>}

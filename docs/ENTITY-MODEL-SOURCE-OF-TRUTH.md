@@ -25,7 +25,7 @@ The former parallel `CrmCase`, `CASES`, `queue.ts`, `Operator` seed and legacy c
 | Phone, e-mail or social identifier | `ContactIdentity` |
 | One treatment/sales/contact intent | `EngagementCase` |
 | Required next action, deadline and priority | `Task` |
-| Message, SMS, note or call | `Interaction` / `Call` |
+| Message, SMS, note or call | `Interaction` / `SmsMessage extends Interaction` / `Call` |
 | Internal discussion | `Comment` |
 | Immutable change history | `AuditEvent` |
 | User account, roles and clinic scope | `AppUser` / `UserDirectory` |
@@ -54,3 +54,8 @@ When adding a screen or integration:
 3. add a new entity only when lifecycle, ownership and audit semantics differ;
 4. update this document, the relevant module specification and UAT in the same commit;
 5. reject UI-local arrays that become independently mutable copies of domain data.
+
+
+## SMS Stage 1 ownership
+
+Patient-level SMS may omit `caseId`; Calls and non-SMS send commands retain a case. SMS is stored exactly once in `EntityStore.interactions`. Patient history, case timeline and Inbox are projections, not replicated message stores. `sms-service.ts` holds configuration defaults and the stateless adapter contract; delivery transitions and retry writes belong to EntityStore. The scoped store reuses runtime permissions and UserDirectory for SMS action/scope guards. Configuration drafts in the settings form are unsaved form state, not a second configuration source.

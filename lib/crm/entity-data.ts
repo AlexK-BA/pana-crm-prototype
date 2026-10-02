@@ -793,6 +793,13 @@ export const INTERACTIONS: (Interaction | Call | SmsMessage)[] = [
     providerMessageId: "supervoip-sms-02", deliveryStatus: "submitted", providerStatus: "ACCEPTED", partsCount: 1,
     submittedAt: iso(-12),
   } as SmsMessage,
+  {
+    id: "sms-demo-incoming", patientId: "pat-01", clinicId: "pana-medica", type: "sms", channel: "phone", direction: "incoming",
+    at: iso(-2), text: "Dziękuję za wiadomość. Skontaktuję się z recepcją. (demo)",
+    recipient: "PaNaMedica", sender: "+48 611 924 357", providerType: "emulator", providerConfigurationId: "sms-pm-emulator",
+    providerMessageId: "demo-incoming-01", deliveryStatus: "received", partsCount: 1,
+  } as SmsMessage,
+
 ]
 
 export function getInteractionsForCase(caseId: string) {

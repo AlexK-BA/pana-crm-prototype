@@ -208,7 +208,8 @@ export type InteractionDirection = "incoming" | "outgoing"
 /** §2.5 Interaction — any factual contact event on a channel. */
 export interface Interaction {
   id: string
-  caseId: string
+  /** Optional for patient-level SMS; other channels continue to attach to a case. */
+  caseId?: string
   patientId?: string
   taskId?: string
   type: InteractionType
@@ -220,8 +221,8 @@ export interface Interaction {
   text?: string
 }
 
-export type SmsProviderType = "emulator" | "smsapi" | "supervoip"
-export type SmsDeliveryStatus = "queued" | "submitted" | "delivered" | "failed" | "undelivered" | "received" | "unknown"
+export type SmsProviderType = "emulator" | "smsapi" | "supervoip" | (string & {})
+export type SmsDeliveryStatus = "queued" | "sent" | "submitted" | "delivered" | "failed" | "undelivered" | "received" | "unknown"
 
 export interface SmsProviderCapabilities {
   outboundSms: boolean
@@ -244,6 +245,9 @@ export interface SmsProviderConfiguration {
   isDefault?: boolean
   senderMode: "sender_name" | "owned_number" | "two_way" | "provider_default"
   senderValue: string
+  defaultMessageText: string
+  /** Stage 1 never connects to a real provider. */
+  mode: "emulation"
   inboundNumber?: string
   capabilities: SmsProviderCapabilities
   lastTestAt?: string
@@ -255,6 +259,7 @@ export interface SmsMessage extends Interaction {
   type: "sms"
   direction: InteractionDirection
   channel: "phone"
+  clinicId?: ClinicId
   recipient: string
   sender: string
   providerType: SmsProviderType
@@ -286,6 +291,7 @@ export type RecordingState = "available" | "pending" | "none"
 
 /** §2.6 Call — a specialized Interaction carrying Yeastar TELCO data. */
 export interface Call extends Interaction {
+  caseId: string
   type: "call"
   direction: InteractionDirection
   extension: string
@@ -324,6 +330,12 @@ export type AuditEventType =
   | "unlink"
   | "sync"
   | "priority_change"
+  | "sms_send"
+  | "sms_failed"
+  | "sms_retry"
+  | "sms_provider_change"
+  | "sms_provider_test"
+  | "sms_provider_config"
 
 /** §2.7 Audit Event — system-generated change record, grouped/deduplicated in UI. */
 export interface AuditEvent {

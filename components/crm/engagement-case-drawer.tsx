@@ -21,11 +21,13 @@ import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import { getCase, getPatient, getIdentity, getTasksForCase, getCommentsForCase, getAuditForCase } from "@/lib/crm/entity-data"
+import { getCase, getPatient, getIdentity, getTasksForCase, getCommentsForCase } from "@/lib/crm/entity-data"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
 import { getOperator, PRIORITY_TEXT_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
 import { getNextTaskForCase } from "@/lib/crm/entity-queue"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
+import type { SmsMessage } from "@/lib/crm/entities"
+import { getSmsStatusLabel, isSmsMessage } from "@/lib/crm/sms-service"
 import { cn } from "@/lib/utils"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
 import { AppointmentSlotPicker } from "@/components/crm/appointment-slot-picker"
@@ -59,13 +61,13 @@ export function EngagementCaseDrawer() {
 
 function DrawerBody({ caseId }: { caseId: string }) {
   const { hasPermission } = useAuthorization()
-  const { currentUser } = useUserDirectory()
+  const { currentUser, users } = useUserDirectory()
   const canViewAudit = hasPermission("audit:view")
   const canHandleCalls = hasPermission("call:handle")
   const canViewCommunication = hasPermission("communication:view")
   const canEditPatient = hasPermission("patient:edit_local")
   const canWorkTasks = hasPermission("task:work")
-  const { tasks, cases, patients, identities, completeTask, reopenTask, skipTask, matchCaseToPatient, saveCaseContactProfile } = useScopedEntityStore()
+  const { tasks, cases, patients, identities, interactions, auditEvents, retrySms, completeTask, reopenTask, skipTask, matchCaseToPatient, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
   const { t } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId) ?? getCase(caseId)!
@@ -76,9 +78,11 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const doctor = getDoctor(engagementCase.doctorId)
   const caseTasks = useMemo(() => tasks.filter((t) => t.caseId === caseId), [tasks, caseId])
   const comments = getCommentsForCase(caseId)
-  const audit = getAuditForCase(caseId)
+  const audit = auditEvents.filter((event) => event.caseId === caseId)
+  const caseSms = interactions.filter(isSmsMessage).filter((message) => message.caseId === caseId)
+  const [smsError, setSmsError] = useState("")
   const timeline = useMemo(() => {
-    type TimelineEntry = { id: string; at: string; kind: "task" | "comment" | "audit"; title: string; actor?: string }
+    type TimelineEntry = { id: string; at: string; kind: "task" | "comment" | "audit" | "sms"; title: string; actor?: string; sms?: SmsMessage }
     const entries: TimelineEntry[] = []
     for (const task of caseTasks) {
       const owner = getOperator(task.ownerId)
@@ -95,14 +99,19 @@ function DrawerBody({ caseId }: { caseId: string }) {
       const author = getOperator(comment.authorId)
       entries.push({ id: comment.id, at: comment.at, kind: "comment", title: comment.text, actor: author?.name })
     }
+    if (canViewCommunication) {
+      for (const message of caseSms) entries.push({ id: message.id, at: message.at, kind: "sms", title: message.text ?? "",
+        actor: users.find((user) => user.id === message.authorId)?.name ?? (message.direction === "incoming" ? "Pacjent (demo)" : message.authorId), sms: message })
+    }
     if (canViewAudit) {
       for (const event of audit) {
+        if (event.type.startsWith("sms_") && caseSms.some((message) => message.id === event.correlationId)) continue
         const actor = getOperator(event.actorId)
         entries.push({ id: event.id, at: event.at, kind: "audit", title: event.summary, actor: actor?.name })
       }
     }
     return entries.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-  }, [caseTasks, comments, audit, canViewAudit, t])
+  }, [caseTasks, comments, audit, caseSms, canViewAudit, canViewCommunication, users, t])
   const [skipReason, setSkipReason] = useState("")
   const [skipTaskId, setSkipTaskId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState(patient ? "timeline" : "profile")
@@ -296,16 +305,28 @@ function DrawerBody({ caseId }: { caseId: string }) {
             )}
           </TabsContent>
           <TabsContent value="timeline" className="mt-0">
+            {smsError && <p role="alert" className="text-xs text-destructive">{smsError}</p>}
             <ol className="space-y-3">
               {timeline.map((entry) => (
                 <li key={entry.id} className="flex gap-3">
                   <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
                     {entry.kind === "task" && <CheckCircle2 className="h-3 w-3 text-muted-foreground" />}
-                    {entry.kind === "comment" && <MessageSquare className="h-3 w-3 text-muted-foreground" />}
+                    {(entry.kind === "comment" || entry.kind === "sms") && <MessageSquare className="h-3 w-3 text-muted-foreground" />}
                     {entry.kind === "audit" && <History className="h-3 w-3 text-muted-foreground" />}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-foreground">{entry.title}</p>
+                    <p className="whitespace-pre-wrap text-sm text-foreground">{entry.title}</p>
+                    {entry.sms && <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                      <p>SMS · {entry.sms.direction === "incoming" ? "Przychodzący" : "Wychodzący"} · {getSmsStatusLabel(entry.sms)}</p>
+                      {entry.sms.taskId && <p>Zadanie: {tasks.find((task) => task.id === entry.sms?.taskId)?.title ?? entry.sms.taskId}</p>}
+                      {entry.sms.errorMessage && <p className="text-destructive">{entry.sms.errorMessage}</p>}
+                      {entry.sms.retryOfId && <p>Ponowienie: {entry.sms.retryOfId}</p>}
+                      {entry.sms.deliveryStatus === "failed" && entry.sms.direction === "outgoing" && hasPermission("sms:retry") && hasPermission("sms:send_custom") && hasPermission("communication:send") &&
+                        <Button size="sm" variant="outline" onClick={() => {
+                          try { retrySms(entry.id, currentUser.id); setSmsError("") }
+                          catch (error) { setSmsError(error instanceof Error ? error.message : "Błąd SMS.") }
+                        }}>Ponów SMS</Button>}
+                    </div>}
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {entry.actor ?? t("unassigned_owner")} · {formatDateTime(entry.at)}
                     </p>
@@ -404,6 +425,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             <PatientConversationWorkspace
               patientId={patient?.id}
               currentCaseId={caseId}
+              taskId={nextTask?.id}
               authorId={currentUser.id}
             />
           </TabsContent>}

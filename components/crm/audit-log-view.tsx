@@ -27,6 +27,12 @@ import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 
 const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldCheck; className: string }> = {
+  sms_send: { label: "Wysyłka SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
+  sms_failed: { label: "Błąd SMS", icon: ShieldCheck, className: "bg-red-100 text-red-700" },
+  sms_retry: { label: "Ponowienie SMS", icon: ShieldCheck, className: "bg-amber-100 text-amber-700" },
+  sms_provider_change: { label: "Zmiana dostawcy SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
+  sms_provider_test: { label: "Test dostawcy SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
+  sms_provider_config: { label: "Konfiguracja SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
   status_change: { label: "Zmiana statusu", icon: ArrowRight, className: "bg-sky-100 text-sky-700" },
   assignment_change: { label: "Zmiana przypisania", icon: UserCog, className: "bg-violet-100 text-violet-700" },
   task_change: { label: "Zmiana zadania", icon: ListChecks, className: "bg-emerald-100 text-emerald-700" },
@@ -38,6 +44,7 @@ const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldChec
 }
 
 const TYPE_ORDER: AuditEventType[] = [
+  "sms_send", "sms_failed", "sms_retry", "sms_provider_change", "sms_provider_test", "sms_provider_config",
   "status_change",
   "assignment_change",
   "priority_change",
