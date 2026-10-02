@@ -51,6 +51,8 @@ Hide raw fields such as `requiresCall`, SLA keys, workflow IDs, n8n keys and sid
 
 Add an Admin-only section with two deliberately separate configurations:
 
+The canonical prototype contract is implemented in `lib/crm/ai-compliance.ts`. It validates policy-version links, resolves clinic-over-global publication and renders patient text deterministically. The first seed is deliberately a **draft** containing DPO placeholders and therefore cannot be displayed to patients.
+
 ### Runtime bot policy
 
 Use the existing versioned `AiConversationPolicy`: enabled channels, activation delay, human takeover SLA, confidence threshold, turn limit, non-clinical intended use and handoff triggers. Do not copy these values into a second settings object.
@@ -81,4 +83,3 @@ No API keys, raw prompts, hidden reasoning or provider credentials belong in thi
 - AI/GDPR text is previewed from approved fields, not generated freely.
 - Add screenshots for linked patient, unlinked lead, booking success/error, operator transition and Admin compliance draft/published states.
 - Run `git diff --check`, TypeScript, build and the full test suite.
-
