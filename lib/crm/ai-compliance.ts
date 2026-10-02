@@ -80,3 +80,25 @@ function renderLocale(config: AiComplianceConfiguration, policy: AiConversationP
     `Dozwolone użycie: ${policy.intendedUse}; polityka ${policy.id} v${policy.version}; informacja v${config.version}.`,
   ].join("\n\n")
 }
+
+const PLACEHOLDER_PATTERN = /do uzupełnienia|do zatwierdzenia|po wyborze/i
+
+/** Draft-only preview for administrators. It is never shown to patients. */
+export function previewDraftTransparencyNotice(config: AiComplianceConfiguration, policy: AiConversationPolicy, language: string) {
+  const locale = config.locales.find(item => item.language === language) ?? config.locales[0]
+  return renderLocale(config, policy, locale)
+}
+
+export interface ComplianceReadinessItem { id: string; ok: boolean; label: string }
+
+export function assessComplianceReadiness(config: AiComplianceConfiguration, policies: AiConversationPolicy[]): ComplianceReadinessItem[] {
+  const policy = policies.find(item => item.id === config.botPolicyId && item.version === config.botPolicyVersion)
+  const texts = [config.controllerName, config.privacyContact, config.modelProviderStatement, ...config.locales.flatMap(locale => Object.entries(locale).filter(([key]) => key !== "language").map(([, value]) => value))]
+  return [
+    { id: "policy", ok: Boolean(policy), label: "Wersja polityki bota istnieje" },
+    { id: "https", ok: /^https:\/\//i.test(config.privacyNoticeUrl), label: "Adres polityki prywatności (HTTPS)" },
+    { id: "placeholders", ok: !texts.some(text => PLACEHOLDER_PATTERN.test(text)), label: "Brak tekstów zastępczych do uzupełnienia" },
+    { id: "languages", ok: config.locales.some(item => item.language === "pl"), label: "Wersja PL" },
+    { id: "approval", ok: Boolean(config.approvalReference?.trim() && config.approvedBy?.trim()), label: "Zatwierdzenie DPO (referencja i osoba)" },
+  ]
+}
