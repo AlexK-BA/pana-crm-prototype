@@ -270,6 +270,21 @@ export interface Task {
 
 export type InteractionType = "call" | "sms" | "whatsapp" | "email" | "chat" | "social" | "note"
 export type InteractionDirection = "incoming" | "outgoing"
+export type InteractionSenderKind = "patient" | "user" | "bot" | "system"
+export type ConversationMode = "bot_active" | "operator_active" | "bot_paused" | "closed"
+
+export interface ConversationControl {
+  threadKey: string
+  caseId: string
+  patientId?: string
+  contactIdentityId?: string
+  channel: ContactChannel | "sms"
+  mode: ConversationMode
+  ownerId?: string
+  botId?: string
+  updatedAt: string
+  updatedBy: string
+}
 
 /** §2.5 Interaction — any factual contact event on a channel. */
 export interface Interaction {
@@ -286,6 +301,7 @@ export interface Interaction {
   direction?: InteractionDirection
   at: string
   authorId?: string
+  senderKind?: InteractionSenderKind
   text?: string
 }
 
@@ -424,6 +440,7 @@ export type AuditEventType =
   | "patient_match_conflict"
   | "contact_identity_linked"
   | "contact_identity_reused"
+  | "conversation_handoff"
 
 /** §2.7 Audit Event — system-generated change record, grouped/deduplicated in UI. */
 export interface AuditEvent {

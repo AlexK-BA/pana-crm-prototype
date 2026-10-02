@@ -16,6 +16,8 @@ import type {
   ClinicId,
   ContactChannel,
   ContactIdentity,
+  ConversationControl,
+  ConversationMode,
   EngagementCase,
   Interaction,
   InteractionDirection,
@@ -30,6 +32,7 @@ import type {
   TaskPriority,
   TaskStatus,
   TaskType,
+  InteractionSenderKind,
 } from "./entities"
 import { AUDIT_EVENTS, BROADCASTS, COMMENTS, CONTACT_IDENTITIES, ENGAGEMENT_CASES, INTERACTIONS, PATIENTS, TASKS, iso } from "./entity-data"
 import { AccessCommandError } from "./permissions"
@@ -41,6 +44,7 @@ import { isActive, taskType } from "./entity-queue"
 import { BOARD_COLUMNS } from "./boards"
 import { TASK_TYPE_LABELS, buildAutomaticTask, getWorkflowStageRule } from "./workflow-rules"
 import { calculateSmsParts, emulatedSmsAdapter, isSmsMessage, INITIAL_SMS_PROVIDER_CONFIGS, selectSmsProvider } from "./sms-service"
+import { interactionSenderKind } from "./conversation-control"
 
 export const TASK_TYPES: TaskType[] = ["call","message","sms","email","qualification","appointment_confirmation","appointment_booking","post_visit_follow_up","waitlist_contact","patient_care_handoff","treatment_plan_review","send_treatment_plan","custom"]
 
@@ -84,6 +88,8 @@ interface EntityStoreValue {
   smsProviderConfigurations: SmsProviderConfiguration[]
   matchDecisions: MatchDecision[]
   comments: Comment[]
+  conversationControls: ConversationControl[]
+  setConversationMode: (input: { threadKey: string; caseId: string; patientId?: string; contactIdentityId?: string; channel: ContactChannel | "sms"; mode: ConversationMode; botId?: string; reason: string }, access?: MatchingAccess) => ConversationControl
   createPatientCase: (input: PatientCaseInput, access?: MatchingAccess) => EngagementCase
   createPatientTask: (input: PatientTaskInput, access?: MatchingAccess) => Task
   completePatientTask: (taskId: string, access?: MatchingAccess) => void
@@ -126,7 +132,9 @@ interface EntityStoreValue {
     channel?: ContactChannel
     direction: InteractionDirection
     authorId?: string
+    senderKind?: InteractionSenderKind
     contactIdentityId?: string
+    threadKey?: string
   }, access?: MatchingAccess) => Interaction
   sendSms: (input: SmsSendInput) => SmsMessage
   retrySms: (id: string, authorId: string, simulateError?: boolean) => SmsMessage
@@ -258,6 +266,13 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   matchingState.current = { cases, patients, identities, matchDecisions }
   const [comments, setComments] = useState<Comment[]>(COMMENTS ?? [])
   const [readAt, setReadAt] = useState<Record<string, string>>({})
+  const [conversationControls, setConversationControlsState] = useState<ConversationControl[]>([])
+  const conversationControlRef = useRef(conversationControls); conversationControlRef.current = conversationControls
+  const setConversationControls = (next: ConversationControl[] | ((prev: ConversationControl[]) => ConversationControl[])) => {
+    const value = typeof next === "function" ? next(conversationControlRef.current) : next
+    conversationControlRef.current = value
+    setConversationControlsState(value)
+  }
 
   const smsRequests = useRef(new Set<AbortController>())
   useEffect(() => () => {
@@ -638,9 +653,44 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     if(options.skipAutomatic)addAudit({type:"task_change",action:"workflow_task_skipped",caseId,patientId:before.patientId,clinicId:before.clinicId,actorId:access.actorId,actorRole:(access as MatchingAccess & {actorRole?:import("./roles").RoleId}).actorRole,source:"workflow",workflowRuleId:automatic?.id,before:automatic?.id??"next_action_required",after:"skipped",reason:options.reason,correlationId:correlation,summary:"Override: pominięto automatyczną task; brak następnego działania pozostaje w kolejce kontrolnej"})
   },[addAudit])
 
+  const setConversationMode = useCallback((input: { threadKey: string; caseId: string; patientId?: string; contactIdentityId?: string; channel: ContactChannel | "sms"; mode: ConversationMode; botId?: string; reason: string }, access?: MatchingAccess) => {
+    const target = matchingState.current.cases.find(item => item.id === input.caseId)
+    assertMatchingAccess(access, "communication:send", target)
+    if (!input.threadKey || !input.reason.trim()) throw new AccessCommandError("Podaj rozmowę i powód zmiany obsługi.")
+    if (input.contactIdentityId && !(target?.contactIdentityIds ?? [target?.contactIdentityId]).includes(input.contactIdentityId)
+      && (!target?.patientId || !matchingState.current.identities.some(identity => identity.id === input.contactIdentityId && identity.patientId === target.patientId))) {
+      throw new AccessCommandError("Kontakt nie należy do tej sprawy lub pacjenta.")
+    }
+    const before = conversationControlRef.current.find(item => item.threadKey === input.threadKey)
+    const role = (access as MatchingAccess & { actorRole?: import("./roles").RoleId }).actorRole
+    if (before?.mode === "operator_active" && before.ownerId && before.ownerId !== access!.actorId && !["admin", "team_leader"].includes(role ?? "")) {
+      throw new AccessCommandError("Rozmowę prowadzi inny operator.")
+    }
+    const after: ConversationControl = {
+      threadKey: input.threadKey, caseId: input.caseId, patientId: input.patientId ?? target?.patientId,
+      contactIdentityId: input.contactIdentityId, channel: input.channel, mode: input.mode,
+      ownerId: input.mode === "operator_active" || input.mode === "bot_paused" ? access!.actorId : undefined,
+      botId: input.mode === "bot_active" ? input.botId ?? before?.botId ?? "bot-pana" : before?.botId,
+      updatedAt: new Date().toISOString(), updatedBy: access!.actorId,
+    }
+    setConversationControls(prev => [...prev.filter(item => item.threadKey !== input.threadKey), after])
+    addAudit({ type: "conversation_handoff", action: input.mode, caseId: input.caseId, patientId: after.patientId,
+      actorId: access!.actorId, actorRole: role, before: before?.mode ?? "unmanaged", after: input.mode,
+      reason: input.reason.trim(), correlationId: `conversation:${input.threadKey}:${Date.now()}`,
+      summary: `Obsługa rozmowy: ${before?.mode ?? "unmanaged"} → ${input.mode}` })
+    return after
+  }, [addAudit])
+
   const sendMessage = useCallback(
-    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string; contactIdentityId?: string }, access?: MatchingAccess) => {
+    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string; senderKind?: InteractionSenderKind; contactIdentityId?: string; threadKey?: string }, access?: MatchingAccess) => {
       if (access && input.direction === "outgoing") assertMatchingAccess(access, "communication:send", matchingState.current.cases.find(item => item.id === input.caseId))
+      const control = input.threadKey ? conversationControls.find(item => item.threadKey === input.threadKey) : undefined
+      const senderKind = input.senderKind ?? interactionSenderKind(input)
+      if (input.direction === "outgoing" && control?.mode === "closed") throw new AccessCommandError("Rozmowa jest zamknięta.")
+      if (input.direction === "outgoing" && senderKind === "bot" && control?.mode !== "bot_active") throw new AccessCommandError("Bot nie jest aktywnym właścicielem rozmowy.")
+      if (input.direction === "outgoing" && senderKind !== "bot" && control && (control.mode !== "operator_active" || control.ownerId !== access?.actorId)) {
+        throw new AccessCommandError(control.mode === "operator_active" ? "Rozmowę prowadzi inny operator." : "Najpierw przejmij rozmowę od bota.")
+      }
       if (input.contactIdentityId) {
         const target = matchingState.current.cases.find(item => item.id === input.caseId)
         const identity = matchingState.current.identities.find(item => item.id === input.contactIdentityId)
@@ -657,6 +707,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
         direction: input.direction,
         at: new Date().toISOString(),
         authorId: input.authorId,
+        senderKind,
         text: input.text,
       }
       setInteractions((prev) => [...prev, interaction])
@@ -665,7 +716,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       }
       return interaction
     },
-    [matchCaseToPatient],
+    [conversationControls, matchCaseToPatient],
   )
 
   const sendSms = useCallback(
@@ -999,6 +1050,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       smsProviderConfigurations,
       matchDecisions,
       comments,
+      conversationControls,
       changeTask, createPatientCase, createPatientTask, completePatientTask, addPatientContact, updatePatientLocal, addCaseComment,
       readAt,
       recordAudit: addAudit,
@@ -1012,6 +1064,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       moveCase,
       logCall,
       sendMessage,
+      setConversationMode,
       sendSms,
       retrySms,
       updateSmsProviderConfiguration,
@@ -1040,6 +1093,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       smsProviderConfigurations,
       matchDecisions,
       comments,
+      conversationControls,
       changeTask, createPatientCase, createPatientTask, completePatientTask, addPatientContact, updatePatientLocal, addCaseComment,
       readAt,
       completeTask,
@@ -1052,6 +1106,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       moveCase,
       logCall,
       sendMessage,
+      setConversationMode,
       sendSms,
       retrySms,
       updateSmsProviderConfiguration,

@@ -24,6 +24,7 @@ Current/target: website chat, SMS, WhatsApp, Telegram, Instagram, Facebook and e
 4. Reply uses the same conversation/account unless the user explicitly chooses another channel.
 5. Unknown sender creates an unlinked conversation and triage task, not an automatic patient.
 6. Unread state, assignment and handoff are shared between Inbox and patient profile.
+7. A canonical ConversationControl owns bot/operator state per thread. Human and bot dispatch are mutually exclusive and every ownership transition is audited.
 7. Delivery/provider errors remain visible and retry does not overwrite history.
 8. Communication channels use adapters and capability checks.
 9. Comments/notes are not external messages and cannot accidentally be sent.
@@ -44,4 +45,3 @@ Current/target: website chat, SMS, WhatsApp, Telegram, Instagram, Facebook and e
 3. Unsupported channels/actions are disabled with explanation.
 4. An incoming unknown contact never links to an arbitrary patient.
 5. Provider change preserves historical messages.
-
