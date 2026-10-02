@@ -215,3 +215,13 @@ No IdP/backend/authentication API is added. Invitation/reset/revoke are timestam
 ### Verification evidence
 
 `node --test tests/rbac-user-hardening.test.cjs` executes the actual TypeScript command source in an isolated minimal hook host. It covers denied commands with unchanged state/audit, batched duplicate email, invalid inputs/targets, self-protection, lifecycle timestamps, typed audit, protected admin, immediate permission revocation, inactive/removed-role actors and live actor/target name resolution. It does not verify React rendering, DOM confirmation behavior or actual IdP sessions. Browser UAT remains unexecuted: local Chromium was absent and the attempted browser download was not a valid ZIP. No test harness route is retained.
+
+## Patient matching approval (2026-10-02)
+
+`patient:match_approve` is an atomic permission in the existing runtime role matrix. Defaults: Admin and Team Leader (existing global scope), Clinic Manager (assigned clinic scope). Operator, Patient Care and Marketing do not receive approval by default. Admin retains the protected full permission bundle.
+
+Operator may edit case-local contact lookup input with `patient:edit_local`, rerun search and continue working, but receives no candidate Patient records. Marketing has no operational matching projection. Candidate details require `patient:match_approve` and `patient:view_basic`; Medical CRM external ID in the candidate panel also requires `patient:view_medical`. Clinic Manager cannot approve an out-of-clinic Patient; globally competing candidates are still assessed before scoped presentation to prevent unsafe uniqueness.
+
+EntityStore create/search/profile/approve/reject commands throw `AccessCommandError` before mutation/audit when capability or scope is missing. Manual approve/reject confirmations require reasons; approval checks current decision/input revision and contact/case ownership again. Scoped command adapters reuse the live existing AuthorizationContext and UserDirectory. They do not create new users/roles or another authorization system. Capability objects in a client prototype must be replaced with authenticated server-side checks in production.
+
+Patient matching events reuse the same Audit Log and `audit:view`; no new audit route or Operator access is introduced. See [PATIENT-MATCHING-SPEC.md](PATIENT-MATCHING-SPEC.md) and matching UAT.

@@ -28,6 +28,14 @@ import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 
 const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldCheck; className: string }> = {
+  patient_match_searched: { label: "Wyszukanie pacjenta", icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_match_suggested: { label: "Propozycja dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_auto_linked: { label: "Automatyczne powiązanie pacjenta", icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_match_approved: { label: "Zatwierdzenie dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_match_rejected: { label: "Odrzucenie dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_match_conflict: { label: "Konflikt dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
+  contact_identity_linked: { label: "Powiązanie kontaktu", icon: Link2, className: "bg-teal-100 text-teal-700" },
+  contact_identity_reused: { label: "Użycie istniejącego kontaktu", icon: Link2, className: "bg-teal-100 text-teal-700" },
   user_invited: { label: "Zaproszenie użytkownika", icon: UserCog, className: "bg-amber-100 text-amber-700" },
   user_activated: { label: "Aktywacja użytkownika", icon: UserCog, className: "bg-emerald-100 text-emerald-700" },
   user_deactivated: { label: "Dezaktywacja użytkownika", icon: UserCog, className: "bg-red-100 text-red-700" },
@@ -55,6 +63,7 @@ const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldChec
 }
 
 const TYPE_ORDER: AuditEventType[] = [
+  "patient_match_searched", "patient_match_suggested", "patient_auto_linked", "patient_match_approved", "patient_match_rejected", "patient_match_conflict", "contact_identity_linked", "contact_identity_reused",
   "user_invited", "user_activated", "user_deactivated", "user_password_reset_requested", "user_sessions_revoked", "user_access_changed", "role_permissions_changed", "role_permissions_reset", "access_denied",
   "sms_send", "sms_failed", "sms_retry", "sms_provider_change", "sms_provider_test", "sms_provider_config",
   "status_change",

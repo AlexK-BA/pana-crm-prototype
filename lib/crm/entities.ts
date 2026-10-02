@@ -138,6 +138,9 @@ export interface EngagementCase {
   id: string
   patientId?: string
   contactIdentityId: string
+  contactIdentityIds?: string[]
+  /** Local intake facts; never overwrite Medical CRM Patient fields. */
+  contactProfile?: PatientMatchInput
   board: CaseBoard
   /** Legacy status id, kept 1:1 with lib/crm/boards.ts columns. */
   status: string
@@ -153,6 +156,41 @@ export interface EngagementCase {
   attribution: AttributionSnapshot
   linkedCaseIds?: string[]
   isWaitlisted?: boolean
+}
+
+export type MatchSignal = "externalPatientId" | "pesel" | "phone" | "email" | "contactIdentity" | "name" | "clinic"
+export type MatchOutcome = "auto_link" | "suggested_match" | "ambiguous" | "conflict" | "no_match"
+export interface PatientMatchInput {
+  externalPatientId?: string
+  pesel?: string
+  phone?: string
+  email?: string
+  firstName?: string
+  lastName?: string
+  clinicId?: ClinicId
+}
+export interface MatchCandidate {
+  candidatePatientId: string
+  confidence: number
+  matchedSignals: MatchSignal[]
+  conflictingSignals: string[]
+}
+export interface MatchDecision {
+  id: string
+  caseId: string
+  candidates: MatchCandidate[]
+  candidatePatientId?: string
+  confidence: number
+  matchedSignals: MatchSignal[]
+  conflictingSignals: string[]
+  status: "pending" | "approved" | "rejected" | "auto_linked" | "conflict" | "expired"
+  createdAt: string
+  resolvedAt?: string
+  resolvedBy?: string
+  decision: MatchOutcome | "approved" | "rejected"
+  reason: string
+  /** Non-PII input/result revision token; rechecked before approval. */
+  fingerprint: string
 }
 
 export type TaskPriority = "P0" | "P1" | "P2" | "P3" | "P4"
@@ -345,6 +383,14 @@ export type AuditEventType =
   | "role_permissions_changed"
   | "role_permissions_reset"
   | "access_denied"
+  | "patient_match_searched"
+  | "patient_match_suggested"
+  | "patient_auto_linked"
+  | "patient_match_approved"
+  | "patient_match_rejected"
+  | "patient_match_conflict"
+  | "contact_identity_linked"
+  | "contact_identity_reused"
 
 /** §2.7 Audit Event — system-generated change record, grouped/deduplicated in UI. */
 export interface AuditEvent {
@@ -355,6 +401,10 @@ export interface AuditEvent {
   actorId: string
   targetUserId?: string
   targetRole?: import("./roles").RoleId
+  matchDecisionId?: string
+  confidence?: number
+  matchedSignals?: MatchSignal[]
+  reason?: string
   at: string
   summary: string
   before?: string

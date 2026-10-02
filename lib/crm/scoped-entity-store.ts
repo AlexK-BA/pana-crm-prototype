@@ -1,8 +1,10 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useRef } from "react"
 import { useEntityStore } from "./entity-store"
 import { useAuthorization } from "./authorization-context"
+import { patientWithinMatchingScope, type MatchingAccess } from "./patient-matching-service"
+import { AccessCommandError } from "./permissions"
 import { isSmsMessage } from "./sms-service"
 import { useRole } from "./role-context"
 import { useUserDirectory } from "./user-directory"
@@ -17,6 +19,8 @@ export function useScopedEntityStore() {
   const { role } = useRole()
   const { currentUser } = useUserDirectory()
   const { hasPermission } = useAuthorization()
+  const matchingAccessRef = useRef<MatchingAccess>({ actorId: currentUser.id, active: currentUser.status === "active", globalScope: role === "admin" || role === "team_leader", clinicIds: currentUser.clinicIds, hasPermission })
+  matchingAccessRef.current = { actorId: currentUser.id, active: currentUser.status === "active", globalScope: role === "admin" || role === "team_leader", clinicIds: currentUser.clinicIds, hasPermission }
 
   return useMemo(() => {
     const mayTriageUnassigned = role === "operator" || role === "patient_care" || role === "team_leader" || role === "admin"
@@ -26,8 +30,12 @@ export function useScopedEntityStore() {
       ? store.cases.filter((item) => hasGlobalScope || (item.clinicId ? currentUser.clinicIds.includes(item.clinicId) : mayTriageUnassigned))
       : []
     const caseIds = new Set(cases.map((item) => item.id))
+    const matchingAccess: MatchingAccess = { actorId: currentUser.id, active: currentUser.status === "active", globalScope: hasGlobalScope, clinicIds: currentUser.clinicIds, hasPermission }
+    const canReview = operationalAccess && hasPermission("patient:match_approve") && hasPermission("patient:view_basic")
+    const matchingPatients = canReview ? store.patients.filter(patient => patientWithinMatchingScope(patient, matchingAccess)) : []
+    const matchingPatientIds = new Set(matchingPatients.map(patient => patient.id))
     const patientIds = new Set(cases.map((item) => item.patientId).filter((id): id is string => Boolean(id)))
-    const identityIds = new Set(cases.map((item) => item.contactIdentityId))
+    const identityIds = new Set(cases.flatMap((item) => item.contactIdentityIds ?? [item.contactIdentityId]))
 
     const interactions = store.interactions.filter((item) => item.caseId ? caseIds.has(item.caseId)
       : isSmsMessage(item) && Boolean(item.patientId && patientIds.has(item.patientId))
@@ -48,9 +56,37 @@ export function useScopedEntityStore() {
       ...store,
       cases,
       tasks: store.tasks.filter((item) => caseIds.has(item.caseId)),
-      patients: store.patients.filter((item) => patientIds.has(item.id)),
-      identities: store.identities.filter((item) => identityIds.has(item.id) || Boolean(item.patientId && patientIds.has(item.patientId))),
+      patients: store.patients.filter((item) => patientIds.has(item.id) || matchingPatientIds.has(item.id)),
+      matchDecisions: store.matchDecisions.filter(item => caseIds.has(item.caseId)).map(item => ({ ...item,
+        candidates: canReview ? item.candidates.filter(candidate => matchingPatientIds.has(candidate.candidatePatientId)) : [],
+        candidatePatientId: canReview && item.candidatePatientId && matchingPatientIds.has(item.candidatePatientId) ? item.candidatePatientId : undefined,
+        reason: canReview ? item.reason : "Powiązanie pacjenta wymaga bezpiecznej weryfikacji. Sprawa nadal pozostaje dostępna do pracy." })),
+      createDraftCase: (input: Parameters<typeof store.createDraftCase>[0]) => store.createDraftCase(input, matchingAccessRef.current),
+      matchCaseToPatient: (id: string, _actorId: string) => {
+        if (!caseIds.has(id)) throw new AccessCommandError("Sprawa poza zakresem dostępu.")
+        const result = store.matchCaseToPatient(id, matchingAccessRef.current.actorId, matchingAccessRef.current)
+        return { ...result, patientId: result.patientId && (hasGlobalScope || store.patients.some(patient => patient.id === result.patientId && patientWithinMatchingScope(patient, matchingAccess))) ? result.patientId : undefined }
+      },
+      approvePatientMatch: (id: string, patientId: string, reason: string) => {
+        const decision = store.matchDecisions.find(item => item.id === id)
+        if (!decision || !caseIds.has(decision.caseId)) throw new AccessCommandError("Decyzja poza zakresem dostępu.")
+        store.approvePatientMatch(id, patientId, reason, matchingAccessRef.current)
+      },
+      rejectPatientMatch: (id: string, reason: string) => {
+        const decision = store.matchDecisions.find(item => item.id === id)
+        if (!decision || !caseIds.has(decision.caseId)) throw new AccessCommandError("Decyzja poza zakresem dostępu.")
+        store.rejectPatientMatch(id, reason, matchingAccessRef.current)
+      },
+      saveCaseContactProfile: (input: Parameters<typeof store.saveCaseContactProfile>[0]) => {
+        if (!caseIds.has(input.caseId)) throw new AccessCommandError("Sprawa poza zakresem dostępu.")
+        return store.saveCaseContactProfile({ ...input, actorId: matchingAccessRef.current.actorId }, matchingAccessRef.current)
+      },
+      identities: store.identities.filter((item) => identityIds.has(item.id) || Boolean(item.patientId && (patientIds.has(item.patientId) || matchingPatientIds.has(item.patientId)))),
       interactions,
+      sendMessage: (input: Parameters<typeof store.sendMessage>[0]) => {
+        if (!caseIds.has(input.caseId)) throw new AccessCommandError("Sprawa poza zakresem dostępu.")
+        return store.sendMessage({ ...input, authorId: input.direction === "outgoing" ? currentUser.id : undefined }, matchingAccessRef.current)
+      },
       sendSms: (input: Parameters<typeof store.sendSms>[0]) => {
         requirePermission("communication:send")
         requirePermission("sms:send_custom")

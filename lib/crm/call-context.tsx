@@ -16,6 +16,9 @@ import { useEntityStore } from "./entity-store"
 import { getNextTaskForCase } from "./entity-queue"
 import { useUserDirectory } from "./user-directory"
 import { useAuthorization } from "./authorization-context"
+import { useRole } from "./role-context"
+import { assertMatchingAccess, patientWithinMatchingScope, routeIncomingPatientContact, type MatchingAccess } from "./patient-matching-service"
+import type { ClinicId, EngagementCase } from "./entities"
 import { useCasePanel } from "./panel-context"
 
 export type CallPhase = "idle" | "incoming" | "active" | "wrapup"
@@ -39,6 +42,7 @@ interface CallContextValue {
   call: ActiveCall | null
   elapsedSec: number
   simulateIncomingCall: (input: { caseId: string; taskId?: string; unknown?: boolean }) => void
+  routeIncomingCall: (phone: string, clinicId?: ClinicId) => { caseIds: string[]; message: string }
   startOutgoingCall: (input: { caseId: string; taskId?: string }) => void
   answer: () => void
   decline: () => void
@@ -52,7 +56,9 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const { currentUser, users } = useUserDirectory()
   const { hasPermission } = useAuthorization()
   const { openCase } = useCasePanel()
-  const { tasks, cases, patients, identities, logCall, completeTask, rescheduleTask, ensureMissedCallTask, linkDuplicateCase } = useEntityStore()
+  const { role } = useRole()
+  const matchingAccess: MatchingAccess = { actorId: currentUser.id, active: currentUser.status === "active", hasPermission, globalScope: role === "admin" || role === "team_leader", clinicIds: currentUser.clinicIds }
+  const { tasks, cases, patients, identities, logCall, completeTask, rescheduleTask, ensureMissedCallTask, linkDuplicateCase, matchCaseToPatient, recordAudit } = useEntityStore()
   const [phase, setPhase] = useState<CallPhase>("idle")
   const [call, setCall] = useState<ActiveCall | null>(null)
   const [elapsedSec, setElapsedSec] = useState(0)
@@ -110,14 +116,40 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const simulateIncomingCall = useCallback(
     (input: { caseId: string; taskId?: string; unknown?: boolean }) => {
       if (!hasPermission("call:handle") || phase !== "idle") return
+      const target = cases.find(item => item.id === input.caseId)
+      assertMatchingAccess(matchingAccess, "call:handle", target)
+      if (!target) return
+      const result = input.unknown ? undefined : matchCaseToPatient(input.caseId, actorId, matchingAccess, "incoming_call")
       const next = buildCall({ ...input, direction: "incoming" })
       if (!next) return
+      if (result?.patientId) {
+        next.patientId = result.patientId
+        const patient = patients.find(item => item.id === result.patientId)
+        if (patient) next.callerLabel = `${patient.firstName} ${patient.lastName}`
+      } else if (!input.unknown && result && !result.matched) {
+        // An ambiguous intake never displays the first candidate as an identified caller.
+        next.patientId = undefined; next.callerLabel = "Kontakt wymaga weryfikacji Patient Link"
+      }
       setCall(next)
       setPhase("incoming")
       openCase(next.caseId)
     },
-    [buildCall, hasPermission, openCase, phase],
+    [buildCall, hasPermission, openCase, phase, cases, patients, matchCaseToPatient, actorId, currentUser, role],
   )
+
+  const routeIncomingCall = (phone: string, clinicId?: ClinicId) => {
+    assertMatchingAccess(matchingAccess, "call:handle", { clinicId } as EngagementCase)
+    if (phase !== "idle") return { caseIds: [], message: "Zakończ bieżące połączenie i wrap-up przed kolejnym." }
+    const route = routeIncomingPatientContact({ phone, clinicId }, patients, identities, cases)
+    const patient = patients.find(item => item.id === route.patientId)
+    const accessible = Boolean(patient && patientWithinMatchingScope(patient, matchingAccess))
+    const caseIds = accessible ? route.caseIds.filter(id => cases.some(item => item.id === id && (matchingAccess.globalScope || (item.clinicId && currentUser.clinicIds.includes(item.clinicId))))) : []
+    recordAudit({ type: route.result.decision === "conflict" ? "patient_match_conflict" : "patient_match_searched", actorId: "system",
+      patientId: accessible ? route.patientId : undefined, confidence: route.result.candidates[0]?.confidence ?? 0,
+      matchedSignals: route.result.candidates[0]?.matchedSignals ?? [], summary: `Routing połączenia · ${route.result.decision}`, correlationId: `incoming-${Date.now()}` })
+    if (accessible && caseIds.length === 1) { simulateIncomingCall({ caseId: caseIds[0] }); return { caseIds: [], message: "Unikalny pacjent i aktywna sprawa — otwarto połączenie." } }
+    return { caseIds, message: accessible ? "Pacjent rozpoznany. Wybierz aktywną sprawę lub utwórz nową — nie utworzono duplikatu." : "Kontakt wymaga weryfikacji albo nie ma dopasowania w Twoim zakresie. Utwórz samodzielną sprawę do oceny Patient Link." }
+  }
 
   const startOutgoingCall = useCallback(
     (input: { caseId: string; taskId?: string }) => {
@@ -225,8 +257,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo(
-    () => ({ phase, call, elapsedSec, simulateIncomingCall, startOutgoingCall, answer, decline, hangUp, submitWrapUp }),
-    [phase, call, elapsedSec, simulateIncomingCall, startOutgoingCall, answer, decline, hangUp, submitWrapUp],
+    () => ({ phase, call, elapsedSec, simulateIncomingCall, routeIncomingCall, startOutgoingCall, answer, decline, hangUp, submitWrapUp }),
+    [phase, call, elapsedSec, simulateIncomingCall, routeIncomingCall, startOutgoingCall, answer, decline, hangUp, submitWrapUp],
   )
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>
