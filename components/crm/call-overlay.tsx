@@ -63,6 +63,7 @@ export function CallOverlay() {
   const [disposition, setDisposition] = useState<CallDisposition | null>(null)
   const [note, setNote] = useState("")
   const [rescheduleAt, setRescheduleAt] = useState(() => defaultLocalDateTime(24))
+  const [commandError,setCommandError]=useState("")
   const [duplicateQuery, setDuplicateQuery] = useState("")
   const [duplicateOfCaseId, setDuplicateOfCaseId] = useState<string | null>(null)
 
@@ -171,6 +172,7 @@ export function CallOverlay() {
 
   const handleSubmit = () => {
     if (!disposition) return
+    try {
     const submitted = submitWrapUp(disposition, {
       note: note.trim() || undefined,
       rescheduleAt: retryRequired ? new Date(rescheduleAt).toISOString() : undefined,
@@ -181,7 +183,8 @@ export function CallOverlay() {
     setNote("")
     setRescheduleAt(defaultLocalDateTime(24))
     setDuplicateQuery("")
-    setDuplicateOfCaseId(null)
+    setDuplicateOfCaseId(null);setCommandError("")
+    } catch(error){setCommandError(error instanceof Error?error.message:"Nie udało się zapisać wyniku.")}
   }
 
   // Mandatory wrap-up: no escape/backdrop dismissal until a disposition is submitted.
@@ -316,6 +319,7 @@ export function CallOverlay() {
             />
           </div>
 
+          {commandError&&<p role="alert" className="text-sm text-destructive">{commandError}</p>}
           <Button className="w-full" disabled={!canSubmit} onClick={handleSubmit}>
             Zapisz i zamknij
           </Button>

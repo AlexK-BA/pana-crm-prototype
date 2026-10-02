@@ -13,7 +13,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import type { CallDisposition } from "./entities"
 import { getClinic } from "./catalog"
 import { useEntityStore } from "./entity-store"
-import { getNextTaskForCase } from "./entity-queue"
+import { isActive, getNextTaskForCase } from "./entity-queue"
 import { useUserDirectory } from "./user-directory"
 import { useAuthorization } from "./authorization-context"
 import { useRole } from "./role-context"
@@ -58,7 +58,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const { hasPermission } = useAuthorization()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const matchingAccess: MatchingAccess = { actorId: currentUser.id, active: currentUser.status === "active", hasPermission, globalScope: role === "admin" || role === "team_leader", clinicIds: currentUser.clinicIds }
+  const matchingAccess: MatchingAccess & {actorRole:typeof role} = { actorId: currentUser.id, active: currentUser.status === "active", hasPermission, globalScope: role === "admin" || role === "team_leader", clinicIds: currentUser.clinicIds, actorRole:role }
   const { tasks, cases, patients, identities, logCall, completeTask, rescheduleTask, ensureMissedCallTask, linkDuplicateCase, matchCaseToPatient, recordAudit } = useEntityStore()
   const [phase, setPhase] = useState<CallPhase>("idle")
   const [call, setCall] = useState<ActiveCall | null>(null)
@@ -158,6 +158,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     (input: { caseId: string; taskId?: string; contactIdentityId?: string }) => {
       if (input.contactIdentityId) assertMatchingAccess(matchingAccess, "call:handle", cases.find(item => item.id === input.caseId))
       if (!hasPermission("call:handle") || phase !== "idle") return
+      if(input.taskId){const task=tasks.find(task=>task.id===input.taskId);assertMatchingAccess(matchingAccess,"task:work",cases.find(item=>item.id===input.caseId));if(!task || task.caseId!==input.caseId || !isActive(task) || (task.ownerId && task.ownerId!==actorId && !hasPermission("task:assign")))throw new Error("Zadanie połączenia poza zakresem / zakończone.")}
       const next = buildCall({ ...input, direction: "outgoing" })
       if (!next) return
       setCall(next)
@@ -165,7 +166,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       openCase(next.caseId)
       startTimer()
     },
-    [buildCall, hasPermission, openCase, phase, startTimer, cases, currentUser, role],
+    [buildCall, hasPermission, openCase, phase, startTimer, cases, tasks, actorId, currentUser, role],
   )
 
   const answer = useCallback(() => {
@@ -198,12 +199,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
         startAt: call.startAt,
         answered: false,
       })
-      ensureMissedCallTask(call.caseId, call.patientId)
+      ensureMissedCallTask(call.caseId, call.patientId, matchingAccess)
     }
     stopTimer()
     setPhase("idle")
     setCall(null)
-  }, [actorId, call, cases, currentUser.telephonyExtension, ensureMissedCallTask, hasPermission, logCall, stopTimer])
+  }, [actorId, call, cases, currentUser.telephonyExtension, ensureMissedCallTask, hasPermission, logCall, matchingAccess, stopTimer])
 
   const hangUp = useCallback(() => {
     if (!hasPermission("call:handle")) return
@@ -219,7 +220,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
         return false
       }
 
-      const relatedTask = call.taskId ?? getNextTaskForCase(tasks, call.caseId)?.id
+      const candidateTask = call.taskId ?? getNextTaskForCase(tasks.filter(task=>!task.ownerId||task.ownerId===actorId||hasPermission("task:assign")), call.caseId)?.id
+      const relatedTask = tasks.find(task=>task.id===candidateTask)?.type==="send_treatment_plan" ? undefined : candidateTask
       const requiresRetry = disposition === "call_later" || disposition === "no_answer" || disposition === "not_reached" || disposition === "contact_failed"
       const retryAt = opts?.rescheduleAt ? new Date(opts.rescheduleAt).getTime() : Number.NaN
       if (requiresRetry && (!Number.isFinite(retryAt) || retryAt <= Date.now())) return false
@@ -227,7 +229,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       const loggedCall = logCall({
         caseId: call.caseId,
-        taskId: call.taskId,
+        taskId: relatedTask,
         contactIdentityId: call.contactIdentityId,
         patientId: call.patientId,
         direction: call.direction,
@@ -248,9 +250,9 @@ export function CallProvider({ children }: { children: ReactNode }) {
       if (relatedTask) {
         if (requiresRetry) {
           const reason = opts?.note || (disposition === "call_later" ? "Ustalono kolejny kontakt po rozmowie" : `Nie udało się skontaktować · ${disposition}`)
-          rescheduleTask(relatedTask, opts!.rescheduleAt!, reason, { actorId, callId: loggedCall.id })
+          rescheduleTask(relatedTask, opts!.rescheduleAt!, reason, { actorId, callId: loggedCall.id, access: matchingAccess })
         } else {
-          completeTask(relatedTask, disposition, { actorId, callId: loggedCall.id })
+          completeTask(relatedTask, disposition, { actorId, callId: loggedCall.id, access: matchingAccess })
         }
       }
 

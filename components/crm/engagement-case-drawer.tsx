@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, UserRound, BriefcaseBusiness, Save } from "lucide-react"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
+import { CreateCaseTask, TaskActions } from "@/components/crm/task-actions"
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
@@ -67,7 +68,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const canViewCommunication = hasPermission("communication:view")
   const canEditPatient = hasPermission("patient:edit_local")
   const canWorkTasks = hasPermission("task:work")
-  const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, retrySms, completeTask, reopenTask, skipTask, saveCaseContactProfile } = useScopedEntityStore()
+  const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, retrySms, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
   const { t } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId)!
@@ -112,8 +113,6 @@ function DrawerBody({ caseId }: { caseId: string }) {
     }
     return entries.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
   }, [caseTasks, comments, audit, caseSms, canViewAudit, canViewCommunication, users, t])
-  const [skipReason, setSkipReason] = useState("")
-  const [skipTaskId, setSkipTaskId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState(patient ? "timeline" : "profile")
   const [profileError, setProfileError] = useState("")
   const patientIdentities = identities.filter((item) => item.patientId === patient?.id)
@@ -319,88 +318,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
             </ol>
           </TabsContent>
 
-          <TabsContent value="tasks" className="mt-0 space-y-2">
+          <TabsContent value="tasks" className="mt-0 space-y-2"><CreateCaseTask caseId={caseId}/>
             {caseTasks.length === 0 && <p className="text-sm text-muted-foreground">{t("no_tasks")}</p>}
-            {caseTasks.map((task) => {
-              const done = task.status === "completed" || task.status === "cancelled"
-              const owner = getOperator(task.ownerId)
-              const requiresCall = !done && task.requiresCall === true
-              return (
-                <div key={task.id} className="rounded-md border border-border px-3 py-2.5">
-                  <div className="flex items-start gap-2.5">
-                    <Checkbox
-                      checked={done}
-                      disabled={!canWorkTasks || requiresCall}
-                      onCheckedChange={(checked) => {
-                        if (!canWorkTasks) return
-                        if (checked) completeTask(task.id, "done")
-                        else reopenTask(task.id)
-                      }}
-                      className="mt-0.5"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm", done && "text-muted-foreground line-through")}>{task.title}</p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                        <span className={cn("font-medium", PRIORITY_TEXT_TONE[task.priority])}>
-                          {task.priority} · {priorityLabel(task.priority)}
-                        </span>
-                        {task.dueAt && <span suppressHydrationWarning>· {t("due_prefix")} {formatRelative(task.dueAt)}</span>}
-                        <span>· {owner?.name ?? t("unassigned_owner")}</span>
-                      </p>
-                      {task.skipReason && (
-                        <p className="mt-1 text-xs text-amber-600">{t("skipped_prefix")}: {task.skipReason}</p>
-                      )}
-                      {requiresCall && (
-                        <p className="mt-1 text-xs font-medium text-sky-700">To zadanie wymaga próby połączenia i wyboru wyniku rozmowy.</p>
-                      )}
-                    </div>
-                    {requiresCall ? (
-                      <Button
-                        size="sm"
-                        className="h-7 shrink-0 gap-1 px-2 text-xs"
-                        disabled={!canHandleCalls}
-                        onClick={() => startOutgoingCall({ caseId, taskId: task.id })}
-                      >
-                        <Phone className="h-3 w-3" />
-                        {t("call")}
-                      </Button>
-                    ) : !done ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 shrink-0 px-2 text-xs"
-                        disabled={!canWorkTasks}
-                        onClick={() => setSkipTaskId(skipTaskId === task.id ? null : task.id)}
-                      >
-                        {t("skip")}
-                      </Button>
-                    ) : null}
-                  </div>
-                  {skipTaskId === task.id && (
-                    <div className="mt-2 flex items-center gap-2 pl-7">
-                      <input
-                        value={skipReason}
-                        onChange={(e) => setSkipReason(e.target.value)}
-                        placeholder={t("skip_reason_placeholder")}
-                        className="h-8 flex-1 rounded-md border border-border bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring"
-                      />
-                      <Button
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => {
-                          if (!canWorkTasks) return
-                          skipTask(task.id, skipReason || "Brak powodu")
-                          setSkipTaskId(null)
-                          setSkipReason("")
-                        }}
-                      >
-                        {t("save")}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {caseTasks.map(task=><div key={task.id} className="space-y-2 rounded border p-3"><p className="font-medium">{task.title}</p><p className="text-sm text-muted-foreground">{task.description ?? "Brak opisu (dane historyczne)"}</p><p className="text-xs">{task.status} · {task.priority} · {task.dueAt ? formatDateTime(task.dueAt) : "Bez terminu"} · przeniesienia {task.rescheduleCount??0}</p><TaskActions task={task}/></div>)}
           </TabsContent>
 
           {canViewCommunication && <TabsContent value="history" className="-mx-5 -my-4 mt-0 h-full">

@@ -46,3 +46,7 @@ Exact weights belong to versioned queue policy, not UI code.
 - whether manual card priority exists separately from task priority;
 - ownership rules for shared queues and reassignments.
 
+
+## Implemented shared operational ranking
+
+[TASK-CALENDAR-WORKFLOW-SPEC.md](../TASK-CALENDAR-WORKFLOW-SPEC.md) defines overdue mandatory → other overdue → P0 → P1 → due time → undated/priority/age. The same selector drives next Case work, queue and Patient 360. Task metadata/lifecycle, canonical Calendar projections, reasoned reschedule/replacement and analytics-ready audit are implemented without an additional store. Working-hour SLA, clinic timezone and real Appointment association remain backend/configuration dependencies.

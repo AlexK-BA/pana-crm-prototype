@@ -18,10 +18,10 @@ export function formatRelative(iso: string) {
 // `undefined` falls back to each runtime's own default locale/timeZone,
 // which differs between the Node server and the browser and causes
 // hydration mismatches.
-export function formatDateTime(iso: string) {
+export function formatDateTime(iso: string, timeZone = "UTC") {
   const d = new Date(iso)
   return d.toLocaleString("pl-PL", {
-    timeZone: "UTC",
+    timeZone,
     day: "2-digit",
     month: "short",
     hour: "2-digit",

@@ -78,6 +78,7 @@ export function AppointmentSlotPicker({
   const [searching, setSearching] = useState(true)
   const [selected, setSelected] = useState<Slot | null>(null)
   const [confirmed, setConfirmed] = useState(false)
+  const [commandError,setCommandError]=useState("")
 
   const clinic = getClinic(clinicId)
   const procedure = getProcedure(procedureId)
@@ -94,9 +95,10 @@ export function AppointmentSlotPicker({
     if (!selected) return
     const doctor = getDoctor(selected.doctorId)
     const label = `${formatSlotLabel(selected)}${doctor ? ` · ${doctor.name}` : ""}${procedure ? ` · ${procedure.name}` : ""}`
-    bookAppointment({ caseId, taskId, patientId, label, actorId })
-    setConfirmed(true)
-    onBooked?.()
+    try {
+      bookAppointment({ caseId, taskId, patientId, label, actorId })
+      setCommandError("");setConfirmed(true);onBooked?.()
+    } catch(error){setCommandError(error instanceof Error?error.message:"Nie udało się zapisać.")}
   }
 
   if (confirmed && selected) {
@@ -124,6 +126,7 @@ export function AppointmentSlotPicker({
         </PopoverDescription>
       </PopoverHeader>
 
+      {commandError&&<p role="alert" className="text-xs text-destructive">{commandError}</p>}
       {searching ? (
         <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />

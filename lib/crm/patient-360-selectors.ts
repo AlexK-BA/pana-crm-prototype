@@ -1,5 +1,5 @@
 import type { AuditEvent, Call, Comment, ContactChannel, ContactIdentity, EngagementCase, Interaction, MatchDecision, Patient, Task } from "./entities"
-import { isActive, isOverdue } from "./entity-queue"
+import { compareQueueOrder, isActive, isOverdue } from "./entity-queue"
 import { getWorkflowStageRule } from "./workflow-rules"
 import { normalizeMatchingPhone } from "./patient-matching-service"
 import { isSmsMessage } from "./sms-service"
@@ -7,13 +7,8 @@ import { isSmsMessage } from "./sms-service"
 export type ThreadChannel = ContactChannel | "sms"
 export const communicationChannel = (item: Interaction): ThreadChannel => item.type === "sms" ? "sms" : item.type === "call" ? "phone" : item.channel ?? (item.type === "email" ? "email" : item.type === "whatsapp" ? "whatsapp" : "website")
 export const isCaseActive = (item: EngagementCase) => !getWorkflowStageRule(item.board, item.status)?.terminal
-/** Patient 360 order is local to this projection; the shared operational queue keeps its existing policy. */
-export function comparePatientTasks(a: Task, b: Task, now = Date.now()) {
-  const overdue = Number(isOverdue(b, now)) - Number(isOverdue(a, now))
-  if (overdue) return overdue
-  const priority = (task: Task) => task.priority === "P0" ? 0 : task.priority === "P1" ? 1 : 2
-  return priority(a) - priority(b) || (a.dueAt ? Date.parse(a.dueAt) : Infinity) - (b.dueAt ? Date.parse(b.dueAt) : Infinity) || a.id.localeCompare(b.id)
-}
+/** Shared effective-next-task ranking. */
+export function comparePatientTasks(a:Task,b:Task,now=Date.now()){return compareQueueOrder(a,b,now)}
 export function patientTaskGroup(task: Task, now = Date.now()) {
   if (task.status === "completed") return "completed"
   if (task.status === "cancelled") return "cancelled"

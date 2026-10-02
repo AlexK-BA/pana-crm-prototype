@@ -16,6 +16,7 @@ import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES, ROLE_ORDER, type RoleId } from "@/lib/crm/roles"
 import { useLanguage } from "@/lib/crm/language-context"
 import { useUserDirectory } from "@/lib/crm/user-directory"
+import { WORKFLOW_STAGE_RULES } from "@/lib/crm/workflow-rules"
 import { SmsProviderSettings } from "@/components/crm/sms-provider-settings"
 
 interface KbArticle {
@@ -113,6 +114,7 @@ export function SettingsView() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <section className="space-y-2 rounded border p-4"><h2 className="font-semibold">Workflow / SLA — prototype defaults</h2><p className="text-sm text-muted-foreground">Wartości kalendarne do potwierdzenia przez Daniela. Brak kalendarza pracy / świąt. Clinical / Appointment wymaga jawnego terminu; konfiguracja backend w przyszłości.</p><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr><th>Board / etap</th><th>Automatyczna task</th><th>SLA / polityka</th><th>Sugerowane</th></tr></thead><tbody>{WORKFLOW_STAGE_RULES.map(rule=><tr key={`${rule.board}/${rule.status}`} className="border-t"><td className="p-2">{rule.board}/{rule.status}{rule.terminal?" · terminal":""}</td><td>{rule.automaticTask?.title??"Jawny wybór / bez automatyzacji"}</td><td>{rule.automaticTask?.duePolicy==="sla"?`${rule.automaticTask.dueInMinutes} min`:rule.automaticTask?.duePolicy??"manual"}</td><td>{rule.suggestedTasks?.join(", ")}</td></tr>)}</tbody></table></div></section>
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="mb-1 text-sm font-semibold text-foreground">{t("settings_role_title")}</h2>
         <p className="mb-3 text-xs text-muted-foreground">{t("settings_role_desc")}</p>

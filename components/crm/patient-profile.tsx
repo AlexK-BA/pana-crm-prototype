@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
+import { TaskActions } from "@/components/crm/task-actions"
 import { Patient360Actions } from "@/components/crm/patient-360-actions"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
@@ -115,9 +116,9 @@ function PatientWorkspace({ patientId }: { patientId: string }) {
           return <section key={group} className="space-y-2"><h3 className="font-semibold">{label} ({tasks.length})</h3>{tasks.map(task => <article key={task.id} className="space-y-2 rounded border p-3 text-sm">
             <div className="flex flex-wrap justify-between gap-2"><strong>{task.priority} · {task.title}</strong><span>{task.dueAt ? formatDateTime(task.dueAt) : "Bez terminu"}</span></div>
             <p>{task.caseId} · {task.status} · owner: {actor(task.ownerId)} · typ: {task.requiresCall ? "Call" : task.workflowRuleId ?? "Operacyjny"} · requiresCall: {task.requiresCall ? "Tak" : "Nie"} · próby: {task.attempts}</p>
-            <p>Ostatnie: {task.outcome ?? task.skipReason ?? "Brak wyniku"} · Następne: {["completed", "cancelled", "failed"].includes(task.status) ? "Zachowane w historii" : task.requiresCall ? "Połączenie + disposition w wrap-up" : task.title}</p>
+            <p className="text-sm text-muted-foreground">{task.description}</p><TaskActions task={task}/><p>Ostatnie: {task.outcome ?? task.skipReason ?? "Brak wyniku"} · Następne: {["completed", "cancelled", "failed"].includes(task.status) ? "Zachowane w historii" : task.requiresCall ? "Połączenie + disposition w wrap-up" : task.title}</p>
             <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openCase(task.caseId)}>Sprawa</Button>
-              {hasPermission("task:work") && !["completed", "cancelled", "failed"].includes(task.status) && (task.requiresCall ? <Button size="sm" disabled={!hasPermission("call:handle")} onClick={() => command(() => startOutgoingCall({ caseId: task.caseId, taskId: task.id, contactIdentityId: phone?.id }))}>Zadzwoń / wrap-up</Button> : <Button size="sm" onClick={() => command(() => store.completePatientTask(task.id))}>Zakończ czynność</Button>)}
+
             </div>
           </article>)}</section>
         })}

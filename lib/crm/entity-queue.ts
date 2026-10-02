@@ -1,6 +1,7 @@
 /**
  * §6 Priorities P0–P4 and queue rules, computed from Task (never from Case tags).
  */
+import { getWorkflowStageRule } from "./workflow-rules"
 import type { EngagementCase, Task, TaskPriority } from "./entities"
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = { P0: 0, P1: 1, P2: 2, P3: 3, P4: 4 }
@@ -36,17 +37,15 @@ export function isActive(task: Task) {
  * then queue age (createdAt). Never sort by "modified" alone.
  */
 export function compareQueueOrder(a: Task, b: Task, nowMs = Date.now()) {
-  const pa = PRIORITY_ORDER[a.priority]
-  const pb = PRIORITY_ORDER[b.priority]
-  if (pa !== pb) return pa - pb
-
-  const overdueA = overdueDurationMs(a, nowMs)
-  const overdueB = overdueDurationMs(b, nowMs)
-  if (overdueA !== overdueB) return overdueB - overdueA
-
-  const dueA = a.dueAt ? new Date(a.dueAt).getTime() : Number.POSITIVE_INFINITY
-  const dueB = b.dueAt ? new Date(b.dueAt).getTime() : Number.POSITIVE_INFINITY
+  const overdueA = isOverdue(a, nowMs), overdueB = isOverdue(b, nowMs)
+  const bucket = (task: Task, overdue: boolean) => overdue ? task.mandatory || task.workflowRuleId ? 0 : 1 : task.priority === "P0" ? 2 : task.priority === "P1" ? 3 : 4
+  const rank = bucket(a, overdueA) - bucket(b, overdueB)
+  if (rank) return rank
+  const dueA = a.dueAt ? Date.parse(a.dueAt) : Infinity
+  const dueB = b.dueAt ? Date.parse(b.dueAt) : Infinity
   if (dueA !== dueB) return dueA - dueB
+  const priority = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
+  if (priority) return priority
 
   return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
 }
@@ -102,4 +101,27 @@ export function getQueueCounters(allTasks: Task[], nowMs = Date.now()) {
     overdue: overdue.length,
     unassigned: active.filter((t) => !t.ownerId).length,
   }
+}
+
+/** Stateless projections of canonical Task; no Calendar copies. */
+export function getCaseWorkState(item: EngagementCase, tasks: Task[], nowMs = Date.now()) {
+  const related = tasks.filter(task => task.caseId === item.id)
+  const active = related.filter(isActive)
+  return { effectiveNextTask: getNextTaskForCase(tasks, item.id, nowMs), activeTaskCount: active.length,
+    overdueTaskCount: active.filter(task => isOverdue(task, nowMs)).length,
+    previousCompletedTask: related.filter(task => task.status === "completed").sort((a,b) => Date.parse(b.completedAt ?? b.createdAt) - Date.parse(a.completedAt ?? a.createdAt))[0],
+    missingNextAction: !getWorkflowStageRule(item.board, item.status)?.terminal && active.length === 0 }
+}
+export function selectTaskCalendar(tasks: Task[]) {
+  return { dated: tasks.filter(task => Boolean(task.dueAt)), undated: tasks.filter(task => !task.dueAt), overdue: tasks.filter(task => isOverdue(task)) }
+}
+export function taskType(task: Task) { return task.type ?? (task.requiresCall ? "call" : "custom") }
+export function selectTaskAnalytics(tasks: Task[], events: import("./entities").AuditEvent[], cases: EngagementCase[] = []) {
+  return { rescheduleCount: tasks.reduce((sum,task) => sum + (task.rescheduleCount ?? 0),0), replacementCount: tasks.filter(task => task.previousTaskId).length,
+    cancellationCount: tasks.filter(task => task.status === "cancelled").length, manualOverrideCount: new Set(events.filter(event => event.action === "override" || event.action === "task_override" || event.action === "workflow_task_skipped" || (["admin","team_leader","clinic_manager"].includes(event.actorRole??"") && ["task_reschedule","task_replace","task_cancel","task_reopen","task_reassign","task_reprioritize"].includes(event.action??""))).map(event=>event.correlationId??event.id)).size,
+    overdueAfterReschedule: tasks.filter(task => task.rescheduleCount && isOverdue(task)).length,
+    manualCreated: tasks.filter(task => task.source === "manual").length, workflowCreated: tasks.filter(task => task.source === "workflow").length,
+    open: tasks.filter(isActive).length, completed: tasks.filter(task => task.status === "completed").length, failed: tasks.filter(task => task.status === "failed").length,
+    missingNextAction: cases.filter(item=>getCaseWorkState(item,tasks).missingNextAction).length,
+    byActor: events.filter(event => event.taskId).reduce<Record<string,number>>((map,event) => ({...map,[event.actorId]:(map[event.actorId]??0)+1}),{}) }
 }

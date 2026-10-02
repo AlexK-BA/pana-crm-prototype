@@ -221,6 +221,13 @@ export type TaskOutcome =
   | "not_reached"
   | "test"
   | "done"
+  | "sent"
+  | "failed"
+  | "patient_declined"
+  | "no_valid_channel"
+  | "refused"
+
+export type TaskType = "call" | "message" | "sms" | "email" | "qualification" | "appointment_confirmation" | "appointment_booking" | "post_visit_follow_up" | "waitlist_contact" | "patient_care_handoff" | "treatment_plan_review" | "send_treatment_plan" | "custom"
 
 /** §2.4 Task — the unit of required next work. Never collapse this into a string field. */
 export interface Task {
@@ -228,6 +235,22 @@ export interface Task {
   caseId: string
   patientId?: string
   title: string
+  description?: string
+  type?: TaskType
+  source?: "workflow" | "manual" | "call" | "appointment" | "medical_crm"
+  originalDueAt?: string
+  completedAt?: string
+  rescheduleCount?: number
+  previousTaskId?: string
+  replacementTaskId?: string
+  createdBy?: string
+  updatedBy?: string
+  lastChangeReason?: string
+  channel?: ContactChannel
+  mandatory?: boolean
+  handoffState?: "pending" | "accepted"
+  treatmentPlanId?: string
+  treatmentPlanVersion?: number
   status: TaskStatus
   priority: TaskPriority
   dueAt?: string
@@ -411,6 +434,12 @@ export interface AuditEvent {
   actorId: string
   targetUserId?: string
   targetRole?: import("./roles").RoleId
+  taskId?: string
+  action?: string
+  actorRole?: import("./roles").RoleId
+  clinicId?: ClinicId
+  source?: Task["source"]
+  workflowRuleId?: string
   matchDecisionId?: string
   confidence?: number
   matchedSignals?: MatchSignal[]

@@ -161,7 +161,7 @@ export function WaitlistView() {
                   <Button
                     size="sm"
                     className="h-8 gap-1.5"
-                    onClick={() => moveCase(c.id, "call_later", actorId)}
+                    onClick={() => openCase(c.id)}
                   >
                     <PhoneCall className="h-3.5 w-3.5" />
                     Zaproponuj termin

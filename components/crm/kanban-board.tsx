@@ -21,8 +21,10 @@ import { EntityCaseCard } from "@/components/crm/entity-case-card"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { cn } from "@/lib/utils"
 import type { DictionaryKey } from "@/lib/crm/language-context"
-import { compareCaseWorkOrder } from "@/lib/crm/entity-queue"
-import { getWorkflowStageRule } from "@/lib/crm/workflow-rules"
+import { toLocalDateTime } from "./task-actions"
+import { compareCaseWorkOrder, isActive } from "@/lib/crm/entity-queue"
+import { TASK_TYPES } from "@/lib/crm/entity-store"
+import { TASK_TYPE_LABELS, getWorkflowStageRule } from "@/lib/crm/workflow-rules"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 
 const BOARDS: { id: CaseBoard; labelKey: DictionaryKey }[] = [
@@ -47,7 +49,17 @@ export function KanbanBoard() {
   const [dragCaseId, setDragCaseId] = useState<string | null>(null)
   const [pendingTransition, setPendingTransition] = useState<{ caseId: string; newStatus: string } | null>(null)
   const [transitionReason, setTransitionReason] = useState("")
-  const { cases, tasks, moveCase, currentUser } = useScopedEntityStore()
+  const [transitionDue,setTransitionDue]=useState("")
+  const [transitionType,setTransitionType]=useState("")
+  const [manualOverride,setManualOverride]=useState(false)
+  const [customTitle,setCustomTitle]=useState("")
+  const [customDescription,setCustomDescription]=useState("")
+  const [skipAutomatic,setSkipAutomatic]=useState(false)
+  const [cancelActive,setCancelActive]=useState(false)
+  const [allowPast,setAllowPast]=useState(false)
+  const [nextOwner,setNextOwner]=useState("")
+  const [transitionError,setTransitionError]=useState("")
+  const { cases, tasks, patients, identities, moveCase, currentUser } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const { hasPermission } = useAuthorization()
@@ -69,8 +81,8 @@ export function KanbanBoard() {
       if (assignee !== "all" && c.responsibleTeamId !== assignee) return false
       if (!query) return true
       const q = query.toLowerCase()
-      const patient = getPatient(c.patientId)
-      const identity = getIdentity(c.contactIdentityId)
+      const patient = patients.find(item=>item.id===c.patientId)
+      const identity = identities.find(item=>item.id===c.contactIdentityId)
       const name = patient ? `${patient.firstName} ${patient.lastName}` : ""
       return name.toLowerCase().includes(q) || identity?.value.toLowerCase().includes(q)
     })
@@ -84,12 +96,12 @@ export function KanbanBoard() {
       columnCases.sort((a, b) => compareCaseWorkOrder(a, b, tasks, nowMs))
     }
     return map
-  }, [board, cases, tasks, columns, query, clinic, doctor, service, assignee])
+  }, [board, cases, patients, identities, tasks, columns, query, clinic, doctor, service, assignee])
 
   function handleDrop(columnId: string) {
     const engagementCase = cases.find((item) => item.id === dragCaseId)
     if (engagementCase && engagementCase.status !== columnId && canMoveCase) {
-      setTransitionReason("")
+      setTransitionReason("");setTransitionError("");setTransitionDue("");setTransitionType("");setSkipAutomatic(false);setCancelActive(false);setAllowPast(false);setNextOwner("");setManualOverride(false);setCustomTitle("");setCustomDescription("")
       setPendingTransition({ caseId: engagementCase.id, newStatus: columnId })
     }
     setDragCaseId(null)
@@ -108,12 +120,11 @@ export function KanbanBoard() {
 
   function confirmTransition() {
     if (!pendingTransition || !transitionCase || (transitionRule?.requiresReason && !transitionReason.trim())) return
-    moveCase(pendingTransition.caseId, pendingTransition.newStatus, actorId, {
-      reason: transitionReason.trim() || undefined,
-      override: role === "admin",
-    })
-    setPendingTransition(null)
-    setTransitionReason("")
+    try {
+      moveCase(pendingTransition.caseId,pendingTransition.newStatus,actorId,{reason:transitionReason,override:skipAutomatic||manualOverride,taskTitle:customTitle,taskDescription:customDescription,skipAutomatic,activeTaskDecision:cancelActive?"cancel":"keep",dueAt:transitionDue||undefined,taskType:transitionType?transitionType as import("@/lib/crm/entities").TaskType:undefined,ownerId:nextOwner||undefined,allowPast})
+      setPendingTransition(null);setTransitionReason("")
+    } catch(error){setTransitionError(error instanceof Error?error.message:"Przejście zablokowane.")}
+
   }
 
   return (
@@ -292,7 +303,7 @@ export function KanbanBoard() {
           setTransitionReason("")
         }
       }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Potwierdź zmianę etapu</DialogTitle>
             <DialogDescription>
@@ -303,13 +314,25 @@ export function KanbanBoard() {
           {transitionRule?.automaticTask && (
             <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
               <p className="font-medium">Automatyczne następne działanie</p>
-              <p className="mt-1 text-muted-foreground">{transitionRule.automaticTask.title}</p>
+              <p className="mt-1 text-muted-foreground">{transitionType?TASK_TYPE_LABELS[transitionType as import("@/lib/crm/entities").TaskType]:transitionRule.automaticTask.title}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Priorytet {transitionRule.automaticTask.priority} · termin za {formatDueIn(transitionRule.automaticTask.dueInMinutes)}
+                Priorytet {transitionRule.automaticTask.priority} · termin: {transitionRule.automaticTask.duePolicy==="sla"?`za ${formatDueIn(transitionRule.automaticTask.dueInMinutes)}`:"wymagana jawna data (Appointment / kliniczna rekomendacja)"}
               </p>
             </div>
           )}
 
+          <div className="space-y-2 rounded border p-3 text-sm">
+            <p>Aktywne zadania pozostają, chyba że jawnie wybierzesz anulowanie:</p>
+            {tasks.filter(task=>task.caseId===transitionCase?.id&&isActive(task)).map(task=><p key={task.id}>{task.title} · {task.priority} · {task.dueAt??"Bez terminu"} · requiresCall {String(Boolean(task.requiresCall))}</p>)}
+            <p>{transitionRule?.terminal?"Etap końcowy nie tworzy zadań. Rozwiąż aktywne zadania lub anuluj z powodem.":"Następne działanie obowiązkowe. Aktywna task tej samej reguły zostanie użyta bez duplikatu."}</p>
+            {!transitionRule?.terminal&&<><label>Termin następnej task (dla Appointment / klinicznej daty obowiązkowy)<Input type="datetime-local" value={transitionDue} onChange={event=>setTransitionDue(event.target.value)}/></label><label>Proponowane zadanie<select className="w-full rounded border p-2" value={transitionType} onChange={event=>setTransitionType(event.target.value)}><option value="">Automatyczne / zachowaj aktualne</option>{(manualOverride?TASK_TYPES:transitionRule?.suggestedTasks??[]).filter(type=>type!=="send_treatment_plan"||hasPermission("patient:view_medical")).map(type=><option key={type} value={type}>{TASK_TYPE_LABELS[type]}</option>)}</select></label><label className="flex gap-2"><input type="checkbox" checked={allowPast} onChange={event=>setAllowPast(event.target.checked)}/>Świadomie dopuszczam termin w przeszłości</label></>}
+            {transitionType==="custom"&&<><label>Tytuł nowej task<Input value={customTitle} onChange={event=>setCustomTitle(event.target.value)}/></label><label>Opis nowej task<Textarea value={customDescription} onChange={event=>setCustomDescription(event.target.value)}/></label></>}
+            {hasPermission("task:assign")&&<><label className="flex gap-2"><input type="checkbox" checked={manualOverride} onChange={event=>{setManualOverride(event.target.checked);setTransitionType("")}}/>Manual override / inne zadanie (powód wymagany)</label><label className="flex gap-2"><input type="checkbox" checked={cancelActive} onChange={event=>setCancelActive(event.target.checked)}/>Anuluj aktywne zadania (wymagany powód)</label>{!transitionRule?.terminal&&<label className="flex gap-2"><input type="checkbox" checked={skipAutomatic} onChange={event=>setSkipAutomatic(event.target.checked)}/>Override: pomiń automatyczną task (brak next action widoczny w kontroli)</label>}</>}
+            {hasPermission("task:assign")&&!transitionRule?.terminal&&<label>Właściciel / użytkownik przyjmujący<Input placeholder="ID aktywnego użytkownika; puste = bieżący użytkownik" value={nextOwner} onChange={event=>setNextOwner(event.target.value)}/></label>}
+            <p>RequiresCall: {String(transitionType?transitionType==="call":Boolean(transitionRule?.automaticTask?.requiresCall))}. SLA kalendarne — prototype defaults do potwierdzenia przez Daniela.</p>
+            <p>Automatyzacja zewnętrzna: {transitionRule?.automationWorkflowKey??"Brak aktywnego side effect; n8n nie jest podłączony"}</p>
+          </div>
+          {transitionError&&<p role="alert" className="text-sm text-destructive">{transitionError}</p>}
           <div className="space-y-1.5">
             <label htmlFor="transition-reason" className="text-sm font-medium">
               Powód zmiany {transitionRule?.requiresReason ? "*" : "(opcjonalnie)"}
@@ -331,7 +354,7 @@ export function KanbanBoard() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPendingTransition(null)}>Anuluj</Button>
-            <Button disabled={Boolean(transitionRule?.requiresReason && !transitionReason.trim())} onClick={confirmTransition}>
+            <Button disabled={Boolean((transitionRule?.requiresReason || skipAutomatic || cancelActive || manualOverride) && !transitionReason.trim())} onClick={confirmTransition}>
               Potwierdź zmianę
             </Button>
           </DialogFooter>

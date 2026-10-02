@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCasePanel } from "@/lib/crm/panel-context"
+import { TaskActions } from "../task-actions"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
@@ -99,7 +100,7 @@ export function OperatorHome() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6"><a href="/schedule" className="text-sm underline">Pełna kolejka zadań, historia i kontrola: Brak następnego działania</a>
       {nextItem && (
         <section className="rounded-lg border border-primary/30 bg-primary/[0.03] p-5">
           <div className="flex items-center justify-between">
@@ -127,7 +128,7 @@ export function OperatorHome() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
-                  onClick={() => skipTask(nextItem.task.id, "Odłożone przez operatora")}
+                  onClick={() => openCase(nextItem.case.id)}
                 >
                   <SkipForward className="h-3.5 w-3.5" /> {t("skip_reason")}
                 </Button>
