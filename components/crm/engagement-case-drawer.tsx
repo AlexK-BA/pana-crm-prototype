@@ -183,7 +183,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
           <Badge variant="outline">{engagementCase.board === "leads" ? t("board_lead") : engagementCase.board === "deals" ? t("board_deal") : t("board_patient_care")}</Badge>
           {procedure && <Badge variant="secondary">{procedure.name}</Badge>}
           {doctor && <Badge variant="secondary">{doctor.name}</Badge>}
-          {patient && <Badge variant="outline">{patient.integrationState}</Badge>
+          {patient && <Badge variant="outline">{patient.integrationState}</Badge>}
           {patient && <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
             Szczegóły <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", detailsOpen && "rotate-180")} />
           </Button>}
