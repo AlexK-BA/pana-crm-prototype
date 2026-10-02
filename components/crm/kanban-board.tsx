@@ -4,6 +4,8 @@ import { useMemo, useState } from "react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Search, SlidersHorizontal, LayoutGrid, List } from "lucide-react"
@@ -13,7 +15,6 @@ import { CLINICS, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
 import { getPatient, getIdentity } from "@/lib/crm/entity-data"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useRole } from "@/lib/crm/role-context"
-import { ROLE_PROFILES } from "@/lib/crm/roles"
 import { useLanguage } from "@/lib/crm/language-context"
 import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { EntityCaseCard } from "@/components/crm/entity-case-card"
@@ -21,12 +22,20 @@ import { useCasePanel } from "@/lib/crm/panel-context"
 import { cn } from "@/lib/utils"
 import type { DictionaryKey } from "@/lib/crm/language-context"
 import { compareCaseWorkOrder } from "@/lib/crm/entity-queue"
+import { getWorkflowStageRule } from "@/lib/crm/workflow-rules"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 
 const BOARDS: { id: CaseBoard; labelKey: DictionaryKey }[] = [
   { id: "leads", labelKey: "board_lead" },
   { id: "deals", labelKey: "board_deal" },
   { id: "patients", labelKey: "board_patient_care" },
 ]
+
+function formatDueIn(minutes: number) {
+  if (minutes < 60) return `${minutes} min`
+  if (minutes < 1440) return `${Math.round(minutes / 60)} godz.`
+  return `${Math.round(minutes / 1440)} dni`
+}
 
 export function KanbanBoard() {
   const [board, setBoard] = useState<CaseBoard>("leads")
@@ -36,11 +45,15 @@ export function KanbanBoard() {
   const [service, setService] = useState<string>("all")
   const [assignee, setAssignee] = useState<string>("all")
   const [dragCaseId, setDragCaseId] = useState<string | null>(null)
-  const { cases, tasks, moveCase } = useScopedEntityStore()
+  const [pendingTransition, setPendingTransition] = useState<{ caseId: string; newStatus: string } | null>(null)
+  const [transitionReason, setTransitionReason] = useState("")
+  const { cases, tasks, moveCase, currentUser } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
+  const { hasPermission } = useAuthorization()
   const { t } = useLanguage()
-  const actorId = INITIAL_USERS.find((o) => o.name === ROLE_PROFILES[role].user.name)?.id ?? "system"
+  const actorId = currentUser.id
+  const canMoveCase = hasPermission("case:move")
 
   const activeFilterCount = [clinic, doctor, service, assignee].filter((v) => v !== "all").length
 
@@ -74,8 +87,33 @@ export function KanbanBoard() {
   }, [board, cases, tasks, columns, query, clinic, doctor, service, assignee])
 
   function handleDrop(columnId: string) {
-    if (dragCaseId) moveCase(dragCaseId, columnId, actorId)
+    const engagementCase = cases.find((item) => item.id === dragCaseId)
+    if (engagementCase && engagementCase.status !== columnId && canMoveCase) {
+      setTransitionReason("")
+      setPendingTransition({ caseId: engagementCase.id, newStatus: columnId })
+    }
     setDragCaseId(null)
+  }
+
+  const transitionCase = pendingTransition ? cases.find((item) => item.id === pendingTransition.caseId) : undefined
+  const transitionRule = transitionCase && pendingTransition
+    ? getWorkflowStageRule(transitionCase.board, pendingTransition.newStatus)
+    : undefined
+  const fromLabel = transitionCase
+    ? BOARD_COLUMNS[transitionCase.board].find((item) => item.id === transitionCase.status)?.label ?? transitionCase.status
+    : ""
+  const toLabel = transitionCase && pendingTransition
+    ? BOARD_COLUMNS[transitionCase.board].find((item) => item.id === pendingTransition.newStatus)?.label ?? pendingTransition.newStatus
+    : ""
+
+  function confirmTransition() {
+    if (!pendingTransition || !transitionCase || (transitionRule?.requiresReason && !transitionReason.trim())) return
+    moveCase(pendingTransition.caseId, pendingTransition.newStatus, actorId, {
+      reason: transitionReason.trim() || undefined,
+      override: role === "admin",
+    })
+    setPendingTransition(null)
+    setTransitionReason("")
   }
 
   return (
@@ -231,8 +269,8 @@ export function KanbanBoard() {
                       key={c.id}
                       engagementCase={c}
                       tasks={tasks.filter((t) => t.caseId === c.id)}
-                      draggable
-                      onDragStart={() => setDragCaseId(c.id)}
+                      draggable={canMoveCase}
+                      onDragStart={() => canMoveCase && setDragCaseId(c.id)}
                       onClick={() => openCase(c.id)}
                     />
                   ))}
@@ -247,6 +285,58 @@ export function KanbanBoard() {
           })}
         </div>
       </div>
+
+      <Dialog open={Boolean(pendingTransition)} onOpenChange={(open) => {
+        if (!open) {
+          setPendingTransition(null)
+          setTransitionReason("")
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Potwierdź zmianę etapu</DialogTitle>
+            <DialogDescription>
+              Sprawa zostanie przeniesiona z etapu „{fromLabel}” do „{toLabel}”. Zmiana zostanie zapisana w historii aktywności.
+            </DialogDescription>
+          </DialogHeader>
+
+          {transitionRule?.automaticTask && (
+            <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+              <p className="font-medium">Automatyczne następne działanie</p>
+              <p className="mt-1 text-muted-foreground">{transitionRule.automaticTask.title}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Priorytet {transitionRule.automaticTask.priority} · termin za {formatDueIn(transitionRule.automaticTask.dueInMinutes)}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label htmlFor="transition-reason" className="text-sm font-medium">
+              Powód zmiany {transitionRule?.requiresReason ? "*" : "(opcjonalnie)"}
+            </label>
+            <Textarea
+              id="transition-reason"
+              value={transitionReason}
+              onChange={(event) => setTransitionReason(event.target.value)}
+              placeholder={transitionRule?.requiresReason ? "Wpisz wymagany powód zmiany etapu" : "Dodaj kontekst dla historii aktywności"}
+              className="min-h-20"
+            />
+          </div>
+
+          {transitionRule?.terminal && (
+            <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">
+              To etap końcowy. Sprawa pozostanie widoczna w profilu pacjenta i raportach.
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingTransition(null)}>Anuluj</Button>
+            <Button disabled={Boolean(transitionRule?.requiresReason && !transitionReason.trim())} onClick={confirmTransition}>
+              Potwierdź zmianę
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

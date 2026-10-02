@@ -44,9 +44,20 @@ Represent each independent patient intent as an Engagement Case while allowing d
 4. Existing cases retain their workflow version after a new version is published.
 5. A closed case does not disappear from patient history or reporting.
 
+## Current prototype behavior
+
+- Board drag-and-drop opens a confirmation before changing stage.
+- The confirmation previews the configured automatic task, priority and due interval.
+- Stages marked `requiresReason` cannot be confirmed without a reason.
+- The transition audit records before/after, actor and reason; an automatic task receives a separate correlated system event.
+- Active workflow-generated tasks are idempotent by `workflowRuleId`.
+- `case:move` controls whether a card can be dragged; production must repeat this authorization in the backend command handler.
+- Administrator transitions are marked as manual overrides in the activity history.
+
+This demonstrates transition behavior without freezing stakeholder-dependent values into UI components. The workflow catalog in `lib/crm/workflow-rules.ts` remains replaceable configuration until the three target workflows are approved.
+
 ## Needs decision
 
 - Daniel/Pasha confirmation of all three workflows, stages and automation rules;
 - whether existing cases migrate to a new workflow version or finish on the previous one;
 - conflict behavior when an external medical event suggests another stage.
-

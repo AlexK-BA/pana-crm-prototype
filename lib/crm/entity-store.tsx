@@ -54,7 +54,7 @@ interface EntityStoreValue {
   ensureMissedCallTask: (caseId: string, patientId?: string) => Task
   assignTask: (taskId: string, ownerId: string, actorId: string) => void
   setPriority: (taskId: string, priority: TaskPriority, actorId: string) => void
-  moveCase: (caseId: string, newStatus: string, actorId: string) => void
+  moveCase: (caseId: string, newStatus: string, actorId: string, options?: { reason?: string; override?: boolean }) => void
   logCall: (input: {
     caseId: string
     taskId?: string
@@ -375,7 +375,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const moveCase = useCallback(
-    (caseId: string, newStatus: string, actorId: string) => {
+    (caseId: string, newStatus: string, actorId: string, options?: { reason?: string; override?: boolean }) => {
       const before = cases.find((c) => c.id === caseId)
       if (!before || before.status === newStatus) return
       setCases((prev) => prev.map((c) => (c.id === caseId ? { ...c, status: newStatus } : c)))
@@ -385,7 +385,10 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
         caseId,
         type: "status_change",
         actorId,
-        summary: `Zmieniono status sprawy: ${beforeLabel} → ${afterLabel}`,
+        summary: [
+          options?.override ? `Ręcznie zmieniono status sprawy: ${beforeLabel} → ${afterLabel}` : `Zmieniono status sprawy: ${beforeLabel} → ${afterLabel}`,
+          options?.reason ? `Powód: ${options.reason}` : undefined,
+        ].filter(Boolean).join(" · "),
         before: beforeLabel,
         after: afterLabel,
       })
