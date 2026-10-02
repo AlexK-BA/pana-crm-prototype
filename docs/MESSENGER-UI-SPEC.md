@@ -1,5 +1,7 @@
 # Messenger UI and channel workspace
 
+AI governance extension: bot responses now require versioned source evidence (or an explicit allowed no-source reason), patient-facing disclosure evidence and canonical ownership. Pending bot activation uses a persisted `dueAt` schedule; human answer/takeover/pause/disable cancels it without deleting history. Detailed KB trace is available only through `ai:trace_view`; ordinary communication access receives the message without privileged trace. See [AI-GOVERNANCE-KB-TRACEABILITY.md](AI-GOVERNANCE-KB-TRACEABILITY.md).
+
 Status: implemented prototype UI, merged after Task/Calendar/Workflow integration.
 
 ## Purpose

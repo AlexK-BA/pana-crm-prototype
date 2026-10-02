@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Globe, Mail, MessageCircle, Phone, Search, Send, Smartphone, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,7 @@ import { useCall } from "@/lib/crm/call-context"
 import { getSmsStatusLabel, isSmsMessage } from "@/lib/crm/sms-service"
 import type { Call, Interaction } from "@/lib/crm/entities"
 import { CONVERSATION_MODE_LABELS, conversationReplyState, isBotInteraction, operatorCanSend, worstConversationReplyState, type ConversationReplyState } from "@/lib/crm/conversation-control"
+import { activationRemainingMs, isAiEnabledForConversation, resolveAiConversationPolicy } from "@/lib/crm/ai-governance"
 import { cn } from "@/lib/utils"
 
 const CHANNEL_META: Record<string, { label: string; icon: LucideIcon; tone: string }> = {
@@ -66,6 +67,7 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<Filter>("all")
   const [error, setError] = useState("")
+  const [clock, setClock] = useState(() => Date.now())
 
   const patientCases = store.cases.filter(item => patientId ? item.patientId === patientId : item.id === currentCaseId)
   const ids = new Set(patientCases.map(item => item.id))
@@ -109,10 +111,27 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
   const identity = identities.find(item => item.id === activeThread?.identityId)
   const botInvolved = Boolean(activeThread?.messages.some(item => isBotInteraction(item)))
   const conversationControl = activeThread ? store.conversationControls.find(item => item.threadKey === activeThread.id) : undefined
+  const aiPolicy = activeThread && activeThread.channel !== "sms" ? resolveAiConversationPolicy(store.aiConversationPolicies, targetCase?.clinicId, activeThread.channel) : undefined
+  const aiEnabled = isAiEnabledForConversation(conversationControl, aiPolicy)
+  const activation = activeThread ? store.botActivationSchedules.find(item => item.threadKey === activeThread.id && item.status === "pending") : undefined
+  const remainingMs = activationRemainingMs(activation, clock)
   const mayReply = operatorCanSend(conversationControl, store.currentUser.id)
   const replyBlockedReason = conversationControl?.mode === "bot_active" ? "Bot prowadzi rozmowę. Przejmij ją przed wysłaniem odpowiedzi."
     : conversationControl?.mode === "bot_paused" ? "Bot jest wstrzymany. Przejmij rozmowę jako operator."
       : conversationControl?.mode === "closed" ? "Rozmowa jest zamknięta." : conversationControl?.ownerId ? "Rozmowę prowadzi inny operator." : undefined
+
+  useEffect(() => {
+    if (!activation) return
+    const tick = () => {
+      setClock(Date.now())
+      if (Date.parse(activation.dueAt) <= Date.now()) {
+        try { store.activateDueBot(activation.threadKey) } catch { /* command error remains non-destructive */ }
+      }
+    }
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [activation?.id, activation?.dueAt, store.activateDueBot])
 
   if (!hasPermission("communication:view")) return <p role="alert" className="p-4 text-sm">Brak dostępu do komunikacji.</p>
 
@@ -125,6 +144,16 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Nie udało się zmienić obsługi rozmowy.")
     }
+  }
+
+  function setAiEnabled(enabled: boolean) {
+    if (!activeThread || !targetCase || activeThread.channel === "sms") return
+    try {
+      store.setConversationAiEnabled({ threadKey: activeThread.id, caseId: targetCase.id, patientId,
+        contactIdentityId: activeThread.identityId, channel: activeThread.channel, enabled,
+        reason: enabled ? "Administrator włączył odpowiedzi AI" : "Administrator wyłączył odpowiedzi AI" })
+      setError("")
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Nie udało się zmienić ustawienia AI.") }
   }
 
   return <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", className)}>
@@ -197,9 +226,13 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
         </div>
         {!smsHistory && activeThread && targetCase && !["phone", "sms"].includes(activeThread.channel) && <div className="flex flex-wrap items-center gap-2 border-b bg-violet-50 px-3 py-2 text-xs text-violet-900">
           <span>{botInvolved ? "Bot uczestniczył w tej rozmowie." : "Sterowanie botem i operatorem."}</span>
+          {remainingMs !== undefined && <Badge variant="outline" className="bg-background">AI za {Math.ceil(remainingMs / 1000)} s</Badge>}
           {conversationControl?.mode !== "operator_active" && <Button size="sm" variant="outline" className="h-7" onClick={() => changeConversationMode("operator_active", "Operator przejął rozmowę")}>Przejmij rozmowę</Button>}
-          {conversationControl?.mode !== "bot_active" && <Button size="sm" variant="outline" className="h-7" onClick={() => changeConversationMode("bot_active", "Rozmowę przekazano botowi")}>Przekaż botowi</Button>}
+          {aiEnabled && conversationControl?.mode !== "bot_active" && <Button size="sm" variant="outline" className="h-7" onClick={() => changeConversationMode("bot_active", "Rozmowę przekazano botowi")}>Przekaż botowi</Button>}
           {conversationControl?.mode === "bot_active" && <Button size="sm" variant="outline" className="h-7" onClick={() => changeConversationMode("bot_paused", "Bot został wstrzymany")}>Wstrzymaj bota</Button>}
+          {hasPermission("ai:manage") && <Button size="sm" variant="outline" className="h-7" onClick={() => setAiEnabled(!aiEnabled)}>
+            {aiEnabled ? "Wyłącz AI" : "Włącz AI"}
+          </Button>}
           {error && <span role="alert" className="text-destructive">{error}</span>}
         </div>}
         <div className="min-h-0 flex-1">

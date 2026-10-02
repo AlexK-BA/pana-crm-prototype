@@ -60,6 +60,48 @@ export interface DataConflict {
 
 export type PreferredLanguage = "pl" | "ru" | "uk" | "be" | "en"
 
+export interface PatientAddress {
+  line1: string
+  line2?: string
+  postalCode: string
+  city: string
+  countryCode: string
+  source: "medical_crm" | "personal_account"
+  updatedAt: string
+}
+
+export interface PatientPortalSummary {
+  accountId?: string
+  status: "none" | "pending_verification" | "active" | "blocked"
+  registeredAt?: string
+  verifiedAt?: string
+  lastLoginAt?: string
+}
+
+export interface PatientAllergy {
+  id: string
+  substance: string
+  reaction?: string
+  severity?: "unknown" | "mild" | "moderate" | "severe"
+  status: "active" | "inactive" | "unconfirmed"
+  recordedAt?: string
+  source: "medical_crm"
+}
+
+export interface MedicalVisit {
+  id: string
+  externalVisitId: string
+  clinicId: ClinicId
+  doctorId?: string
+  procedureId?: string
+  treatmentPlanId?: string
+  startsAt: string
+  endsAt?: string
+  status: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show"
+  source: "medical_crm"
+  lastSyncAt: string
+}
+
 /**
  * §2.1 Patient — the persistent real-world patient. Medical CRM is the
  * source of truth for identity + clinical facts. NOT a kanban stage.
@@ -83,7 +125,16 @@ export interface Patient {
   consentNote?: string
   provenance: ProvenanceField[]
   conflicts?: DataConflict[]
+  /** Read-only synchronized patient address; contact phone/e-mail stay ContactIdentity entities. */
+  address?: PatientAddress
+  /** Read-only projection from the existing Personal Account backend. */
+  portalAccount?: PatientPortalSummary
+  /** Clinical data: visible only with patient:view_medical and never locally editable. */
+  allergies?: PatientAllergy[]
+  medicalVisits?: MedicalVisit[]
   treatmentPlan?: TreatmentPlan
+  /** New adapters may return multiple plans; legacy single plan remains a compatibility fallback. */
+  treatmentPlans?: TreatmentPlan[]
 }
 
 /** §2.2 Contact Identity — one channel/identifier a person can be reached on. */
@@ -273,6 +324,87 @@ export type InteractionDirection = "incoming" | "outgoing"
 export type InteractionSenderKind = "patient" | "user" | "bot" | "system"
 export type ConversationMode = "bot_active" | "operator_active" | "bot_paused" | "closed"
 
+/** Immutable reference to the exact knowledge-base material used for one AI answer. */
+export interface AiKnowledgeCitation {
+  sourceId: string
+  sourceTitle: string
+  sourceVersion: string
+  chunkId?: string
+  section?: string
+  page?: number
+  uri?: string
+  retrievedAt: string
+  relevance?: number
+}
+
+/**
+ * Auditable AI output metadata. This deliberately stores evidence and versions,
+ * never private chain-of-thought or hidden model reasoning.
+ */
+export interface AiResponseTrace {
+  runId: string
+  modelProvider: string
+  modelName: string
+  modelVersion?: string
+  policyId: string
+  policyVersion: number
+  promptTemplateId: string
+  promptTemplateVersion: number
+  generatedAt: string
+  inputInteractionIds: string[]
+  citations: AiKnowledgeCitation[]
+  /** Required when no knowledge citation supported the answer. */
+  noSourceReason?: "greeting" | "routing_only" | "knowledge_unavailable" | "fallback"
+  confidence?: number
+  escalationReason?: string
+  /** Evidence that the patient-facing AI disclosure was rendered for this conversation. */
+  userDisclosureShown: boolean
+}
+
+export interface AiHumanHandoffRules {
+  onPatientRequest: boolean
+  onMedicalAdviceRequest: boolean
+  onEmergencyLanguage: boolean
+  onNoKnowledgeSource: boolean
+  onLowConfidence: boolean
+  lowConfidenceThreshold: number
+  afterBotMessages: number
+}
+
+/** Tenant/clinic/channel policy. Values are configuration, not UI constants. */
+export interface AiConversationPolicy {
+  id: string
+  name: string
+  clinicId?: ClinicId
+  channels: ContactChannel[]
+  enabled: boolean
+  activationDelaySeconds: number
+  humanTakeoverSlaSeconds: number
+  intendedUse: "administrative_non_clinical"
+  handoffRules: AiHumanHandoffRules
+  version: number
+  updatedAt: string
+  updatedBy: string
+}
+
+export type BotActivationStatus = "pending" | "cancelled" | "activated" | "expired"
+export interface BotActivationSchedule {
+  id: string
+  threadKey: string
+  caseId: string
+  patientId?: string
+  triggerInteractionId: string
+  policyId: string
+  policyVersion: number
+  scheduledAt: string
+  dueAt: string
+  status: BotActivationStatus
+  cancelledAt?: string
+  cancelledBy?: string
+  cancellationReason?: string
+  activatedAt?: string
+}
+
 export interface ConversationControl {
   threadKey: string
   caseId: string
@@ -282,6 +414,9 @@ export interface ConversationControl {
   mode: ConversationMode
   ownerId?: string
   botId?: string
+  /** Per-conversation override. Undefined means resolve clinic/channel policy. */
+  aiEnabledOverride?: boolean
+  aiDisclosureShownAt?: string
   updatedAt: string
   updatedBy: string
 }
@@ -303,6 +438,8 @@ export interface Interaction {
   authorId?: string
   senderKind?: InteractionSenderKind
   text?: string
+  /** Present only for senderKind=bot. Never promoted to Patient medical fields. */
+  aiTrace?: AiResponseTrace
 }
 
 export type SmsProviderType = "emulator" | "smsapi" | "supervoip" | (string & {})
@@ -441,6 +578,12 @@ export type AuditEventType =
   | "contact_identity_linked"
   | "contact_identity_reused"
   | "conversation_handoff"
+  | "ai_control_changed"
+  | "ai_policy_changed"
+  | "ai_activation_scheduled"
+  | "ai_activation_cancelled"
+  | "ai_activation_started"
+  | "ai_response_recorded"
 
 /** §2.7 Audit Event — system-generated change record, grouped/deduplicated in UI. */
 export interface AuditEvent {

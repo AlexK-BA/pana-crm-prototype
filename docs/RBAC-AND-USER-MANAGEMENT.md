@@ -120,6 +120,8 @@ Prototype behavior:
 - Marketing dashboard is a UI simulation of an aggregate projection. Production must calculate and return aggregates server-side without returning patient/contact rows.
 - `audit:view` controls both the global Audit Log route and the case-level Audit/Activity history. Users without it do not receive audit entries in the combined case timeline.
 - AIHub Admin (`admin`) has `audit:view` in the protected full-access bundle and can inspect case activity as well as the central log.
+- `ai:trace_view` is deliberately separate from ordinary communication access. It exposes versioned model/policy/prompt metadata and KB citations and defaults to the protected Admin bundle only. ScopedEntityStore removes the trace object for other roles before rendering.
+- `ai:manage` controls per-conversation AI enable/disable and versioned policy changes. Policy editing additionally requires `configuration:manage`; ownership takeover continues to use the existing guarded communication command.
 
 ## 7. Enforcement points
 

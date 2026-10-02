@@ -42,6 +42,9 @@ export function useScopedEntityStore() {
     const interactions = store.interactions.filter((item) => item.caseId ? caseIds.has(item.caseId)
       : isSmsMessage(item) && Boolean(item.patientId && patientIds.has(item.patientId))
         && (hasGlobalScope || Boolean(item.clinicId && currentUser.clinicIds.includes(item.clinicId))))
+    const scopedInteractions = interactions.map(item => "aiTrace" in item && item.aiTrace && !hasPermission("ai:trace_view")
+      ? { ...item, aiTrace: undefined }
+      : item)
     const requirePermission = (permission: Parameters<typeof hasPermission>[0]) => {
       if (currentUser.status !== "active" || !hasPermission(permission)) throw new Error("Brak uprawnień do tej operacji SMS.")
     }
@@ -59,6 +62,9 @@ export function useScopedEntityStore() {
       cases,
       tasks: hasPermission("task:view") ? store.tasks.filter((item) => caseIds.has(item.caseId)) : [],
       conversationControls: hasPermission("communication:view") ? store.conversationControls.filter(item => caseIds.has(item.caseId)) : [],
+      // Policy timing/rules are operational read data; ai:manage controls mutations.
+      aiConversationPolicies: hasPermission("communication:view") ? store.aiConversationPolicies.filter(item => hasGlobalScope || !item.clinicId || currentUser.clinicIds.includes(item.clinicId)) : [],
+      botActivationSchedules: hasPermission("communication:view") ? store.botActivationSchedules.filter(item => caseIds.has(item.caseId)) : [],
       comments: operationalAccess && hasPermission("case:view") ? store.comments.filter(item => caseIds.has(item.caseId)) : [],
       patients: store.patients.filter((item) => patientIds.has(item.id) || matchingPatientIds.has(item.id)).map(item => {
         if (hasPermission("patient:view_medical")) return item
@@ -106,13 +112,16 @@ export function useScopedEntityStore() {
         return store.saveCaseContactProfile({ ...input, actorId: matchingAccessRef.current.actorId }, matchingAccessRef.current)
       },
       identities: store.identities.filter((item) => identityIds.has(item.id) || Boolean(item.patientId && (patientIds.has(item.patientId) || matchingPatientIds.has(item.patientId)))),
-      interactions: hasPermission("communication:view") ? interactions : [],
+      interactions: hasPermission("communication:view") ? scopedInteractions : [],
       sendMessage: (input: Parameters<typeof store.sendMessage>[0]) => {
         if (!caseIds.has(input.caseId)) throw new AccessCommandError("Sprawa poza zakresem dostępu.")
         return store.sendMessage({ ...input, authorId: input.direction === "outgoing" ? currentUser.id : undefined,
           senderKind: input.direction === "outgoing" ? "user" : input.senderKind ?? "patient" }, matchingAccessRef.current)
       },
       setConversationMode: (input: Parameters<typeof store.setConversationMode>[0]) => store.setConversationMode(input, matchingAccessRef.current),
+      setConversationAiEnabled: (input: Parameters<typeof store.setConversationAiEnabled>[0]) => store.setConversationAiEnabled(input, matchingAccessRef.current),
+      updateAiConversationPolicy: (id: string, patch: Parameters<typeof store.updateAiConversationPolicy>[1], reason: string) => store.updateAiConversationPolicy(id, patch, reason, matchingAccessRef.current),
+      activateDueBot: (threadKey: string) => store.activateDueBot(threadKey, matchingAccessRef.current),
       sendSms: (input: Parameters<typeof store.sendSms>[0]) => {
         requirePermission("communication:send")
         requirePermission("sms:send_custom")

@@ -13,6 +13,8 @@ export type Permission =
   | "patient:match_approve"
   | "communication:view"
   | "communication:send"
+  | "ai:trace_view"
+  | "ai:manage"
   | "sms:send_custom"
   | "sms:send_template"
   | "sms:retry"
@@ -47,6 +49,8 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { id: "patient:match_approve", group: "Pacjent", label: "Zatwierdzanie dopasowania", description: "Kontrolowane powiązanie pacjenta ze sprawą w zakresie klinik." },
   { id: "communication:view", group: "Komunikacja", label: "Podgląd komunikacji", description: "Inbox i historia rozmów." },
   { id: "communication:send", group: "Komunikacja", label: "Wysyłanie wiadomości", description: "Chat, e-mail i kanały społecznościowe." },
+  { id: "ai:trace_view", group: "AI", label: "Źródła odpowiedzi AI", description: "Wersje modelu, polityki i źródła Bazy Wiedzy bez ujawniania toku rozumowania." },
+  { id: "ai:manage", group: "AI", label: "Zarządzanie AI", description: "Polityki aktywacji, handoff i przełączniki AI." },
   { id: "sms:send_custom", group: "SMS", label: "Dowolny tekst SMS", description: "Wysyłanie ręcznie wpisanego tekstu." },
   { id: "sms:send_template", group: "SMS", label: "Szablony SMS", description: "Wysyłanie zatwierdzonych szablonów." },
   { id: "sms:retry", group: "SMS", label: "Ponów SMS", description: "Ponowna próba nieudanego SMS." },
@@ -67,7 +71,7 @@ export const ALL_PERMISSIONS: Permission[] = PERMISSION_DEFINITIONS.map((item) =
 const ALL: Permission[] = [
   "case:view", "case:edit", "case:move", "task:view", "task:work", "task:assign",
   "patient:view_basic", "patient:view_medical", "patient:edit_local", "patient:match_approve", "communication:view",
-  "communication:send", "sms:send_custom", "sms:send_template", "sms:retry", "sms:match_patient", "sms:template_manage", "sms:provider_manage", "call:handle", "call:recording_view", "report:view_operational", "report:view_marketing",
+  "communication:send", "ai:trace_view", "ai:manage", "sms:send_custom", "sms:send_template", "sms:retry", "sms:match_patient", "sms:template_manage", "sms:provider_manage", "call:handle", "call:recording_view", "report:view_operational", "report:view_marketing",
   "audit:view", "configuration:manage", "users:manage",
 ]
 

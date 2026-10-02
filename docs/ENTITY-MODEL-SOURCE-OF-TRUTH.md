@@ -76,6 +76,8 @@ Patient first-touch is immutable; each new case stores its own caseCreationTouch
 
 Existing Comment records now live in EntityStore alongside the other canonical entities. Activity selectors group correlated technical audit rows without changing Audit Log. Scoped medical projections explicitly allowlist basic fields when patient:view_medical is absent. Medical summary absent from the model is shown as missing, not synthesized. Session-only state still requires backend persistence, transactional matching and authorization before production.
 
+AI conversation control follows the same rule: `Interaction.aiTrace` is the immutable answer evidence, `ConversationControl` is current ownership/override, `BotActivationSchedule` is timer history and `AiConversationPolicy` is versioned configuration. None of them duplicate Patient, Case, Task or Interaction. AI text remains communication and is never promoted to a Patient/medical fact. See [AI-GOVERNANCE-KB-TRACEABILITY.md](AI-GOVERNANCE-KB-TRACEABILITY.md).
+
 ## Unified Task → Queue / Calendar / workflow
 
 See [TASK-CALENDAR-WORKFLOW-SPEC.md](TASK-CALENDAR-WORKFLOW-SPEC.md). Task remains one canonical EntityStore entity; Calendar events are references/projections, not records or Task copies. Patient → Case → many Tasks remains unchanged. No Appointment entity exists in this prototype: the slot picker remains an emulation, and Task is never a visit. Stage transitions validate then batch stage/task updates and reuse active workflowRuleId + caseId. Production requires real transactions/outbox.
