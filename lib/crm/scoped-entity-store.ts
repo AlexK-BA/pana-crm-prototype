@@ -4,6 +4,7 @@ import { useMemo, useRef } from "react"
 import { useEntityStore } from "./entity-store"
 import { useAuthorization } from "./authorization-context"
 import { patientWithinMatchingScope, type MatchingAccess } from "./patient-matching-service"
+import { CLINICS } from "./catalog"
 import { AccessCommandError } from "./permissions"
 import { isSmsMessage } from "./sms-service"
 import { useRole } from "./role-context"
@@ -17,10 +18,11 @@ import { useUserDirectory } from "./user-directory"
 export function useScopedEntityStore() {
   const store = useEntityStore()
   const { role } = useRole()
-  const { currentUser } = useUserDirectory()
+  const { currentUser, users } = useUserDirectory()
   const { hasPermission } = useAuthorization()
   const matchingAccessRef = useRef<MatchingAccess>({ actorId: currentUser.id, active: currentUser.status === "active", globalScope: role === "admin" || role === "team_leader", clinicIds: currentUser.clinicIds, hasPermission })
   matchingAccessRef.current = { actorId: currentUser.id, active: currentUser.status === "active", globalScope: role === "admin" || role === "team_leader", clinicIds: currentUser.clinicIds, hasPermission }
+  Object.assign(matchingAccessRef.current, { actorRole: role, assignableUserScopes: Object.fromEntries(users.filter(user=>user.status==="active").map(user=>[user.id,user.roles.includes("admin")||user.roles.includes("team_leader")?CLINICS.map(clinic=>clinic.id):user.clinicIds])), assignableUserIds: users.filter(user => user.status === "active" && (role === "admin" || role === "team_leader" || user.clinicIds.some(id => currentUser.clinicIds.includes(id)))).map(user=>user.id) })
 
   return useMemo(() => {
     const mayTriageUnassigned = role === "operator" || role === "patient_care" || role === "team_leader" || role === "admin"
@@ -65,6 +67,15 @@ export function useScopedEntityStore() {
         candidates: canReview ? item.candidates.filter(candidate => matchingPatientIds.has(candidate.candidatePatientId)) : [],
         candidatePatientId: canReview && item.candidatePatientId && matchingPatientIds.has(item.candidatePatientId) ? item.candidatePatientId : undefined,
         reason: canReview ? item.reason : "Powiązanie pacjenta wymaga bezpiecznej weryfikacji. Sprawa nadal pozostaje dostępna do pracy." })),
+      bookAppointment: (input:Parameters<typeof store.bookAppointment>[0]) => store.bookAppointment(input,matchingAccessRef.current),
+      changeTask: (id:string,input:Parameters<typeof store.changeTask>[1]) => store.changeTask(id,input,matchingAccessRef.current),
+      completeTask: (id:string,outcome:Parameters<typeof store.completeTask>[1]) => store.completeTask(id,outcome,{access:matchingAccessRef.current}),
+      reopenTask: (id:string,reason?:string) => store.reopenTask(id,matchingAccessRef.current,reason),
+      skipTask: (id:string,reason:string) => store.skipTask(id,reason,matchingAccessRef.current),
+      rescheduleTask: (id:string,dueAt:string,reason?:string) => store.rescheduleTask(id,dueAt,reason,{access:matchingAccessRef.current}),
+      assignTask: (id:string,ownerId:string,_actorId:string,reason?:string) => store.assignTask(id,ownerId,matchingAccessRef.current.actorId,matchingAccessRef.current,reason),
+      setPriority: (id:string,priority:Parameters<typeof store.setPriority>[1],_actorId:string,reason?:string) => store.setPriority(id,priority,matchingAccessRef.current.actorId,matchingAccessRef.current,reason),
+      moveCase: (id:string,status:string,_actorId:string,options?:Parameters<typeof store.moveCase>[3]) => store.moveCase(id,status,matchingAccessRef.current.actorId,options,matchingAccessRef.current),
       createPatientCase: (input: Parameters<typeof store.createPatientCase>[0]) => store.createPatientCase(input, matchingAccessRef.current),
       createPatientTask: (input: Parameters<typeof store.createPatientTask>[0]) => store.createPatientTask(input, matchingAccessRef.current),
       completePatientTask: (id: string) => store.completePatientTask(id, matchingAccessRef.current),
@@ -137,5 +148,5 @@ export function useScopedEntityStore() {
       broadcasts: store.broadcasts.filter((item) => hasGlobalScope || !item.clinicId || currentUser.clinicIds.includes(item.clinicId)),
       currentUser,
     }
-  }, [currentUser, hasPermission, role, store])
+  }, [currentUser, users, hasPermission, role, store])
 }

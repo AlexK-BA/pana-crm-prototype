@@ -58,11 +58,11 @@ test('new case validates clinic, contact ownership/channel and workflow before m
 })
 
 test('new task stays in its case; call-required completion cannot bypass disposition/wrap-up', () => {
-  const h = create(); const task = h.store.createPatientTask({ caseId: 'c2', title: 'Call required', dueAt: new Date(now + 86400000).toISOString(), priority: 'P1', requiresCall: true }, access()); h.render()
+  const h = create(); const task = h.store.createPatientTask({ caseId: 'c2', title: 'Call required', description: 'Requires logged disposition', dueAt: new Date(now + 86400000).toISOString(), priority: 'P1', requiresCall: true }, access()); h.render()
   assert.equal(task.caseId, 'c2'); assert.equal(task.patientId, 'p1'); assert.equal(task.ownerId, 'usr-canonical')
   rejects(h, () => h.store.completePatientTask(task.id, access()))
   assert.equal(h.store.tasks.find(item => item.id === task.id).status, 'planned')
-  const simple = h.store.createPatientTask({ caseId: 'c1', title: 'Operational follow-up', dueAt: new Date(now).toISOString(), priority: 'P2' }, access()); h.render()
+  const simple = h.store.createPatientTask({ caseId: 'c1', title: 'Operational follow-up', description: 'Follow up', dueAt: new Date(Date.now()+86400000).toISOString(), priority: 'P2' }, access()); h.render()
   h.store.completePatientTask(simple.id, access()); h.render(); assert.equal(h.store.tasks.find(item => item.id === simple.id).status, 'completed')
 })
 

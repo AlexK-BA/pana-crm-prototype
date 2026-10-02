@@ -1,186 +1,32 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, CalendarClock, AlertTriangle } from "lucide-react"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
-import { getClinicTone } from "@/lib/crm/catalog"
-import { iso } from "@/lib/crm/entity-data"
-import { cn } from "@/lib/utils"
+import { useAuthorization } from "@/lib/crm/authorization-context"
+import { useUserDirectory } from "@/lib/crm/user-directory"
+import { effectiveStatus, selectTaskCalendar, isActive, isOverdue, taskType } from "@/lib/crm/entity-queue"
+import { formatDateTime } from "@/lib/crm/format"
+import { getClinic, getClinicTone } from "@/lib/crm/catalog"
+import { TaskActions } from "./task-actions"
 
-const DAY_MS = 1000 * 60 * 60 * 24
-const DAY_LABELS = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz"]
-
-/** Fixed demo "today" (matches the seeded dataset's reference instant) so the
- * initial calendar render is identical on the server and the client. */
-const TODAY = new Date(iso(0))
-
-function startOfWeekUtc(d: Date) {
-  const day = d.getUTCDay() // 0 = Sunday
-  const diff = day === 0 ? 6 : day - 1 // days since Monday
-  const start = new Date(d)
-  start.setUTCDate(d.getUTCDate() - diff)
-  start.setUTCHours(0, 0, 0, 0)
-  return start
-}
-
-function sameUtcDay(a: Date, b: Date) {
-  return a.getUTCFullYear() === b.getUTCFullYear() && a.getUTCMonth() === b.getUTCMonth() && a.getUTCDate() === b.getUTCDate()
-}
-
-export function TaskCalendar() {
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [dragTaskId, setDragTaskId] = useState<string | null>(null)
-  const [dragOverDay, setDragOverDay] = useState<number | null>(null)
-  const { tasks, cases, rescheduleTask } = useScopedEntityStore()
-  const { openCase } = useCasePanel()
-
-  const weekStart = useMemo(() => {
-    const base = startOfWeekUtc(TODAY)
-    base.setUTCDate(base.getUTCDate() + weekOffset * 7)
-    return base
-  }, [weekOffset])
-
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => new Date(weekStart.getTime() + i * DAY_MS)), [weekStart])
-
-  const dated = tasks.filter((t) => t.dueAt && t.status !== "completed" && t.status !== "cancelled")
-  const undatedCount = tasks.filter((t) => !t.dueAt && t.status !== "completed" && t.status !== "cancelled").length
-
-  const tasksByDay = useMemo(() => {
-    return days.map((day) => {
-      const dayEnd = new Date(day.getTime() + DAY_MS)
-      return dated
-        .filter((t) => {
-          const due = new Date(t.dueAt!)
-          return due >= day && due < dayEnd
-        })
-        .sort((a, b) => new Date(a.dueAt!).getTime() - new Date(b.dueAt!).getTime())
-    })
-  }, [days, dated])
-
-  const rangeLabel = `${days[0].toLocaleDateString("en-US", { timeZone: "UTC", day: "2-digit", month: "short" })} – ${days[6].toLocaleDateString("en-US", { timeZone: "UTC", day: "2-digit", month: "short" })}`
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-3 md:px-6">
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset((v) => v - 1)}>
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setWeekOffset(0)}>
-            Dzisiaj
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset((v) => v + 1)}>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-        <span className="text-sm font-medium text-foreground">{rangeLabel}</span>
-        {undatedCount > 0 && (
-          <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CalendarClock className="h-3.5 w-3.5" />
-            {undatedCount} zadań bez terminu
-          </span>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-auto p-3 md:p-4">
-        <div className="grid min-w-[980px] grid-cols-7 gap-2">
-          {days.map((day, i) => {
-            const isToday = sameUtcDay(day, TODAY)
-            const isDragOver = dragOverDay === i
-            return (
-              <div
-                key={i}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  if (dragOverDay !== i) setDragOverDay(i)
-                }}
-                onDragLeave={() => setDragOverDay((v) => (v === i ? null : v))}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  setDragOverDay(null)
-                  if (!dragTaskId) return
-                  const task = tasks.find((t) => t.id === dragTaskId)
-                  if (!task) return
-                  const original = task.dueAt ? new Date(task.dueAt) : new Date(TODAY)
-                  const newDue = new Date(day.getTime())
-                  newDue.setUTCHours(original.getUTCHours(), original.getUTCMinutes(), 0, 0)
-                  rescheduleTask(dragTaskId, newDue.toISOString())
-                  setDragTaskId(null)
-                }}
-                className={cn(
-                  "flex flex-col rounded-lg border border-border bg-muted/30 transition-colors",
-                  isDragOver && "border-primary bg-primary/5",
-                )}
-              >
-                <div
-                  className={cn(
-                    "flex items-center justify-between rounded-t-lg border-b border-border px-2.5 py-2",
-                    isToday && "bg-primary/10",
-                  )}
-                >
-                  <span className="text-xs font-medium text-muted-foreground">{DAY_LABELS[i]}</span>
-                  <span className={cn("text-xs font-semibold text-foreground", isToday && "text-primary")}>
-                    {day.toLocaleDateString("en-US", { timeZone: "UTC", day: "2-digit", month: "short" })}
-                  </span>
-                </div>
-                <div className="flex-1 space-y-1.5 p-1.5">
-                  {tasksByDay[i].length === 0 && <div className="px-1.5 py-2 text-center text-[11px] text-muted-foreground">—</div>}
-                  {tasksByDay[i].map((task) => {
-                    const item = buildQueueItem(task, TODAY.getTime(), cases)
-                    if (!item) return null
-                    const time = new Date(task.dueAt!).toLocaleTimeString("en-US", {
-                      timeZone: "UTC",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                    const clinicId = cases.find((c) => c.id === task.caseId)?.clinicId
-                    const tone = getClinicTone(clinicId)
-                    return (
-                      <button
-                        key={task.id}
-                        draggable
-                        onDragStart={(e) => {
-                          setDragTaskId(task.id)
-                          e.dataTransfer.effectAllowed = "move"
-                        }}
-                        onDragEnd={() => {
-                          setDragTaskId(null)
-                          setDragOverDay(null)
-                        }}
-                        onClick={() => openCase(task.caseId)}
-                        className={cn(
-                          "relative flex w-full cursor-grab flex-col overflow-hidden rounded-md border bg-card px-2 py-1.5 pl-2.5 text-left shadow-sm transition-colors hover:bg-accent active:cursor-grabbing",
-                          item.overdue ? "border-destructive/40 bg-destructive/5" : "border-border",
-                        )}
-                      >
-                        <span
-                          className={cn("absolute left-0 top-0 h-full w-1", item.overdue ? "bg-destructive" : tone.bar)}
-                          aria-hidden="true"
-                        />
-                        <div className="flex items-center gap-1.5">
-                          <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", PRIORITY_TONE[task.priority])} />
-                          <span className="text-[11px] font-medium text-muted-foreground">{time}</span>
-                          {item.overdue && (
-                            <span className="ml-auto flex items-center gap-0.5 text-[10px] font-semibold text-destructive">
-                              <AlertTriangle className="h-2.5 w-2.5" />
-                              Przeterminowane
-                            </span>
-                          )}
-                        </div>
-                        <span className="mt-0.5 truncate text-xs font-medium text-foreground">{item.patientName}</span>
-                        <span className="truncate text-[11px] text-muted-foreground">{task.title}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
+export function TaskCalendar(){
+  const store=useScopedEntityStore(),{openCase}=useCasePanel(),{hasPermission}=useAuthorization(),{users}=useUserDirectory()
+  const [now,setNow]=useState(0),[offset,setOffset]=useState(0),[drag,setDrag]=useState<string|null>(null),[pending,setPending]=useState<{id:string;due:string}|null>(null),[selected,setSelected]=useState<string|null>(null),[history,setHistory]=useState(false)
+  useEffect(()=>{setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(timer)},[])
+  if(!hasPermission("task:view"))return <p role="alert">Brak dostępu do kalendarza.</p>
+  if(!now)return <div role="status" className="h-64 animate-pulse rounded bg-muted">Ładowanie kalendarza…</div>
+  const start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7)+offset*7)
+  const days=Array.from({length:7},(_,index)=>{const date=new Date(start);date.setDate(date.getDate()+index);return date})
+  const projection=selectTaskCalendar(store.tasks.filter(task=>hasPermission("task:assign")||!task.ownerId||task.ownerId===store.currentUser.id)),dated=projection.dated.filter(task=>history||isActive(task)),detail=store.tasks.find(task=>task.id===selected),reschedule=store.tasks.find(task=>task.id===pending?.id)
+  return <div className="space-y-4"><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>setOffset(offset-1)}>←</Button><Button variant="outline" onClick={()=>setOffset(0)}>Dzisiaj</Button><Button variant="outline" onClick={()=>setOffset(offset+1)}>→</Button><span>{days[0].toLocaleDateString()} – {days[6].toLocaleDateString()}</span><label className="flex gap-2"><input type="checkbox" checked={history} onChange={event=>setHistory(event.target.checked)}/>Pokaż historię</label></div>
+    <p className="text-xs text-muted-foreground">Zadania ≠ wizyty. Czas lokalny przeglądarki; brak Appointment w modelu. Przeniesienie zadania nie zmienia daty wizyty. RequiresCall przenosisz przez wrap-up.</p>
+    <div className="overflow-x-auto"><div className="grid min-w-[900px] grid-cols-7 gap-2">{days.map(day=><section key={day.toISOString()} className="min-h-48 rounded border p-2" onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();const task=store.tasks.find(task=>task.id===drag);if(!task)return;const original=new Date(task.dueAt!),due=new Date(day);due.setHours(original.getHours(),original.getMinutes(),0,0);setPending({id:task.id,due:due.toISOString()});setDrag(null)}}><h2 className="mb-2 text-sm">{day.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})}</h2>{dated.filter(task=>new Date(task.dueAt!).toDateString()===day.toDateString()).map(task=>{const item=store.cases.find(item=>item.id===task.caseId),patient=store.patients.find(patient=>patient.id===item?.patientId);return <button key={task.id} className={`mb-2 w-full space-y-1 rounded border p-2 text-left text-xs ${isOverdue(task,now)?"border-destructive bg-destructive/5":""}`} draggable={isActive(task)&&!task.requiresCall&&hasPermission("task:work")} onDragStart={()=>setDrag(task.id)} onDragEnd={()=>setDrag(null)} onClick={()=>setSelected(task.id)}><strong className="block">{task.title}</strong><span className="block">{patient?`${patient.firstName} ${patient.lastName}`:"Kontakt"}</span><span className={`block ${getClinicTone(item?.clinicId).chip}`}>{getClinic(item?.clinicId)?.name} · {taskType(task)}</span><span className="block">{new Date(task.dueAt!).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})} · {task.priority} · {effectiveStatus(task,now)}</span><span className="block">{users.find(user=>user.id===task.ownerId)?.name??"Brak właściciela"} · {task.requiresCall?"requiresCall":""}</span></button>})}{!dated.some(task=>new Date(task.dueAt!).toDateString()===day.toDateString())&&<p className="text-xs text-muted-foreground">Brak zadań</p>}</section>)}</div></div>
+    <section className="rounded border p-3"><h2>Przeterminowane · {projection.overdue.length}</h2><p className="text-xs text-muted-foreground">Zachowują pierwotną datę; nie są automatycznie przenoszone na dziś.</p>{projection.overdue.map(task=><Button key={task.id} variant="outline" size="sm" onClick={()=>setSelected(task.id)}>{task.title} · {formatDateTime(task.dueAt!,Intl.DateTimeFormat().resolvedOptions().timeZone)}</Button>)}</section>
+    <section className="rounded border p-3"><h2>Bez terminu</h2>{projection.undated.filter(task=>history||isActive(task)).map(task=><Button key={task.id} variant="outline" size="sm" onClick={()=>setSelected(task.id)}>{task.title}</Button>)}{!projection.undated.length&&<p className="text-sm">Brak zadań bez terminu.</p>}</section>
+    {detail&&<section className="space-y-2 rounded border p-3"><div className="flex gap-2"><strong>{detail.title}</strong><Button size="sm" variant="ghost" onClick={()=>setSelected(null)}>Zamknij</Button></div><p>{detail.description}</p><Button size="sm" variant="outline" onClick={()=>openCase(detail.caseId)}>{detail.caseId}</Button>{detail.patientId&&<Link className="ml-2 underline" href={`/patients/${detail.patientId}`}>Patient 360</Link>}<TaskActions key={detail.id} task={detail}/></section>}
+    {reschedule&&pending&&<TaskActions key={`${pending.id}:${pending.due}`} task={reschedule} proposedDue={pending.due} onClose={()=>setPending(null)}/>}
+  </div>
 }

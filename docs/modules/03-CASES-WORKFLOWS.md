@@ -61,3 +61,7 @@ This demonstrates transition behavior without freezing stakeholder-dependent val
 - Daniel/Pasha confirmation of all three workflows, stages and automation rules;
 - whether existing cases migrate to a new workflow version or finish on the previous one;
 - conflict behavior when an external medical event suggests another stage.
+
+## Task/Calendar implementation extension
+
+[TASK-CALENDAR-WORKFLOW-SPEC.md](../TASK-CALENDAR-WORKFLOW-SPEC.md) records the compatible automatic/suggested Task matrix, explicit date policies, preview/terminal resolution and guarded atomic prototype transition. Active workflow Task deduplication also handles consecutive retained commands. CRM owns state and future n8n only executes side effects. Exact SLA/entry/outcome policies remain subject to Daniel's approval.

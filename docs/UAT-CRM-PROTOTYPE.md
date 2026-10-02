@@ -2,8 +2,8 @@
 
 ## Test environment
 
-- Branch under test: `codex/patient-360-workspace` (base: `main`, `0201bb28fde9d226f4bdc87a96caf657135aa4cb`).
-- Preview: use the deployment attached to the Patient 360 PR when available; the prior foundation preview is not evidence for this branch.
+- Branch under test: `codex/task-calendar-workflow` (base: `main`, `022e10371a9750320b6d94662ddfbb315c006598`).
+- Preview: use the deployment attached to the Task/Calendar/Workflow PR when available; the prior foundation preview is not evidence for this branch.
 - Test data is reset after a page reload.
 - Run the scenarios in the order below when testing state changes in one session.
 
@@ -489,7 +489,7 @@ Validation distinction: command/unit checks execute real provider/service source
 
 ## Patient 360 acceptance scenarios
 
-Use the Patient 360 PR preview and a fresh session. Automated validation: `node --test tests/*.test.cjs` (48 passing), `pnpm exec tsc --noEmit`, `pnpm build`, `git diff --check`. Browser UAT was not executed in this implementation environment: Chromium and its Playwright cache are absent; no download was attempted. The following are reproducible acceptance scenarios, not a claim of executed browser testing.
+Use the current branch preview and a fresh session. Historical Patient 360 PR #13 validation: `node --test tests/*.test.cjs` (48 passing), `pnpm exec tsc --noEmit`, `pnpm build`, `git diff --check`. Browser UAT was not executed in this implementation environment: Chromium and its Playwright cache are absent; no download was attempted. The following are reproducible acceptance scenarios, not a claim of executed browser testing.
 
 | Scenario | Steps and expected result |
 |---|---|
@@ -510,3 +510,38 @@ Use the Patient 360 PR preview and a fresh session. Automated validation: `node 
 | Layout/loading | Check initial skeleton and narrow navigation, long IDs/tags, dialogs/drawer and communication list/detail back navigation. No overflow or inaccessible actions. |
 
 Existing RBAC/User Management, Patient Matching, SMS and call lifecycle tests remain in the full suite. The command harness uses the real providers/services with mocked React hooks; it verifies state transitions and guards, not browser rendering or actual provider/backend integration. Reload discards session-only changes.
+
+## Task / Calendar / workflow acceptance
+
+Branch: codex/task-calendar-workflow, base main 022e10371a9750320b6d94662ddfbb315c006598. Browser UAT is deferred at the user's request until this functional block is complete. These scenarios are planned manual checks, not a claim of executed browser tests. Automated command/provider regressions cover the corresponding invariants.
+
+| ID | Scenario / expected result |
+|---|---|
+| TC-01 | Move Case to qualification/waiting through preview. Stage and required Task appear together; repeat/double click produces no duplicate active rule task. |
+| TC-02 | Move to call_later with explicit action/deadline; call creates requiresCall. Re-enter with an active callback: same workflow task reused. Missing/invalid deadline rejects without mutation. |
+| TC-03 | Move to terminal with active work. Blocked until work resolves or supervisor explicitly cancels with reason; terminal creates no Task. |
+| TC-04 | Operator tries skip-automatic/admin override; denied. Supervisor with reason can skip, and Case remains in “Brak następnego działania” control queue. |
+| TC-05 | Scheduled/recall/control stages without Appointment/clinical date show controlled prompt; manual deadline is required and no date/visit is fabricated. |
+| TC-06 | Create custom task from Case/Patient/Queue. Title/description/due/type are validated; Patient/clinic inherit Case. Comment is not a Case Comment, message or audit record. |
+| TC-07 | Compare overdue mandatory, overdue P4 and future P0/P1. Shared queue and Kanban rank overdue first; changing priority never moves business stage. |
+| TC-08 | Calendar displays the same Task IDs/deadlines as Queue. Undated list is accessible; overdue stays on actual original date plus overdue list; history toggle retains terminal records. |
+| TC-09 | Drag non-call task or use reschedule dialog. Reason is mandatory; originalDueAt preserved, counter increments, queue order/calendar change together. Invalid/impossible/past dates need rejection/explicit consent. |
+| TC-10 | Replace task with reason. Old remains cancelled, new links previousTaskId, both share correlation. Additional create leaves both active; closed edits require reopen. |
+| TC-11 | Reassign/reprioritize with supervisor. Eligible active owner and scope checked; actorRole/reason/before/after logged. Operator/foreign-clinic manager/direct calls are denied without mutation/audit. |
+| TC-12 | Create send_treatment_plan through existing button/forms/suggestion. Real plan ID/version captured; absence/medical denial reject. Creation stays open. Record sent explicitly; failed/no_valid_channel requires next Task or explicit reasoned cancellation. Phone wrap-up does not claim a plan was sent. |
+| TC-13 | Try manual complete/reschedule of requiresCall even as Admin. Blocked; real call wrap-up retry preserves ID/deadline history/counter. Supervisor cancel/replace has reason. Booking a slot alone leaves call task open. |
+| TC-14 | Handoff starts pending with receiver. Sender cannot accept another receiver's task; receiving user completion records accepted. |
+| TC-15 | Audit Log includes Task/stage actions and canonical actor. Analytics selector counts correlated overrides, reschedules/replacements/cancellations/source and actor activity without adding Reports. |
+| TC-16 | Regression: Patient Matching/first-touch/caseCreationTouch, Patient 360/comments, shared incoming calls, outgoing/wrap-up, SMS failed/retry and RBAC remain functional. |
+| TC-17 | Check loading, empty/no tasks today, no due, no owner, task not found, access/scope denial, transition blocked, missing plan/Appointment and responsive dialogs/calendar navigation. |
+
+Run git diff --check, pnpm exec tsc --noEmit, pnpm build and node --test tests/*.test.cjs. The command harness uses real EntityStore/CallContext/services with mocked hooks: it is not visual browser, persistence or real-provider validation. Appointment preservation is not applicable because no Appointment entity exists. Session reload resets changes.
+
+### Task / Calendar / Workflow validation — 2026-10-02
+
+Base: `022e10371a9750320b6d94662ddfbb315c006598`; branch: `codex/task-calendar-workflow`.
+- `node --test tests/*.test.cjs`: 89 tests passed, 0 failed (including 41 task/workflow tests and existing Patient 360, matching, SMS and RBAC regression coverage).
+- `pnpm exec tsc --noEmit`: passed.
+- `pnpm build`: passed.
+- `git diff --check`: passed.
+- Browser UAT deferred at the user's request; scripted command tests do not validate visual layout. No Chromium download attempted.

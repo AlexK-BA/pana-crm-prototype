@@ -6,12 +6,13 @@ import { Phone, MessageSquare, StickyNote, Share2, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import type { EngagementCase, Task } from "@/lib/crm/entities"
-import { getPatient, getIdentity, getTasksForCase } from "@/lib/crm/entity-data"
+import { useUserDirectory } from "@/lib/crm/user-directory"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getClinic, getClinicTone, getProcedure, getDoctor } from "@/lib/crm/catalog"
 import { getOperator, PRIORITY_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
 import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
-import { getNextTaskForCase } from "@/lib/crm/entity-queue"
+import { getCaseWorkState, getNextTaskForCase } from "@/lib/crm/entity-queue"
 
 const CHANNEL_ICON: Record<string, typeof Phone> = {
   phone: Phone,
@@ -57,15 +58,18 @@ export function EntityCaseCard({
   onDragStart?: (e: DragEvent<HTMLButtonElement>) => void
   onClick?: () => void
 }) {
-  const patient = getPatient(engagementCase.patientId)
-  const identity = getIdentity(engagementCase.contactIdentityId)
+  const store=useScopedEntityStore()
+  const {users}=useUserDirectory()
+  const patient = store.patients.find(item=>item.id===engagementCase.patientId)
+  const identity = store.identities.find(item=>item.id===engagementCase.contactIdentityId)
   const clinic = getClinic(engagementCase.clinicId)
   const tone = getClinicTone(engagementCase.clinicId)
   const procedure = getProcedure(engagementCase.serviceInterest)
   const doctor = getDoctor(engagementCase.doctorId)
-  const caseTasks = tasks ?? getTasksForCase(engagementCase.id)
+  const caseTasks = tasks ?? store.tasks
+  const work=getCaseWorkState(engagementCase,caseTasks)
   const openTask = getNextTaskForCase(caseTasks, engagementCase.id)
-  const owner = openTask ? getOperator(openTask.ownerId) : undefined
+  const owner = users.find(user=>user.id===openTask?.ownerId)
   const overdue = useIsOverdue(openTask?.dueAt)
   const ChannelIcon = CHANNEL_ICON[identity?.channel ?? ""] ?? StickyNote
 
@@ -93,6 +97,8 @@ export function EntityCaseCard({
           )}
         </div>
 
+        <p className="text-xs text-muted-foreground">Aktywne zadania: {work.activeTaskCount} · pracuje: {users.find(user=>user.id===openTask?.currentWorkerId)?.name??"—"} · {openTask?.requiresCall?"Wymaga połączenia":""} · poprzednie: {work.previousCompletedTask?.title??"Brak"}</p>
+        {work.missingNextAction&&<p className="text-xs font-medium text-amber-700">Brak następnego działania</p>}
         <p className="truncate text-xs text-muted-foreground">
           {clinic ? (
             <span className={cn("mr-1 inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium", tone.chip)}>

@@ -90,3 +90,11 @@ A feature is considered portable when a new clinic can enable it by configuratio
 Patient 360 consumes canonical scoped projections, existing clinic/procedure catalogs and workflow rules. Its commands do not depend on a PaNa-specific provider or Medical CRM implementation. New cases use configured clinic/service choices and retain separate attribution. Existing SMS/telephony adapters remain intact.
 
 Remaining hardcode: clinic/procedure catalogs and initial funnel stages (leads:new, deals:scheduled, patients:new_patient), fixed channel list including TikTok Potential, and Polish workspace labels. No medical summary field exists; no synthetic replacement is introduced. These choices need tenant catalogs, workflow entry configuration, channel activation and translation resources for another clinic. Medical CRM contract, credentials, persistence and server authorization belong to future backend adapters, not frontend mock data. Patient 360 itself adds no credentials or external API calls.
+
+## Task / Calendar / workflow register
+
+The existing workflow-rules.ts catalog now describes automatic/suggested task types, due policy, mandatory next work, allowed outcome intent, enabled/configurability markers and a future automationWorkflowKey. Numeric SLA defaults are calendar time and require Daniel's approval; settings exposes the read-only matrix. Appointment/clinical policies require explicit dates; no provider or appointment is invented.
+
+Remaining hardcode: stage IDs/entry mappings, supported task/channel enums, Polish task UI labels, static responsible-team IDs and clinic/procedure catalog. Adapt another clinic through catalog/workflow policy and translation configuration rather than a separate Task model. Production dependencies: clinic IANA timezone, working days/hours/holidays, pause rules, Appointment/recommendation linkage, eligibility/team routing and backend authorization/persistence.
+
+CRM owns transitions/tasks/deadlines/audit. Future n8n may execute signed/idempotent external side effects only; this PR adds neither a workflow builder nor an n8n connection. Backend event envelope/outbox/retry/dead-letter/callback contracts are documented in TASK-CALENDAR-WORKFLOW-SPEC.md.

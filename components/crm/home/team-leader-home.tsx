@@ -13,6 +13,7 @@ import { ChannelIcon } from "@/components/crm/channel-icon"
 import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { formatRelative } from "@/lib/crm/format"
 import { useCasePanel } from "@/lib/crm/panel-context"
+import { TaskActions } from "../task-actions"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getQueue, getQueueCounters } from "@/lib/crm/entity-queue"
 import { buildQueueItem, PRIORITY_TONE, type QueueItem } from "@/lib/crm/entity-selectors"
@@ -37,7 +38,6 @@ const PRIORITIES: TaskPriority[] = ["P0", "P1", "P2", "P3", "P4"]
 export function TeamLeaderHome() {
   const { openCase } = useCasePanel()
   const { tasks, cases, interactions, assignTask } = useScopedEntityStore()
-  const [reassigned, setReassigned] = useState<Record<string, string>>({})
 
   const [now, setNow] = useState(0)
   useEffect(() => {
@@ -100,7 +100,7 @@ export function TeamLeaderHome() {
           </div>
           <div className="divide-y divide-border">
             {overdueItems.slice(0, 8).map((item) => {
-              const assignee = reassigned[item.task.id] ?? item.ownerName
+              const assignee = item.ownerName
               return (
                 <div key={item.task.id} className="flex items-center gap-3 px-4 py-3">
                   <span className={cn("h-2 w-2 shrink-0 rounded-full", PRIORITY_TONE[item.task.priority])} />
@@ -112,28 +112,7 @@ export function TeamLeaderHome() {
                       </p>
                     </div>
                   </button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="outline" size="sm" className="shrink-0 text-xs">
-                          {assignee}
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end">
-                      {INITIAL_USERS.map((op) => (
-                        <DropdownMenuItem
-                          key={op.id}
-                          onClick={() => {
-                            setReassigned((r) => ({ ...r, [item.task.id]: op.name }))
-                            assignTask(item.task.id, op.id, "usr-dw")
-                          }}
-                        >
-                          {op.name}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <TaskActions task={item.task}/>
                 </div>
               )
             })}
