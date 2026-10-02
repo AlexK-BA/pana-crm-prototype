@@ -29,6 +29,12 @@ The build is accepted when all critical scenarios (`P0`) pass and no action caus
 | UAT-14 | Clinic data scope | P0 |
 | UAT-15 | Provider-neutral SMS history and sending | P0 |
 | UAT-16 | Configurable role permission bundles | P0 |
+| UAT-17 | Chat and SMS delivery states | P1 |
+| UAT-18 | Canonical entities and user identifiers | P0 |
+| UAT-19 | AIHub Admin activity and user lifecycle | P0 |
+| UAT-20 | Telephony permission and call actor | P0 |
+| UAT-21 | Case-workspace action permissions | P0 |
+| UAT-22 | Confirmed workflow transition | P0 |
 
 ## UAT-01 — role workspaces
 
@@ -370,6 +376,20 @@ Expected:
 
 **Expected:** changing the runtime matrix affects protected case actions consistently, not only sidebar navigation.
 
+## UAT-22 — confirmed workflow transition and automatic next action
+
+1. Open Board as a role with `case:move` and drag a case to another stage.
+2. Verify that the case does not move immediately and a transition confirmation appears.
+3. Verify that the dialog shows the previous and target stage and, when configured, the automatic task, priority and SLA.
+4. Move a lead to `Brak kontaktu / niezjawienie się` or `Zamknięte · nieskonwertowane` and verify that confirmation is blocked until a reason is entered.
+5. Confirm the transition and open the case Activity tab as AIHub Admin.
+6. Verify one status-change event contains before/after and the supplied reason.
+7. Verify the configured automatic task was created once and has its own correlated system audit event.
+8. Repeat entry into the same stage while its generated task is still active and verify no duplicate task is created.
+9. Remove `case:move` from a test role and verify cards can be opened but cannot be dragged.
+
+**Expected:** stage changes are intentional, attributable and explain their automatic consequences before execution; required closure reasons and runtime permissions cannot be bypassed through the board UI.
+
 ## Known prototype boundaries
 
 - Telephony, SMS and Medical CRM are simulated; no real external API call is made.
@@ -379,5 +399,6 @@ Expected:
 - Role permission changes are session-local; production requires persistent versioned roles and backend enforcement.
 - Shared incoming-call ownership demonstrates business behavior in one browser by switching roles; production requires backend realtime events and an atomic claim operation.
 - Automatic workflow tasks for every funnel stage are not included until funnel stages and rules are confirmed by Daniel and the clinic team.
+- The transition confirmation uses current prototype workflow defaults; final stage names, allowed transition graph, closure-reason catalog and SLA values still require Daniel/Pasha approval.
 - Prototype RBAC blocks client routes and actions demonstrationally; production authorization must be repeated by Frappe/FastAPI and the identity provider.
 - Password reset, invitation and session revocation are emulated; the production identity-provider API is not connected.
