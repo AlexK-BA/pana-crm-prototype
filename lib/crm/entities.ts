@@ -387,6 +387,42 @@ export interface AiConversationPolicy {
   updatedBy: string
 }
 
+export type AiComplianceStatus = "draft" | "published" | "retired"
+
+export interface AiComplianceLocaleContent {
+  language: string
+  aiDisclosure: string
+  purpose: string
+  dataCategories: string
+  specialCategoryData: string
+  legalBasisSummary: string
+  retentionStatement: string
+  processorAndTransferStatement: string
+  rightsStatement: string
+  humanContactStatement: string
+}
+
+/** Approved transparency/GDPR content. Runtime bot behaviour remains in AiConversationPolicy. */
+export interface AiComplianceConfiguration {
+  id: string
+  name: string
+  clinicId?: ClinicId
+  status: AiComplianceStatus
+  version: number
+  botPolicyId: string
+  botPolicyVersion: number
+  controllerName: string
+  privacyContact: string
+  privacyNoticeUrl: string
+  modelProviderStatement: string
+  locales: AiComplianceLocaleContent[]
+  approvalReference?: string
+  approvedBy?: string
+  publishedAt?: string
+  updatedAt: string
+  updatedBy: string
+}
+
 export type BotActivationStatus = "pending" | "cancelled" | "activated" | "expired"
 export interface BotActivationSchedule {
   id: string
