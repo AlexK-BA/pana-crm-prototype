@@ -8,7 +8,7 @@
  * requirement. Used standalone in Inbox, inside the case drawer, and
  * aggregated across all of a patient's cases in the Patient Profile.
  */
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { AlertTriangle, Check, CheckCheck, CircleAlert, Clock3, Loader2, Phone, MessageSquare, StickyNote, Send, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -18,7 +18,10 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import type { ContactChannel, InteractionType, SmsMessage } from "@/lib/crm/entities"
 import { formatDateTime } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
-import { calculateSmsParts, getSmsStatusLabel, isSmsMessage, selectSmsProvider } from "@/lib/crm/sms-service"
+import { calculateSmsParts, getDefaultSmsText, getSmsStatusLabel, isSmsMessage, selectSmsProvider } from "@/lib/crm/sms-service"
+import { useCasePanel } from "@/lib/crm/panel-context"
+import { getNextTaskForCase } from "@/lib/crm/entity-queue"
+import { useUserDirectory } from "@/lib/crm/user-directory"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 
 const SEND_CHANNELS: { value: ContactChannel; label: string; potential?: boolean }[] = [
@@ -86,6 +89,8 @@ export function ConversationThread({
   authorId,
   className,
   emptyLabel = "Brak wiadomości w tej rozmowie.",
+  patientSmsHistory = false,
+  taskId,
 }: {
   /** All case ids whose messages should appear merged in this thread. */
   caseIds: string[]
@@ -95,11 +100,21 @@ export function ConversationThread({
   authorId?: string
   className?: string
   emptyLabel?: string
+  /** Patient-level SMS projection of the same interactions, with optional case binding. */
+  patientSmsHistory?: boolean
+  taskId?: string
 }) {
-  const { interactions, sendMessage, sendSms, markRead, cases, identities, smsProviderConfigurations } = useScopedEntityStore()
+  const { interactions, sendMessage, sendSms, retrySms, markRead, cases, patients, tasks, identities, smsProviderConfigurations, currentUser } = useScopedEntityStore()
   const { hasPermission } = useAuthorization()
   const [draft, setDraft] = useState("")
-  const [channel, setChannel] = useState<ContactChannel>("website")
+  const [channel, setChannel] = useState<ContactChannel>(patientSmsHistory ? "phone" : "website")
+  const [smsCaseId, setSmsCaseId] = useState("")
+  const [chosenTaskId, setChosenTaskId] = useState<string | undefined>(taskId)
+  const [recipientId, setRecipientId] = useState("")
+  const [sendError, setSendError] = useState("")
+  const toggleId = useId()
+  const { openCase } = useCasePanel()
+  const { users } = useUserDirectory()
   const [deliveryStatus, setDeliveryStatus] = useState<Record<string, "sending" | "sent" | "error">>({})
   /** Demo-only control (UAT requirement): delivery must be deterministic by
    * default (sending → sent). Failures are never randomized — they only
@@ -108,11 +123,29 @@ export function ConversationThread({
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoReplyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const deliveryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  const targetCaseId = primaryCaseId ?? caseIds[0]
+  const targetCaseId = patientSmsHistory ? smsCaseId || undefined : primaryCaseId ?? caseIds[0]
   const targetCase = cases.find((item) => item.id === targetCaseId)
-  const phoneIdentity = identities.find((item) => item.patientId === patientId && item.channel === "phone")
-    ?? identities.find((item) => item.id === targetCase?.contactIdentityId && item.channel === "phone")
-  const smsProvider = selectSmsProvider(smsProviderConfigurations, targetCase?.clinicId)
+  const targetPatientId = patientId ?? targetCase?.patientId
+  const patient = patients.find((item) => item.id === targetPatientId)
+  const phoneIdentities = identities.filter((item) => item.channel === "phone" &&
+    (targetPatientId ? item.patientId === targetPatientId : item.id === targetCase?.contactIdentityId))
+  const phoneIdentity = phoneIdentities.find((item) => item.id === recipientId)
+    ?? phoneIdentities.find((item) => item.isPrimary) ?? phoneIdentities[0]
+  const clinicId = targetCase?.clinicId ?? patient?.primaryClinicId
+  const smsProvider = selectSmsProvider(smsProviderConfigurations, clinicId)
+  const defaultSmsText = getDefaultSmsText(smsProviderConfigurations, clinicId)
+  const openTasks = tasks.filter((item) => item.caseId === targetCaseId && !["completed", "cancelled", "failed"].includes(item.status))
+  const nextTask = targetCaseId ? getNextTaskForCase(openTasks, targetCaseId) : undefined
+  const selectedTaskId = chosenTaskId === "" ? undefined : openTasks.find((item) => item.id === chosenTaskId)?.id ?? nextTask?.id
+  const composerContext = useRef("")
+  useEffect(() => {
+    const context = `${channel}/${targetCaseId ?? "patient"}/${targetPatientId ?? "contact"}`
+    if (context === composerContext.current) return
+    composerContext.current = context
+    if (channel === "phone") setDraft(defaultSmsText)
+    setChosenTaskId(taskId)
+    setSendError("")
+  }, [channel, targetCaseId, targetPatientId, defaultSmsText, taskId])
   const canSendMessage = hasPermission("communication:send")
   const canSendCustomSms = hasPermission("sms:send_custom")
 
@@ -136,7 +169,7 @@ export function ConversationThread({
       if (!failed) {
         if (autoReplyTimer.current) clearTimeout(autoReplyTimer.current)
         autoReplyTimer.current = setTimeout(() => {
-          sendMessage({ caseId: targetCaseId, patientId, text: pickAutoReply(sentText), type: interactionType, channel: sentChannel, direction: "incoming" })
+          sendMessage({ caseId: targetCaseId!, patientId, text: pickAutoReply(sentText), type: interactionType, channel: sentChannel, direction: "incoming" })
         }, 1500)
       }
     }, 600)
@@ -145,9 +178,11 @@ export function ConversationThread({
   const messages = useMemo(() => {
     const caseIdSet = new Set(caseIds)
     return interactions
-      .filter((i) => i.type !== "call" && caseIdSet.has(i.caseId))
+      .filter((i) => patientSmsHistory
+        ? i.type === "sms" && (i.patientId === targetPatientId || Boolean(i.caseId && caseIdSet.has(i.caseId)))
+        : i.type !== "call" && Boolean(i.caseId && caseIdSet.has(i.caseId)))
       .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
-  }, [interactions, caseIds])
+  }, [interactions, caseIds, patientSmsHistory, targetPatientId])
 
   useEffect(() => {
     if (targetCaseId) markRead(targetCaseId)
@@ -158,20 +193,18 @@ export function ConversationThread({
   }, [messages.length])
 
   function handleSend() {
-    if (!draft.trim() || !targetCaseId) return
+    if (!draft.trim() || !canSendMessage) return
     const sentText = draft.trim()
     const interactionType = CHANNEL_TYPE[channel] ?? "chat"
     if (channel === "phone") {
-      if (!phoneIdentity) return
-      sendSms({
-        caseId: targetCaseId,
-        patientId,
-        clinicId: targetCase?.clinicId,
-        recipient: phoneIdentity.value,
-        text: sentText,
-        authorId,
-      })
+      if (!canSendCustomSms || !phoneIdentity || (!targetCaseId && !targetPatientId)) return
+      try {
+        sendSms({ caseId: targetCaseId, patientId: targetPatientId, taskId: selectedTaskId, clinicId,
+          recipient: phoneIdentity.value, text: sentText, authorId: currentUser.id, simulateError })
+        setSendError("")
+      } catch (error) { setSendError(error instanceof Error ? error.message : "Błąd SMS."); return }
     } else {
+      if (!targetCaseId) return
       const sent = sendMessage({ caseId: targetCaseId, patientId, text: sentText, type: interactionType, channel, direction: "outgoing", authorId })
       deliver(sent.id, sentText, interactionType, channel)
     }
@@ -179,9 +212,16 @@ export function ConversationThread({
   }
 
   function handleRetry(m: (typeof messages)[number]) {
-    if (isSmsMessage(m)) return
-    deliver(m.id, m.text ?? "", m.type, m.channel ?? "website")
+    if (isSmsMessage(m)) {
+      if (!canSendMessage || !canSendCustomSms || !hasPermission("sms:retry")) return
+      try { retrySms(m.id, currentUser.id, simulateError); setSendError("") }
+      catch (error) { setSendError(error instanceof Error ? error.message : "Błąd ponowienia SMS.") }
+      return
+    }
+    if (canSendMessage) deliver(m.id, m.text ?? "", m.type, m.channel ?? "website")
   }
+
+  if (!hasPermission("communication:view")) return <p className="p-4 text-sm">Brak dostępu do komunikacji.</p>
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
@@ -208,7 +248,8 @@ export function ConversationThread({
                 >
                   <p className="whitespace-pre-wrap">{m.text}</p>
                   <div className={cn("mt-1 flex flex-wrap items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
-                    <span>{TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
+                    <span>{m.type === "sms" ? "SMS" : TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
+                    {m.type === "sms" && <span>· {incoming ? "Przychodzący" : "Wychodzący"} · {users.find((user) => user.id === m.authorId)?.name ?? (incoming ? "Pacjent (demo)" : m.authorId ?? "System")}</span>}
                     {isSmsMessage(m) ? (
                       <SmsStatus message={m} />
                     ) : (
@@ -225,6 +266,16 @@ export function ConversationThread({
                   </span>
                 )}
               </div>
+              {isSmsMessage(m) && (
+                <div className="flex max-w-[80%] flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  {m.caseId ? <button type="button" className="underline" onClick={() => openCase(m.caseId!)}>Sprawa: {m.caseId}</button> : <span>Bez sprawy</span>}
+                  {m.taskId && <span>Zadanie: {tasks.find((task) => task.id === m.taskId)?.title ?? m.taskId}</span>}
+                  {m.retryOfId && <span>Ponowienie: {m.retryOfId}</span>}
+                  {m.errorMessage && <span className="text-destructive">{m.errorMessage}</span>}
+                  {m.direction === "outgoing" && m.deliveryStatus === "failed" && canSendMessage && canSendCustomSms && hasPermission("sms:retry") &&
+                    <button type="button" className="font-medium underline" onClick={() => handleRetry(m)}>Ponów SMS</button>}
+                </div>
+              )}
               {status === "error" && !isSmsMessage(m) && (
                 <div className="flex items-center gap-1.5 pr-8 text-[10px] text-red-600">
                   <AlertTriangle className="h-3 w-3" />
@@ -240,12 +291,22 @@ export function ConversationThread({
         <div ref={bottomRef} />
       </div>
 
+      {patientSmsHistory && (
+        <div className="border-t border-border py-2">
+          <label className="text-xs">Powiązanie SMS ze sprawą
+            <select className="ml-2 rounded border bg-background p-1" value={smsCaseId} onChange={(event) => setSmsCaseId(event.target.value)}>
+              <option value="">Bez sprawy · profil pacjenta</option>
+              {cases.filter((item) => item.patientId === patientId).map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
       {channel === "phone" && (
         <div className="border-t border-border px-1 pt-2 text-[11px] text-muted-foreground">
           {phoneIdentity ? (
             <span>
               Do: <strong className="font-medium text-foreground">{phoneIdentity.value}</strong> · {smsProvider?.name ?? "Brak aktywnej konfiguracji"}
-              {smsProvider && !smsProvider.capabilities.deliveryReports ? " · bez potwierdzenia dostarczenia" : ""}
+              {" · emulacja (bez API)"}
               {draft ? ` · ${draft.length} znaków · ${calculateSmsParts(draft)} SMS` : ""}
             </span>
           ) : (
@@ -254,20 +315,30 @@ export function ConversationThread({
         </div>
       )}
 
+      {channel === "phone" && (
+        <div className="flex flex-wrap gap-3 py-2 text-xs">
+          {phoneIdentities.length > 1 && <label>Telefon <select value={phoneIdentity?.id} onChange={(event) => setRecipientId(event.target.value)}>{phoneIdentities.map((identity) => <option key={identity.id} value={identity.id}>{identity.value}</option>)}</select></label>}
+          {targetCaseId && <label>Zadanie SMS <select className="ml-2 max-w-xs rounded border bg-background p-1" value={selectedTaskId ?? ""} onChange={(event) => setChosenTaskId(event.target.value)}>
+            <option value="">Bez zadania</option>{openTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
+          </select></label>}
+          <span className="text-muted-foreground">SMS nie kończy zadania. Następne działanie pozostaje w kolejce.</span>
+        </div>
+      )}
+      {sendError && <p role="alert" className="text-xs text-destructive">{sendError}</p>}
       <div className="flex items-center justify-end gap-1.5 pb-1.5 text-[11px] text-muted-foreground">
         <input
-          id="simulate-send-error"
+          id={toggleId}
           type="checkbox"
           checked={simulateError}
           onChange={(e) => setSimulateError(e.target.checked)}
           className="h-3 w-3 accent-destructive"
         />
-        <label htmlFor="simulate-send-error" className="cursor-pointer select-none">
+        <label htmlFor={toggleId} className="cursor-pointer select-none">
           Symuluj błąd wysyłki (test UAT)
         </label>
       </div>
       <div className="flex items-end gap-2 border-t border-border pt-3">
-        <Select value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
+        <Select disabled={patientSmsHistory} value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
           <SelectTrigger className="h-9 w-[150px] shrink-0 text-xs" aria-label="Kanał wysyłki">
             <SelectValue />
           </SelectTrigger>
@@ -319,7 +390,7 @@ export function ConversationThread({
 function SmsStatus({ message }: { message: SmsMessage }) {
   const Icon = message.deliveryStatus === "delivered"
     ? CheckCheck
-    : message.deliveryStatus === "submitted"
+    : (message.deliveryStatus === "sent" || message.deliveryStatus === "submitted")
       ? Check
       : message.deliveryStatus === "failed" || message.deliveryStatus === "undelivered"
         ? CircleAlert

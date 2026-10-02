@@ -2,8 +2,8 @@
 
 ## Test environment
 
-- Preview: `https://crm-concept-git-codex-entity-s-0605d5-autoversel-4830s-projects.vercel.app/`
-- Branch: `codex/entity-store-foundation`
+- Branch under test: `codex/sms-mvp` (base: `main`, `8a0d18f865156c4751d72319844a12e8c68a2a61`).
+- Preview: use the deployment attached to the SMS Stage 1 PR when available; the prior foundation preview is not evidence for this branch.
 - Test data is reset after a page reload.
 - Run the scenarios in the order below when testing state changes in one session.
 
@@ -35,6 +35,7 @@ The build is accepted when all critical scenarios (`P0`) pass and no action caus
 | UAT-20 | Telephony permission and call actor | P0 |
 | UAT-21 | Case-workspace action permissions | P0 |
 | UAT-22 | Confirmed workflow transition | P0 |
+| UAT-23 | SMS Stage 1 patient/task/failure/retry/audit | P0 |
 
 ## UAT-01 — role workspaces
 
@@ -279,12 +280,12 @@ Expected:
 
 1. As Administrator, open Settings and locate `SMS · dostawcy i nadawcy`.
 2. Verify that PaNa Medica, PaNa Comfort and the global fallback may use different providers.
-3. Change a clinic provider between Emulator, SMSAPI and SuperVoIP and run `Testuj`.
+3. Change a clinic provider between Emulator, SMSAPI and SuperVoIP save with `Zapisz konfigurację`, then run `Testuj emulator`.
 4. Open a patient with a phone identity and select SMS in the conversation composer.
 5. Verify recipient, selected clinic provider, character count and calculated SMS parts.
 6. Send a custom SMS and verify that it first appears as `W kolejce`.
 7. With Emulator or SMSAPI, wait for `Wysłano` and then `Dostarczono`.
-8. With SuperVoIP, verify that the terminal demo status is `Przyjęto przez operatora`, not `Dostarczono`.
+8. With SuperVoIP, verify the same emulator sequence; Stage 1 does not exercise real provider delivery capabilities. Existing historical `submitted` records remain readable.
 9. Open a contact without a phone identity and verify that sending is blocked with an instruction to complete the profile.
 10. Verify that the sent SMS is visible both in the patient conversation and in the current case history.
 
@@ -322,7 +323,7 @@ Expected:
 2. Verify the message moves deterministically from `Wysyłanie` to `Dostarczono` and receives one simulated patient reply.
 3. Enable `Symuluj błąd wysyłki`, send another chat message and use `Spróbuj ponownie`.
 4. Select SMS and send a message to a patient with a phone identity and active clinic provider.
-5. Verify the SMS uses the provider-neutral SMS status (`W kolejce`, `Wysłano`, `Dostarczono` or provider-specific terminal state), not the generic chat-delivery state.
+5. Verify the SMS uses the provider-neutral SMS status (`W kolejce`, `Wysłano`, `Dostarczono` for all emulated providers), not the generic chat-delivery state.
 6. Verify sending one SMS creates exactly one interaction and does not generate a simulated patient reply.
 7. Disable `sms:send_custom` for the current role and verify SMS sending is blocked while non-SMS channels still follow `communication:send`.
 
@@ -397,6 +398,23 @@ Expected:
 9. Remove `case:move` from a test role and verify cards can be opened but cannot be dragged.
 
 **Expected:** stage changes are intentional, attributable and explain their automatic consequences before execution; required closure reasons and runtime permissions cannot be bypassed through the board UI.
+
+## UAT-23 — SMS Stage 1, patient scope, task, failure and retry
+
+1. Reload once to reset demo state. As Operator, open `/patients/pat-01`, select `SMS`, then `SMS · historia pacjenta`.
+2. Keep `Bez sprawy · profil pacjenta`. Verify the PaNa Medica working text is prefilled and editable. Replace it with `Test UAT: prosimy o kontakt z recepcją.` and leave the test toggle off.
+3. Send once. Verify one outgoing entry changes from `W kolejce` to `Wysłano` at about 700 ms and `Dostarczono` at about 1800 ms. Verify date/time, sender and `Bez sprawy`. The demo incoming entry is separately labelled `Przychodzący`/`Odebrano`.
+4. Select a patient case in the composer and an active task in `Zadanie SMS`. Note the task ID, status and deadline. Send a second neutral message. Verify its case link opens the case, and its task label matches the selected task.
+5. Open that case's conversation and timeline. Verify the message appears once per view, with text, status, author, date/time and task. Sending has not completed, hidden or rescheduled the active task.
+6. Enable `Symuluj błąd wysyłki (test UAT)` and send `Test UAT: wymuszony błąd.`. Wait at least two seconds: the entry must remain `Błąd wysyłki`, with an error, never become delivered.
+7. Turn the toggle off and select `Ponów SMS`. Verify a new message ID, a `Ponowienie` reference to the failed ID, the same recipient/text/case/task and a successful status sequence. The failed original remains unchanged. No simulated incoming reply is generated.
+8. Return to the patient's SMS history. Verify patient-level SMS and case-linked SMS from every accessible patient case are visible; opening another case does not copy records.
+9. As Administrator, change and save the PaNa Comfort working text in Settings. Send from a Comfort case and verify that text is prefilled. Disable the clinic configuration, save, and reopen its composer: the enabled global fallback is selected. Existing messages keep their provider metadata.
+10. As Operator, verify no provider management controls are accessible. As Administrator, remove `sms:send_custom` from Operator and verify sending/retry are disabled, then restore it. Remove only `sms:retry` and verify failed retry is unavailable; restore defaults.
+11. As Administrator, open Audit Log. Verify `sms_send`, `sms_failed`, `sms_retry`, `sms_provider_change`, `sms_provider_config`, `sms_provider_test` with actor and correlation IDs. Typing in an unsaved configuration/composer creates no audit event. The case timeline does not repeat correlated SMS audit entries; the Audit tab retains them.
+12. Restrict Operator to one clinic and verify SMS from inaccessible cases/clinics is not exposed in the SMS history. Restore scope and role defaults after the test.
+
+Expected: one canonical Interaction per attempt; retry preserves the original; no API calls or credentials; task workflow stays intact; settings require `sms:provider_manage`; history respects existing clinic scope. Steps above are manual acceptance scenarios, not a claim of an executed browser test.
 
 ## Known prototype boundaries
 

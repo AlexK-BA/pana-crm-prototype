@@ -5,7 +5,7 @@
  * assignee/call-outcome change is immediately visible across every screen
  * that reads it (queue, kanban, drawer, team view) — per master spec §18.
  */
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import type {
   AuditEvent,
   Broadcast,
@@ -32,7 +32,19 @@ import { AUDIT_EVENTS, BROADCASTS, CONTACT_IDENTITIES, ENGAGEMENT_CASES, INTERAC
 // created earlier in the same session that may not be in local state yet.
 import { BOARD_COLUMNS } from "./boards"
 import { buildAutomaticTask, getWorkflowStageRule } from "./workflow-rules"
-import { calculateSmsParts, INITIAL_SMS_PROVIDER_CONFIGS, selectSmsProvider } from "./sms-service"
+import { calculateSmsParts, emulatedSmsAdapter, isSmsMessage, INITIAL_SMS_PROVIDER_CONFIGS, selectSmsProvider } from "./sms-service"
+
+export interface SmsSendInput {
+  caseId?: string
+  patientId?: string
+  taskId?: string
+  clinicId?: ClinicId
+  recipient: string
+  text: string
+  authorId: string
+  retryOfId?: string
+  simulateError?: boolean
+}
 
 interface EntityStoreValue {
   tasks: Task[]
@@ -79,18 +91,10 @@ interface EntityStoreValue {
     direction: InteractionDirection
     authorId?: string
   }) => Interaction
-  sendSms: (input: {
-    caseId: string
-    patientId?: string
-    taskId?: string
-    clinicId?: ClinicId
-    recipient: string
-    text: string
-    authorId?: string
-    retryOfId?: string
-  }) => SmsMessage
-  updateSmsProviderConfiguration: (id: string, patch: Partial<SmsProviderConfiguration>) => void
-  testSmsProviderConfiguration: (id: string) => void
+  sendSms: (input: SmsSendInput) => SmsMessage
+  retrySms: (id: string, authorId: string, simulateError?: boolean) => SmsMessage
+  updateSmsProviderConfiguration: (id: string, patch: Partial<SmsProviderConfiguration>, actorId: string) => void
+  testSmsProviderConfiguration: (id: string, actorId: string) => void
   /** Marks a conversation's incoming messages as read (drives unread badges). */
   markRead: (caseId: string) => void
   /**
@@ -209,6 +213,12 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>(BROADCASTS)
   const [smsProviderConfigurations, setSmsProviderConfigurations] = useState<SmsProviderConfiguration[]>(INITIAL_SMS_PROVIDER_CONFIGS)
   const [readAt, setReadAt] = useState<Record<string, string>>({})
+
+  const smsRequests = useRef(new Set<AbortController>())
+  useEffect(() => () => {
+    smsRequests.current.forEach((request) => request.abort())
+    smsRequests.current.clear()
+  }, [])
 
   const patchTask = useCallback((taskId: string, patch: Partial<Task>) => {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)))
@@ -442,74 +452,92 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const sendSms = useCallback(
-    (input: { caseId: string; patientId?: string; taskId?: string; clinicId?: ClinicId; recipient: string; text: string; authorId?: string; retryOfId?: string }) => {
-      const provider = selectSmsProvider(smsProviderConfigurations, input.clinicId)
+    (input: SmsSendInput) => {
+      if (input.retryOfId) {
+        const original = interactions.find((item) => item.id === input.retryOfId)
+        if (!original || !isSmsMessage(original) || original.direction !== "outgoing" || original.deliveryStatus !== "failed"
+          || original.caseId !== input.caseId || original.patientId !== input.patientId || original.taskId !== input.taskId
+          || original.recipient !== emulatedSmsAdapter.normalizeRecipient(input.recipient) || original.text !== input.text.trim()) {
+          throw new Error("Nieprawidłowe powiązanie ponowienia SMS.")
+        }
+      }
+      const targetCase = input.caseId ? cases.find((item) => item.id === input.caseId) : undefined
+      const patientId = input.patientId ?? targetCase?.patientId
+      const patient = patients.find((item) => item.id === patientId)
+      if (input.caseId && !targetCase) throw new Error("Nie znaleziono sprawy.")
+      if (targetCase?.patientId && input.patientId && targetCase.patientId !== input.patientId) throw new Error("Pacjent nie należy do sprawy.")
+      if (!targetCase && !patient) throw new Error("Wybierz pacjenta lub sprawę.")
+      if (patient && !patient.contactable) throw new Error("Kontakt z pacjentem jest niedozwolony.")
+      const task = input.taskId ? tasks.find((item) => item.id === input.taskId) : undefined
+      if (input.taskId && (!task || task.caseId !== input.caseId)) throw new Error("Zadanie nie należy do sprawy.")
+      const recipient = emulatedSmsAdapter.normalizeRecipient(input.recipient)
+      if (!recipient || !input.text.trim() || !input.authorId) throw new Error("Sprawdź numer, tekst i nadawcę SMS.")
+      const clinicId = targetCase?.clinicId ?? input.clinicId ?? patient?.primaryClinicId
+      const provider = selectSmsProvider(smsProviderConfigurations, clinicId)
       const id = nextInteractionId()
       const message: SmsMessage = {
-        id,
-        caseId: input.caseId,
-        patientId: input.patientId,
-        taskId: input.taskId,
-        type: "sms",
-        channel: "phone",
-        direction: "outgoing",
-        at: iso(0),
-        authorId: input.authorId,
-        text: input.text,
-        recipient: input.recipient,
-        sender: provider?.senderValue ?? "",
-        providerType: provider?.providerType ?? "emulator",
-        providerConfigurationId: provider?.id ?? "missing-provider",
-        deliveryStatus: "queued",
-        partsCount: calculateSmsParts(input.text),
-        retryOfId: input.retryOfId,
+        id, caseId: input.caseId, patientId, taskId: input.taskId, clinicId,
+        type: "sms", channel: "phone", direction: "outgoing", at: new Date().toISOString(),
+        authorId: input.authorId, text: input.text.trim(), recipient,
+        sender: provider?.senderValue ?? "", providerType: provider?.providerType ?? "emulator",
+        providerConfigurationId: provider?.id ?? "missing-provider", deliveryStatus: "queued",
+        partsCount: calculateSmsParts(input.text.trim()), retryOfId: input.retryOfId,
       }
       setInteractions((prev) => [...prev, message])
-      setReadAt((prev) => ({ ...prev, [input.caseId]: iso(0) }))
-      addAudit({
-        caseId: input.caseId,
-        patientId: input.patientId,
-        type: "task_change",
-        actorId: input.authorId ?? "system",
-        summary: `SMS dodany do kolejki · ${provider?.name ?? "brak konfiguracji"}`,
-      })
-
-      window.setTimeout(() => {
-        setInteractions((prev) => prev.map((item) => {
-          if (item.id !== id || item.type !== "sms") return item
-          const current = item as SmsMessage
-          if (!provider) return { ...current, deliveryStatus: "failed", providerStatus: "CONFIGURATION_MISSING", errorMessage: "Brak aktywnej konfiguracji SMS dla kliniki." }
-          return {
-            ...current,
-            deliveryStatus: "submitted",
-            providerStatus: provider.providerType === "supervoip" ? "ACCEPTED" : "QUEUED",
-            providerMessageId: `${provider.providerType}-${id}`,
-            submittedAt: new Date().toISOString(),
-          }
-        }))
-      }, 700)
-
-      if (provider?.capabilities.deliveryReports) {
-        window.setTimeout(() => {
-          setInteractions((prev) => prev.map((item) => item.id === id && item.type === "sms"
-            ? { ...(item as SmsMessage), deliveryStatus: "delivered", providerStatus: "DELIVERED", deliveredAt: new Date().toISOString() }
-            : item))
-        }, 1800)
-      }
+      if (input.caseId) setReadAt((prev) => ({ ...prev, [input.caseId!]: message.at }))
+      addAudit({ caseId: message.caseId, patientId, type: "sms_send", actorId: input.authorId,
+        correlationId: id, summary: `SMS dodany do kolejki · ${provider?.name ?? "brak konfiguracji"}` })
+      if (input.retryOfId) addAudit({ caseId: message.caseId, patientId, type: "sms_retry", actorId: input.authorId,
+        correlationId: id, before: input.retryOfId, after: id, summary: `Ponowiono SMS ${input.retryOfId} jako ${id}` })
+      const request = new AbortController()
+      smsRequests.current.add(request)
+      void emulatedSmsAdapter.send(message, provider, { simulateError: input.simulateError ?? false, signal: request.signal }, (event) => {
+        setInteractions((prev) => prev.map((item) => item.id === id ? { ...item, ...event } : item))
+        if (event.deliveryStatus === "failed") addAudit({ caseId: message.caseId, patientId, type: "sms_failed",
+          actorId: input.authorId, correlationId: id, summary: `Błąd SMS ${id}: ${event.errorMessage}` })
+      }).finally(() => smsRequests.current.delete(request))
+      // Sending never completes, cancels or hides a Task.
       return message
     },
-    [addAudit, smsProviderConfigurations],
+    [addAudit, cases, patients, tasks, interactions, smsProviderConfigurations],
   )
 
-  const updateSmsProviderConfiguration = useCallback((id: string, patch: Partial<SmsProviderConfiguration>) => {
-    setSmsProviderConfigurations((prev) => prev.map((item) => item.id === id ? { ...item, ...patch } : item))
-  }, [])
+  const retrySms = useCallback((id: string, authorId: string, simulateError = false) => {
+    const original = interactions.find((item) => item.id === id)
+    if (!original || !isSmsMessage(original) || original.direction !== "outgoing" || original.deliveryStatus !== "failed") {
+      throw new Error("Ponowić można wyłącznie nieudany wychodzący SMS.")
+    }
+    return sendSms({ caseId: original.caseId, patientId: original.patientId, taskId: original.taskId,
+      clinicId: original.clinicId, recipient: original.recipient, text: original.text ?? "", authorId, retryOfId: id, simulateError })
+  }, [interactions, sendSms])
 
-  const testSmsProviderConfiguration = useCallback((id: string) => {
+  const updateSmsProviderConfiguration = useCallback((id: string, patch: Partial<SmsProviderConfiguration>, actorId: string) => {
+    const previous = smsProviderConfigurations.find((item) => item.id === id)
+    if (!previous) return
+    // Explicit allowlist: frontend mutations cannot add credentials or arbitrary secret fields.
+    const next: SmsProviderConfiguration = { ...previous,
+      name: patch.name ?? previous.name, providerType: patch.providerType ?? previous.providerType,
+      enabled: patch.enabled ?? previous.enabled, senderValue: patch.senderValue ?? previous.senderValue,
+      defaultMessageText: patch.defaultMessageText ?? previous.defaultMessageText, mode: "emulation" }
+    if (JSON.stringify(previous) === JSON.stringify(next)) return
+    setSmsProviderConfigurations((prev) => prev.map((item) => item.id === id ? next : item))
+    addAudit({ type: "sms_provider_config", actorId, correlationId: id, summary: `Zapisano konfigurację SMS · ${next.name}` })
+    if (next.providerType !== previous.providerType || next.enabled !== previous.enabled) {
+      addAudit({ type: "sms_provider_change", actorId, correlationId: id,
+        before: `${previous.providerType}/${previous.enabled}`, after: `${next.providerType}/${next.enabled}`,
+        summary: `Zmieniono aktywnego dostawcę SMS · ${next.name}` })
+    }
+  }, [addAudit, smsProviderConfigurations])
+
+  const testSmsProviderConfiguration = useCallback((id: string, actorId: string) => {
+    const config = smsProviderConfigurations.find((item) => item.id === id)
+    if (!config) return
+    const result = emulatedSmsAdapter.test(config)
     setSmsProviderConfigurations((prev) => prev.map((item) => item.id === id
-      ? { ...item, lastTestAt: new Date().toISOString(), lastTestStatus: item.enabled ? "success" : "failed" }
-      : item))
-  }, [])
+      ? { ...item, lastTestAt: new Date().toISOString(), lastTestStatus: result.status } : item))
+    addAudit({ type: "sms_provider_test", actorId, correlationId: id,
+      summary: `Test emulatora SMS · ${config.name} · ${result.status}${result.error ? ` · ${result.error}` : ""}` })
+  }, [addAudit, smsProviderConfigurations])
 
   const markRead = useCallback((caseId: string) => {
     setReadAt((prev) => ({ ...prev, [caseId]: iso(0) }))
@@ -863,6 +891,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       logCall,
       sendMessage,
       sendSms,
+      retrySms,
       updateSmsProviderConfiguration,
       testSmsProviderConfiguration,
       markRead,
@@ -897,6 +926,7 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       logCall,
       sendMessage,
       sendSms,
+      retrySms,
       updateSmsProviderConfiguration,
       testSmsProviderConfiguration,
       markRead,

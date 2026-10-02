@@ -66,3 +66,13 @@ Estimated adaptation today:
 ## Definition of portable feature
 
 A feature is considered portable when a new clinic can enable it by configuration and catalog/integration setup, without changing React components, canonical entities or workflow source code, and historical data remains readable after any provider/configuration change.
+
+## SMS Stage 1 portability assessment (2026-10-02)
+
+- SMS uses the existing `SmsMessage extends Interaction` and `EntityStore.interactions`, with no additional message store. Patient, case and task references remain canonical IDs.
+- No provider API or PaNa brand is required by the adapter contract. `providerType` is an extensible provider ID; `name` is the configuration display name. Stage 1 routes all provider selections through the same emulator. Future SMSAPI, SuperVoIP or custom adapters belong behind the internal service on the backend.
+- Clinic configuration is selected by case clinic, or patient primary clinic for unbound SMS, then enabled global fallback. Sender and working text are editable by authorized administrators; messages retain execution metadata.
+- Remaining hardcode: `lib/crm/sms-service.ts` seeds PaNa clinic IDs, names, senders and Polish working texts; fallback text, emulator timings and the approximate parts calculator are code-defined. Provider capability examples are demo assumptions, not verified production capabilities. `components/crm/sms-provider-settings.tsx` lists known provider choices; the contract supports additional IDs, but the prototype has no provider-registration UI.
+- `lib/crm/entities.ts` still has the closed PaNa `ClinicId` union; `lib/crm/catalog.ts`, branding and inline Polish labels remain existing portability constraints. The SMS change does not claim to make the whole CRM white-label.
+- For another clinic: replace tenant/catalog seeds, configure clinic/global senders and working texts, complete i18n, introduce persisted provider registrations/configurations and server-side scope/permissions/audit. Preserve `SmsMessage` and UI commands when connecting an adapter; credentials must stay in a backend secret manager.
+- Client state resets on reload. Production requires durable message IDs, atomic/idempotent dispatch, authenticated delivery receipts and retry policy. Stage 2 templates/workflow automation and Stage 3 inbound routing remain separate increments.

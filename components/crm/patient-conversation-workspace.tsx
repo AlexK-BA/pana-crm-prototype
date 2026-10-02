@@ -8,6 +8,7 @@ import { ConversationThread } from "@/components/crm/conversation-thread"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { formatRelative } from "@/lib/crm/format"
 import type { ContactChannel } from "@/lib/crm/entities"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 import { cn } from "@/lib/utils"
 
 const CHANNEL_ICON: Record<ContactChannel, typeof MessageSquare> = {
@@ -41,12 +42,18 @@ export function PatientConversationWorkspace({
   currentCaseId,
   authorId,
   className,
+  initialView,
+  taskId,
 }: {
   patientId?: string
   currentCaseId: string
   authorId?: string
   className?: string
+  initialView?: "sms"
+  taskId?: string
 }) {
+  const { hasPermission } = useAuthorization()
+  const [smsHistory, setSmsHistory] = useState(initialView === "sms")
   const { cases, identities, interactions, readAt } = useScopedEntityStore()
   const patientCases = useMemo(() => {
     const scoped = patientId ? cases.filter((item) => item.patientId === patientId) : cases.filter((item) => item.id === currentCaseId)
@@ -66,6 +73,8 @@ export function PatientConversationWorkspace({
   const [selectedCaseId, setSelectedCaseId] = useState(currentCaseId)
   const activeCaseId = patientCases.some((item) => item.id === selectedCaseId) ? selectedCaseId : patientCases[0]?.id ?? currentCaseId
 
+  if (!hasPermission("communication:view")) return <p className="p-4 text-sm">Brak dostępu do komunikacji.</p>
+
   return (
     <div className={cn("flex h-full min-h-0 overflow-hidden", className)}>
       <aside className="w-[280px] shrink-0 overflow-y-auto border-r border-border bg-muted/20">
@@ -75,6 +84,11 @@ export function PatientConversationWorkspace({
             {patientId ? "Wszystkie rozmowy powiązane z tym pacjentem." : "Kontakt nie jest jeszcze powiązany z pacjentem."}
           </p>
         </div>
+        {patientId && <button type="button" onClick={() => setSmsHistory(true)} aria-pressed={smsHistory}
+          className={cn("w-full border-b border-border px-3 py-3 text-left text-sm font-medium hover:bg-accent", smsHistory && "bg-accent")}>
+          SMS · historia pacjenta
+          <span className="mt-1 block text-[11px] font-normal text-muted-foreground">Wszystkie dostępne sprawy i SMS bez sprawy</span>
+        </button>}
         {patientCases.map((item) => {
           const identity = identities.find((entry) => entry.id === item.contactIdentityId)
           const messages = interactions
@@ -87,12 +101,12 @@ export function PatientConversationWorkspace({
           ).length
           const channel = identity?.channel ?? "website"
           const Icon = CHANNEL_ICON[channel]
-          const selected = item.id === activeCaseId
+          const selected = !smsHistory && item.id === activeCaseId
           return (
             <button
               key={item.id}
               type="button"
-              onClick={() => setSelectedCaseId(item.id)}
+              onClick={() => { setSelectedCaseId(item.id); setSmsHistory(false) }}
               className={cn("flex w-full items-start gap-2.5 border-b border-border px-3 py-3 text-left transition-colors hover:bg-accent", selected && "bg-accent")}
             >
               <span className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background">
@@ -135,10 +149,12 @@ export function PatientConversationWorkspace({
 
       <div className="min-w-0 flex-1">
         <ConversationThread
-          key={activeCaseId}
-          caseIds={[activeCaseId]}
+          key={smsHistory ? `sms-${patientId}` : activeCaseId}
+          caseIds={smsHistory ? patientCases.map((item) => item.id) : [activeCaseId]}
           primaryCaseId={activeCaseId}
           patientId={patientId}
+          patientSmsHistory={smsHistory && Boolean(patientId)}
+          taskId={taskId}
           authorId={authorId}
           className="h-full px-4 py-4"
           emptyLabel="Brak wiadomości w tej rozmowie."

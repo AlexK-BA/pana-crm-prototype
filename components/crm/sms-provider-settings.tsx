@@ -1,112 +1,78 @@
 "use client"
 
-import { CheckCircle2, MessageSquareText, PlugZap } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { useEntityStore } from "@/lib/crm/entity-store"
+import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
+import { useAuthorization } from "@/lib/crm/authorization-context"
+import { useRole } from "@/lib/crm/role-context"
 import { getClinic } from "@/lib/crm/catalog"
-import type { SmsProviderType } from "@/lib/crm/entities"
-import { getSmsProviderCapabilities } from "@/lib/crm/sms-service"
+import type { SmsProviderConfiguration } from "@/lib/crm/entities"
 import { formatDateTime } from "@/lib/crm/format"
 
-const PROVIDER_LABEL: Record<SmsProviderType, string> = {
-  emulator: "Emulator",
-  smsapi: "SMSAPI",
-  supervoip: "SuperVoIP",
-}
-
 export function SmsProviderSettings() {
-  const { smsProviderConfigurations, updateSmsProviderConfiguration, testSmsProviderConfiguration } = useEntityStore()
-
+  const { smsProviderConfigurations, currentUser } = useScopedEntityStore()
+  const { hasPermission } = useAuthorization()
+  const { role } = useRole()
+  if (!hasPermission("sms:provider_manage")) return null
+  const configurations = smsProviderConfigurations.filter((config) => role === "admin" || role === "team_leader"
+    || Boolean(config.clinicId && currentUser.clinicIds.includes(config.clinicId)))
   return (
     <section className="rounded-lg border border-border bg-card p-4">
-      <div className="mb-1 flex items-center gap-2">
-        <MessageSquareText className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold">SMS · dostawcy i nadawcy</h2>
-      </div>
-      <p className="mb-4 text-xs text-muted-foreground">
-        Konfiguracja jest przypisana do kliniki. Interfejs pacjenta korzysta z jednego wewnętrznego SMS Service, niezależnie od wybranego dostawcy.
-      </p>
-
-      <div className="space-y-3">
-        {smsProviderConfigurations.map((config) => (
-          <div key={config.id} className="rounded-md border border-border p-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">{config.name}</p>
-                  <Badge variant={config.enabled ? "secondary" : "outline"}>{config.enabled ? "Aktywny" : "Wyłączony"}</Badge>
-                  {config.isDefault && <Badge variant="outline">Domyślny</Badge>}
-                </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {config.clinicId ? getClinic(config.clinicId)?.name : "Wszystkie kliniki bez własnej konfiguracji"}
-                </p>
-              </div>
-              <Switch
-                checked={config.enabled}
-                onCheckedChange={(enabled) => updateSmsProviderConfiguration(config.id, { enabled })}
-                aria-label={`Aktywuj ${config.name}`}
-              />
-            </div>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Dostawca</Label>
-                <Select
-                  value={config.providerType}
-                  onValueChange={(value) => {
-                    const providerType = value as SmsProviderType
-                    updateSmsProviderConfiguration(config.id, { providerType, capabilities: getSmsProviderCapabilities(providerType) })
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PROVIDER_LABEL).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Nazwa lub numer nadawcy</Label>
-                <Input
-                  className="h-8 text-sm"
-                  value={config.senderValue}
-                  onChange={(event) => updateSmsProviderConfiguration(config.id, { senderValue: event.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-              <span>Wychodzące: tak</span>
-              <span>·</span>
-              <span>Przychodzące: {config.capabilities.inboundSms ? "tak" : "nie"}</span>
-              <span>·</span>
-              <span>Delivery reports: {config.capabilities.deliveryReports ? "tak" : "nie"}</span>
-              <span>·</span>
-              <span>2-way: {config.capabilities.twoWayMessaging ? "tak" : "nie"}</span>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
-              <p className="text-[11px] text-muted-foreground">
-                {config.lastTestAt
-                  ? <>Ostatni test: {formatDateTime(config.lastTestAt)} · {config.lastTestStatus === "success" ? "połączenie poprawne" : "błąd"}</>
-                  : "Połączenie nie było jeszcze testowane w tej sesji."}
-              </p>
-              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => testSmsProviderConfiguration(config.id)}>
-                {config.lastTestStatus === "success" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <PlugZap className="h-3.5 w-3.5" />}
-                Testuj
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-3 rounded-md bg-muted px-3 py-2 text-[11px] text-muted-foreground">
-        Prototyp nie przechowuje tokenów i nie wykonuje zewnętrznych wywołań. Dane logowania będą szyfrowane i obsługiwane wyłącznie po stronie backendu.
-      </p>
+      <h2 className="text-sm font-semibold">SMS · dostawcy i nadawcy</h2>
+      <p className="mb-4 mt-1 text-xs text-muted-foreground">Stage 1 · wyłącznie emulacja. Zmiany obowiązują po zapisaniu; test nie wysyła SMS.</p>
+      <div className="space-y-3">{configurations.map((config) => <ProviderCard key={config.id} config={config} />)}</div>
+      <p className="mt-3 text-xs text-muted-foreground">Credentials: •••••••• · nie skonfigurowano w prototypie. Sekrety obsługuje wyłącznie przyszły backend; to pole nie zawiera klucza.</p>
     </section>
+  )
+}
+
+function ProviderCard({ config }: { config: SmsProviderConfiguration }) {
+  const { updateSmsProviderConfiguration, testSmsProviderConfiguration } = useScopedEntityStore()
+  const [draft, setDraft] = useState({ name: config.name, providerType: config.providerType,
+    senderValue: config.senderValue, enabled: config.enabled, defaultMessageText: config.defaultMessageText })
+  const [notice, setNotice] = useState("")
+  const dirty = Object.entries(draft).some(([key, value]) => config[key as keyof typeof draft] !== value)
+  function save() {
+    try { updateSmsProviderConfiguration(config.id, draft); setNotice("Zapisano konfigurację.") }
+    catch (error) { setNotice(error instanceof Error ? error.message : "Błąd zapisu.") }
+  }
+  function test() {
+    try { testSmsProviderConfiguration(config.id); setNotice("Wykonano test zapisanej konfiguracji emulatora.") }
+    catch (error) { setNotice(error instanceof Error ? error.message : "Błąd testu.") }
+  }
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-medium">{config.name}</h3>
+        <Badge variant="outline">{config.clinicId ? getClinic(config.clinicId)?.name : "Global fallback"}</Badge>
+        <Badge variant="secondary">Emulacja</Badge>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5"><Label htmlFor={`${config.id}-name`}>Nazwa konfiguracji</Label>
+          <Input id={`${config.id}-name`} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></div>
+        <div className="space-y-1.5"><Label>Dostawca</Label>
+          <Select value={draft.providerType} onValueChange={(value) => value && setDraft({ ...draft, providerType: value })}>
+            <SelectTrigger aria-label={`Dostawca ${config.name}`}><SelectValue /></SelectTrigger>
+            <SelectContent>{[...new Set(["emulator", "smsapi", "supervoip", draft.providerType])].map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}</SelectContent>
+          </Select></div>
+        <div className="space-y-1.5"><Label htmlFor={`${config.id}-sender`}>Nazwa lub numer nadawcy</Label>
+          <Input id={`${config.id}-sender`} value={draft.senderValue} onChange={(event) => setDraft({ ...draft, senderValue: event.target.value })} /></div>
+        <div className="flex items-center gap-2"><Switch checked={draft.enabled} onCheckedChange={(enabled) => setDraft({ ...draft, enabled })} aria-label={`Aktywuj ${config.name}`} /><span className="text-sm">Aktywna konfiguracja</span></div>
+      </div>
+      <div className="mt-3 space-y-1.5"><Label htmlFor={`${config.id}-text`}>Domyślny tekst roboczy SMS</Label>
+        <Textarea id={`${config.id}-text`} value={draft.defaultMessageText} onChange={(event) => setDraft({ ...draft, defaultMessageText: event.target.value })} /></div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button size="sm" disabled={!dirty || !draft.name.trim() || !draft.senderValue.trim()} onClick={save}>Zapisz konfigurację</Button>
+        <Button size="sm" variant="outline" disabled={dirty} onClick={test}>Testuj emulator</Button>
+        {config.lastTestAt && <span className="text-xs text-muted-foreground">Test: {formatDateTime(config.lastTestAt)} · {config.lastTestStatus}</span>}
+      </div>
+      {notice && <p role="status" className="mt-2 text-xs">{notice}</p>}
+    </div>
   )
 }
