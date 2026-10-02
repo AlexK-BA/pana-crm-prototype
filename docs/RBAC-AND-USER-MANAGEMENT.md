@@ -175,3 +175,43 @@ Production dependencies:
 7. May tenant administrators create entirely new roles, or only clone/edit approved role templates?
 8. Should permission changes apply immediately to active sessions or require re-authentication?
 9. Which role may edit permission bundles below Administrator level?
+
+## 10. User/RBAC command hardening (2026-10-02)
+
+Canonical sources remain AuthorizationContext, UserDirectory and EntityStore. Components: `components/crm/user-management-view.tsx` (Users), `components/crm/role-permission-matrix.tsx` (Role & Permissions), `components/crm/audit-log-view.tsx` (existing shared log). No parallel users, roles, permissions or audit store is introduced.
+
+### Command contract
+
+- `createUser`, `setActive`, `requestPasswordReset`, `revokeSessions`, `updateAccess` require `users:manage`. The executing demo account must be active and still assigned the selected role.
+- `toggleRolePermission`, `resetRolePermissions` require `configuration:manage`, including direct invocation outside the UI. Unknown roles/permissions and edits/resets of the protected admin bundle throw `AccessCommandError`.
+- Rejection is a safe, user-readable controlled error. Validation precedes state mutation and audit creation. Rejected operations create **no** event (including no `access_denied`); the type is reserved for a future safe security logging boundary. No recursive logging path exists.
+- A command snapshot points to the same React state arrays, serializing consecutive commands before the next render. It is not another directory/store. This prevents duplicate-email creation within one batched event and lets permission revocation affect subsequent commands immediately.
+- Non-system roles retain runtime-editable bundles. Admin queries always retain the full permission catalog, including `users:manage`, `configuration:manage`, `audit:view`. Admin reset is explicitly rejected and cannot weaken the bundle.
+
+### Validation and lifecycle
+
+Names are trimmed and must be nonempty. Emails are trimmed, lowercased, checked with a basic format rule and compared case-insensitively against all accounts, including inactive/invited accounts. IDs are generated only after validation. Creation accepts only explicit public user fields; no arbitrary secret fields are copied.
+
+Roles must be a nonempty subset of `ROLE_ORDER`; clinic IDs must exist in `CLINICS`. Operator, Patient Care and Clinic Manager are clinic-scoped and require at least one clinic. Admin and Team Leader have global prototype scope; Marketing uses aggregates. Mixed assignments containing a clinic-scoped role still require a clinic. Role/clinic arrays are copied and deduplicated. The editor preserves multiple roles rather than silently replacing them with the first role.
+
+Every targeted command verifies the user exists. Self-deactivation and self role/clinic changes throw. Deactivation sets `inactive`, `deactivatedAt` and `sessionsRevokedAt`, without deleting or reassigning any case/task/history. Reactivation validates access, sets `active`, clears only `deactivatedAt` and preserves the last `sessionsRevokedAt`. Repeating an already-effective activation status or unchanged access is a no-op after permission and target validation. Delete User remains absent.
+
+The existing role switcher excludes inactive/invited/locked accounts and no longer offers a role removed from its mapped demo user. It remains a fixed role-to-seed-user simulator, not a real login/user-session model; newly created users can be activated and audited but are not new impersonation entries.
+
+### Confirmation and error UI
+
+Existing confirmation dialog is reused for deactivation, activation, session revocation and password-reset request. Access editing opens that same confirmation dialog with proposed roles/clinics; cancellation performs no mutation. Role reset has an explicit confirmation. Command errors remain in the relevant dialog as `role=alert`, and role toggles show errors inline. Prototype copy states explicitly that reset/invitation emails and actual session operations are not sent/performed.
+
+### Administrative audit
+
+The shared `AuditEventType` now includes `user_invited`, `user_activated`, `user_deactivated`, `user_password_reset_requested`, `user_sessions_revoked`, `user_access_changed`, `role_permissions_changed`, `role_permissions_reset`, `access_denied`. Successful commands use canonical actor IDs, `targetUserId` or `targetRole`, correlation IDs, safe summaries and before/after where meaningful. No password, token, reset link or credential is recorded.
+
+Audit Log labels and filters cover these types. Actor and target display/search resolves against the live UserDirectory, preserving inactive users and showing users created this session. `audit:view` guards both the route and log component. Default Operator has no Audit Log; AIHub Admin retains central administrative events and case Audit/Activity. Old `assignment_change` entries remain readable.
+
+### Boundaries
+
+No IdP/backend/authentication API is added. Invitation/reset/revoke are timestamps and audit emulation. User and permission mutations reset after reload. The current actor in AuthorizationContext is the canonical seed user mapped to the demo role (UserDirectory is nested below it; no circular context dependency is added). Production requires authenticated actor resolution, durable user/session state, server-side enforcement, transactional last-admin protection and an immutable audit service. These client checks are demonstrational, not a production security boundary.
+
+### Verification evidence
+
+`node --test tests/rbac-user-hardening.test.cjs` executes the actual TypeScript command source in an isolated minimal hook host. It covers denied commands with unchanged state/audit, batched duplicate email, invalid inputs/targets, self-protection, lifecycle timestamps, typed audit, protected admin, immediate permission revocation, inactive/removed-role actors and live actor/target name resolution. It does not verify React rendering, DOM confirmation behavior or actual IdP sessions. Browser UAT remains unexecuted: local Chromium was absent and the attempted browser download was not a valid ZIP. No test harness route is retained.

@@ -21,12 +21,23 @@ import {
   SlidersHorizontal,
 } from "lucide-react"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import { INITIAL_USERS } from "@/lib/crm/user-catalog"
+import { useUserDirectory, type AppUser } from "@/lib/crm/user-directory"
+import { useAuthorization } from "@/lib/crm/authorization-context"
 import type { AuditEvent, AuditEventType } from "@/lib/crm/entities"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 
 const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldCheck; className: string }> = {
+  user_invited: { label: "Zaproszenie użytkownika", icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  user_activated: { label: "Aktywacja użytkownika", icon: UserCog, className: "bg-emerald-100 text-emerald-700" },
+  user_deactivated: { label: "Dezaktywacja użytkownika", icon: UserCog, className: "bg-red-100 text-red-700" },
+  user_password_reset_requested: { label: "Prośba o reset hasła", icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  user_sessions_revoked: { label: "Odwołanie sesji", icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  user_access_changed: { label: "Zmiana dostępu użytkownika", icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  role_permissions_changed: { label: "Zmiana uprawnień roli", icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  role_permissions_reset: { label: "Reset uprawnień roli", icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  access_denied: { label: "Odmowa dostępu", icon: ShieldCheck, className: "bg-red-100 text-red-700" },
+
   sms_send: { label: "Wysyłka SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
   sms_failed: { label: "Błąd SMS", icon: ShieldCheck, className: "bg-red-100 text-red-700" },
   sms_retry: { label: "Ponowienie SMS", icon: ShieldCheck, className: "bg-amber-100 text-amber-700" },
@@ -44,6 +55,7 @@ const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldChec
 }
 
 const TYPE_ORDER: AuditEventType[] = [
+  "user_invited", "user_activated", "user_deactivated", "user_password_reset_requested", "user_sessions_revoked", "user_access_changed", "role_permissions_changed", "role_permissions_reset", "access_denied",
   "sms_send", "sms_failed", "sms_retry", "sms_provider_change", "sms_provider_test", "sms_provider_config",
   "status_change",
   "assignment_change",
@@ -55,24 +67,24 @@ const TYPE_ORDER: AuditEventType[] = [
   "sync",
 ]
 
-function actorName(actorId: string) {
+function actorName(actorId: string, users: AppUser[]) {
   if (actorId === "system") return "System"
-  return INITIAL_USERS.find((o) => o.id === actorId)?.name ?? actorId
+  return users.find((o) => o.id === actorId)?.name ?? actorId
 }
 
-function actorInitials(actorId: string) {
+function actorInitials(actorId: string, users: AppUser[]) {
   if (actorId === "system") return "SY"
-  return INITIAL_USERS.find((o) => o.id === actorId)?.initials ?? actorId.slice(0, 2).toUpperCase()
+  return users.find((o) => o.id === actorId)?.initials ?? actorId.slice(0, 2).toUpperCase()
 }
 
-function actorColor(actorId: string) {
+function actorColor(actorId: string, users: AppUser[]) {
   if (actorId === "system") return "bg-slate-400"
-  return INITIAL_USERS.find((o) => o.id === actorId)?.color ?? "bg-slate-400"
+  return users.find((o) => o.id === actorId)?.color ?? "bg-slate-400"
 }
 
-function matchesQuery(event: AuditEvent, query: string) {
+function matchesQuery(event: AuditEvent, query: string, users: AppUser[]) {
   if (!query.trim()) return true
-  const haystack = [event.summary, event.caseId, event.patientId, event.before, event.after, actorName(event.actorId)]
+  const haystack = [event.summary, event.caseId, event.patientId, event.before, event.after, actorName(event.actorId, users), event.targetUserId, event.targetRole, event.targetUserId ? actorName(event.targetUserId, users) : undefined]
     .filter(Boolean)
     .join(" ")
     .toLowerCase()
@@ -81,6 +93,8 @@ function matchesQuery(event: AuditEvent, query: string) {
 
 export function AuditLogView() {
   const { auditEvents } = useScopedEntityStore()
+  const { users } = useUserDirectory()
+  const { hasPermission } = useAuthorization()
   const [query, setQuery] = useState("")
   const [activeType, setActiveType] = useState<AuditEventType | "all">("all")
 
@@ -97,8 +111,8 @@ export function AuditLogView() {
   )
 
   const filtered = useMemo(
-    () => sorted.filter((e) => (activeType === "all" || e.type === activeType) && matchesQuery(e, query)),
-    [sorted, activeType, query],
+    () => sorted.filter((e) => (activeType === "all" || e.type === activeType) && matchesQuery(e, query, users)),
+    [sorted, activeType, query, users],
   )
 
   const last24h = useMemo(
@@ -116,6 +130,8 @@ export function AuditLogView() {
     for (const e of sorted) counts.set(e.type, (counts.get(e.type) ?? 0) + 1)
     return counts
   }, [sorted])
+
+  if (!hasPermission("audit:view")) return <p role="alert">Brak dostępu do Audit Log.</p>
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -193,12 +209,14 @@ export function AuditLogView() {
                       <span
                         className={cn(
                           "flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold text-white",
-                          actorColor(event.actorId),
+                          actorColor(event.actorId, users),
                         )}
                       >
-                        {actorInitials(event.actorId)}
+                        {actorInitials(event.actorId, users)}
                       </span>
-                      <span>{actorName(event.actorId)}</span>
+                      <span>{actorName(event.actorId, users)}</span>
+                      {event.targetUserId && <span>· użytkownik {actorName(event.targetUserId, users)}</span>}
+                      {event.targetRole && <span>· rola {event.targetRole}</span>}
                       {event.caseId ? <span>· sprawa {event.caseId}</span> : null}
                       {event.patientId ? <span>· pacjent {event.patientId}</span> : null}
                       <span title={formatDateTime(event.at)}>

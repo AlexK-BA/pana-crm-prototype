@@ -2,8 +2,8 @@
 
 ## Test environment
 
-- Branch under test: `codex/sms-mvp` (base: `main`, `8a0d18f865156c4751d72319844a12e8c68a2a61`).
-- Preview: use the deployment attached to the SMS Stage 1 PR when available; the prior foundation preview is not evidence for this branch.
+- Branch under test: `codex/rbac-user-hardening` (base: `main`, `60f489712dccbdf091210661312fa8625ed8e518`).
+- Preview: use the deployment attached to the RBAC/User Management PR when available; the prior foundation preview is not evidence for this branch.
 - Test data is reset after a page reload.
 - Run the scenarios in the order below when testing state changes in one session.
 
@@ -36,6 +36,8 @@ The build is accepted when all critical scenarios (`P0`) pass and no action caus
 | UAT-21 | Case-workspace action permissions | P0 |
 | UAT-22 | Confirmed workflow transition | P0 |
 | UAT-23 | SMS Stage 1 patient/task/failure/retry/audit | P0 |
+| UAT-24 | Direct user/RBAC command validation | P0 |
+| UAT-25 | User lifecycle, confirmations and live audit | P0 |
 
 ## UAT-01 — role workspaces
 
@@ -415,6 +417,31 @@ Expected:
 12. Restrict Operator to one clinic and verify SMS from inaccessible cases/clinics is not exposed in the SMS history. Restore scope and role defaults after the test.
 
 Expected: one canonical Interaction per attempt; retry preserves the original; no API calls or credentials; task workflow stays intact; settings require `sms:provider_manage`; history respects existing clinic scope. Steps above are manual acceptance scenarios, not a claim of an executed browser test.
+
+## UAT-24 — direct commands, validation and protected admin
+
+Use a local test harness mounted inside the existing Role/Authorization/UserDirectory/EntityStore providers to obtain their hooks and call commands directly; merely hiding UI buttons is not this test. The harness is a test-only local page and must not be committed/deployed.
+
+1. As default Operator, invoke each UserDirectory command and both role-matrix commands. Each throws `AccessCommandError`, with no user/permission mutation or new audit row.
+2. As Admin, create an account with leading/trailing spaces and mixed-case email. Verify trimmed name, lowercase email, invited status and one `user_invited` event.
+3. Attempt the same email in another case/spacing, invalid email, blank name, empty roles, unknown role, unknown clinic and clinic-scoped role with empty clinics. Each throws; user count and audit count stay unchanged. Repeat duplicate creation twice in one batched event.
+4. Call reset/revoke/deactivate/activate/updateAccess with an unknown user ID. Verify controlled rejection and no state/audit change.
+5. Attempt self-deactivation and self-access-change. Verify both reject. Attempt to remove `users:manage`, `configuration:manage` or `audit:view` from admin, and reset admin. Verify rejection and unchanged full-access bundle.
+6. Update another user's roles/clinics, including another admin account. Verify `users:manage` is required and successful access changes produce `user_access_changed` with actor, target and before/after.
+7. Grant a test role `configuration:manage`, then remove it and immediately call another role command without waiting for render. Verify revocation is enforced. Restore defaults as Admin.
+
+## UAT-25 — lifecycle, confirmation and live audit names
+
+1. As Admin, open Users. Create a neutral demo user. Verify the account is invited and the UI explicitly says no actual email/password is created.
+2. Trigger password reset, session revoke, deactivation and access editing. Cancel each confirmation once: no mutation/audit. Confirm each once: one attributable typed audit event. Reset a non-admin permission bundle: cancel and then confirm its reset dialog.
+3. For a mapped demo user, note related tasks/cases and audit references. Deactivate it. Verify inactive status, equal deactivation/revocation timestamps, preserved assignments/history and unavailable role-switcher entry.
+4. Reactivate it. Verify active status, cleared deactivatedAt and **unchanged** last sessionsRevokedAt. Confirm the role-switcher entry returns only if its mapped role is still assigned.
+5. Try invalid access (no roles or clinic-scoped role with no clinics). Confirm: an inline error remains visible; access and audit remain unchanged.
+6. Open Audit Log via in-app navigation (do not reload session data). Filter each administrative type. Verify canonical current-admin actor, live target name, before/after and no tokens/passwords/reset links.
+7. In the local harness, create an audit row with the session-created user as actor. Verify the central log renders and searches by that user's name, including after deactivation.
+8. Switch to Operator and enter `/audit`: `Brak dostępu`; no Audit Log navigation. Switch back to AIHub Admin: central events and case Audit/Activity remain visible. No Delete User button/API exists.
+
+These scenarios are the manual acceptance specification; execution evidence and unverified steps must be reported separately. State resets on reload; prototype session revocation does not manipulate real browser/IdP sessions.
 
 ## Known prototype boundaries
 
