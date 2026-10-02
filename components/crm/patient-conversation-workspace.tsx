@@ -1,20 +1,17 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ChevronDown, Globe, Mail, MessageCircle, Phone, Search, Send, Smartphone, X } from "lucide-react"
+import { Globe, Mail, MessageCircle, Phone, Search, Send, Smartphone, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ConversationThread } from "@/components/crm/conversation-thread"
-import { PatientLinkPanel } from "@/components/crm/patient-link-panel"
-import { Patient360Actions } from "@/components/crm/patient-360-actions"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { buildPatientThreads, type PatientThread, type ThreadChannel } from "@/lib/crm/patient-360-selectors"
 import { getNextTaskForCase } from "@/lib/crm/entity-queue"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { useAuthorization } from "@/lib/crm/authorization-context"
-import { useCasePanel } from "@/lib/crm/panel-context"
 import { useCall } from "@/lib/crm/call-context"
 import { getSmsStatusLabel, isSmsMessage } from "@/lib/crm/sms-service"
 import type { Call, Interaction } from "@/lib/crm/entities"
@@ -51,6 +48,10 @@ function replyState(unread: number, last?: Item): ReplyState {
   return lastIsBot(last) ? "bot" : "answered"
 }
 
+const STATE_PRIORITY: ReplyState[] = ["new", "awaiting", "bot", "answered", "none"]
+const worstState = (states: ReplyState[]) => STATE_PRIORITY.find(state => states.includes(state)) ?? "none"
+const lastOf = (items: Item[]) => items.reduce<Item | undefined>((acc, item) => !acc || Date.parse(item.at) > Date.parse(acc.at) ? item : acc, undefined)
+
 const STATE_BADGE: Record<ReplyState, { label: string; className: string } | null> = {
   new: { label: "Nowe", className: "bg-primary text-primary-foreground" },
   awaiting: { label: "Czeka na odpowiedź", className: "bg-amber-100 text-amber-800" },
@@ -71,12 +72,10 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
 }) {
   const store = useScopedEntityStore()
   const { hasPermission } = useAuthorization()
-  const { openCase } = useCasePanel()
   const { startOutgoingCall } = useCall()
   const [selectedChannel, setSelectedChannel] = useState<string>(initialView === "sms" ? "sms" : "")
   const [selectedThread, setSelectedThread] = useState(initialView === "sms" ? "sms-history" : "")
   const [mobileDetail, setMobileDetail] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<Filter>("all")
   const [error, setError] = useState("")
@@ -96,8 +95,9 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
       const all = list.flatMap(thread => thread.messages)
       const last = all.reduce<Item | undefined>((acc, item) => !acc || Date.parse(item.at) > Date.parse(acc.at) ? item : acc, undefined)
       const unread = list.reduce((sum, thread) => sum + thread.unread, 0)
-      const matches = needle ? all.filter(item => textOf(item).toLowerCase().includes(needle)) : []
-      result.push({ channel, threads: list, unread, last, state: replyState(unread, last), matches })
+      const matches = needle ? all.filter(item => textOf(item).toLowerCase().includes(needle)).sort((a, b) => Date.parse(a.at) - Date.parse(b.at)) : []
+      const state = worstState(list.map(thread => replyState(thread.unread, lastOf(thread.messages))))
+      result.push({ channel, threads: list, unread, last, state, matches })
     }
     return result.sort((a, b) => Date.parse(b.last?.at ?? "1970-01-01") - Date.parse(a.last?.at ?? "1970-01-01") || CHANNEL_ORDER.indexOf(a.channel) - CHANNEL_ORDER.indexOf(b.channel))
   }, [threads, needle])
@@ -119,9 +119,7 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
     ?? activeGroup?.threads[0]
   const targetCase = patientCases.find(item => item.id === activeThread?.caseId)
   const next = targetCase ? getNextTaskForCase(store.tasks, targetCase.id) : undefined
-  const patient = store.patients.find(item => item.id === patientId)
   const identity = identities.find(item => item.id === activeThread?.identityId)
-  const primaryPhone = identities.find(item => item.channel === "phone" && item.isPrimary) ?? identities.find(item => item.channel === "phone")
   const botInvolved = Boolean(activeThread?.messages.some(item => lastIsBot(item)))
 
   if (!hasPermission("communication:view")) return <p role="alert" className="p-4 text-sm">Brak dostępu do komunikacji.</p>
@@ -129,26 +127,6 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
   function pickChannel(channel: string) { setSelectedChannel(channel); setSelectedThread(""); setMobileDetail(true); setError("") }
 
   return <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", className)}>
-    <header className="shrink-0 border-b bg-background">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{patient ? `${patient.firstName} ${patient.lastName}` : "Kontakt niepowiązany"}</p>
-          <p className="truncate text-xs text-muted-foreground">{primaryPhone?.value ?? identity?.value ?? "Brak numeru"}{(primaryPhone ?? identity)?.verified ? " · Zweryfikowany" : ""}</p>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5" aria-label="Sprawy pacjenta">
-          {patientCases.map(item => <Button key={item.id} size="sm" variant={item.id === activeThread?.caseId ? "secondary" : "outline"} className="h-7 px-2 text-xs" onClick={() => openCase(item.id)}>{item.id}</Button>)}
-        </div>
-        <span className="hidden truncate text-xs text-muted-foreground lg:inline">Następne: {next?.title ?? "nie ustalono"}</span>
-        <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" aria-expanded={profileOpen} onClick={() => setProfileOpen(open => !open)}>
-          Szczegóły <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", profileOpen && "rotate-180")} />
-        </Button>
-      </div>
-      {profileOpen && <div className="max-h-56 space-y-3 overflow-y-auto border-t bg-muted/20 px-3 py-3 text-xs">
-        {targetCase ? <PatientLinkPanel caseId={targetCase.id} /> : <p>Bez sprawy. Wybierz lub utwórz Engagement Case dla kanałów innych niż SMS.</p>}
-        {patientId && <Patient360Actions patientId={patientId} caseId={targetCase?.id} />}
-      </div>}
-    </header>
-
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <aside className={cn("flex w-full shrink-0 flex-col border-r bg-muted/20 md:w-72", mobileDetail && "hidden md:flex")}>
         <div className="space-y-2 border-b p-2">
@@ -206,14 +184,16 @@ export function PatientConversationWorkspace({ patientId, currentCaseId, authorI
             {activeGroup.threads.map(thread => {
               const contact = identities.find(item => item.id === thread.identityId)
               const on = !smsHistory && activeThread?.id === thread.id
+              const threadBadge = STATE_BADGE[replyState(thread.unread, lastOf(thread.messages))]
               return <button key={thread.id} type="button" aria-pressed={on} onClick={() => setSelectedThread(thread.id)} className={cn("rounded-full border px-2.5 py-0.5 text-xs", on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent")}>
                 {thread.caseId ?? "Bez sprawy"}{contact ? ` · ${contact.displayName ?? contact.value}` : ""}{thread.unread ? ` · ${thread.unread}` : ""}
+                {threadBadge && <span className={cn("ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium", on ? "bg-background/20 text-primary-foreground" : threadBadge.className)}>{threadBadge.label}</span>}
               </button>
             })}
           </div>}
           {!smsHistory && activeThread && <Badge variant="outline" className="ml-auto text-[10px]">{activeThread.active ? "Sprawa aktywna" : "Sprawa zamknięta"}</Badge>}
         </div>
-        {botInvolved && !smsHistory && <p role="status" className="shrink-0 border-b bg-violet-50 px-3 py-1.5 text-xs text-violet-800">W tej rozmowie odpowiadał bot. Możesz wpisać odpowiedź poniżej jako operator.</p>}
+        {botInvolved && !smsHistory && <p role="status" className="shrink-0 border-b bg-violet-50 px-3 py-1.5 text-xs text-violet-800">Bot uczestniczył w tej rozmowie. Odpowiedź wpisana poniżej zostanie wysłana jako operator w tym samym wątku.</p>}
         <div className="min-h-0 flex-1">
           {smsHistory ? <ConversationThread key={`sms-${patientId}`} caseIds={patientCases.map(item => item.id)} primaryCaseId={currentCaseId} patientId={patientId} patientSmsHistory taskId={taskId} authorId={authorId} className="h-full p-3" />
             : !activeThread ? <p className="p-4 text-sm text-muted-foreground">Brak komunikacji. Dodaj kontakt i wybierz lub utwórz sprawę, aby rozpocząć rozmowę.</p>

@@ -264,11 +264,10 @@ export function ConversationThread({
                     "max-w-[75%] rounded-lg px-3 py-2 text-sm",
                     incoming ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
                     status === "error" && "opacity-70",
-                    highlight && m.text?.toLowerCase().includes(highlight) && "ring-2 ring-amber-400",
-                  )}
+                                      )}
                 >
                   {!incoming && isBotAuthor(m.authorId) && <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-80">Bot</p>}
-                  <p className="whitespace-pre-wrap">{m.text}</p>
+                  <p className="whitespace-pre-wrap"><Highlighted text={m.text ?? ""} term={highlight} /></p>
                   <div className={cn("mt-1 flex flex-wrap items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
                     <span>{m.type === "sms" ? "SMS" : TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
                     {m.type === "sms" && <span>· {incoming ? "Przychodzący" : "Wychodzący"} · {users.find((user) => user.id === m.authorId)?.name ?? (incoming ? "Pacjent (demo)" : m.authorId ?? "System")}</span>}
@@ -365,6 +364,7 @@ export function ConversationThread({
             <span key={name} className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-xs">
               <Paperclip className="h-3 w-3" aria-hidden />
               <span className="max-w-[160px] truncate">{name}</span>
+              <span className="text-[10px] text-muted-foreground">demo</span>
               <button type="button" aria-label={`Usuń załącznik ${name}`} onClick={() => setAttachments((prev) => prev.filter((item) => item !== name))}><X className="h-3 w-3" /></button>
             </span>
           ))}
@@ -383,7 +383,7 @@ export function ConversationThread({
           setAttachments((prev) => [...new Set([...prev, ...names])])
           event.target.value = ""
         }} />
-        <Select disabled={patientSmsHistory} value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
+        <Select disabled={patientSmsHistory || Boolean(threadKey)} value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
           <SelectTrigger className="h-9 w-[150px] shrink-0 text-xs" aria-label="Kanał wysyłki">
             <SelectValue />
           </SelectTrigger>
@@ -413,7 +413,7 @@ export function ConversationThread({
         <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Emoji" aria-expanded={emojiOpen} onClick={() => setEmojiOpen((open) => !open)}>
           <Smile className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Dodaj załącznik" disabled={channel === "phone"} onClick={() => fileInputRef.current?.click()}>
+        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Dodaj załącznik (demo)" title="Demo: pliki nie są wysyłane do pacjenta" disabled={channel === "phone"} onClick={() => fileInputRef.current?.click()}>
           <Paperclip className="h-4 w-4" />
         </Button>
         <Textarea
@@ -452,4 +452,20 @@ function SmsStatus({ message }: { message: SmsMessage }) {
       {getSmsStatusLabel(message)} · {message.providerType}
     </span>
   )
+}
+
+function Highlighted({ text, term }: { text: string; term?: string }) {
+  if (!term) return <>{text}</>
+  const lower = text.toLowerCase()
+  const parts: React.ReactNode[] = []
+  let from = 0
+  let at = lower.indexOf(term, from)
+  while (at !== -1) {
+    if (at > from) parts.push(text.slice(from, at))
+    parts.push(<mark key={at} className="rounded-sm bg-amber-300 px-0.5 text-foreground">{text.slice(at, at + term.length)}</mark>)
+    from = at + term.length
+    at = lower.indexOf(term, from)
+  }
+  parts.push(text.slice(from))
+  return <>{parts}</>
 }
