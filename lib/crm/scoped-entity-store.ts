@@ -58,6 +58,7 @@ export function useScopedEntityStore() {
       ...store,
       cases,
       tasks: hasPermission("task:view") ? store.tasks.filter((item) => caseIds.has(item.caseId)) : [],
+      conversationControls: hasPermission("communication:view") ? store.conversationControls.filter(item => caseIds.has(item.caseId)) : [],
       comments: operationalAccess && hasPermission("case:view") ? store.comments.filter(item => caseIds.has(item.caseId)) : [],
       patients: store.patients.filter((item) => patientIds.has(item.id) || matchingPatientIds.has(item.id)).map(item => {
         if (hasPermission("patient:view_medical")) return item
@@ -108,8 +109,10 @@ export function useScopedEntityStore() {
       interactions: hasPermission("communication:view") ? interactions : [],
       sendMessage: (input: Parameters<typeof store.sendMessage>[0]) => {
         if (!caseIds.has(input.caseId)) throw new AccessCommandError("Sprawa poza zakresem dostępu.")
-        return store.sendMessage({ ...input, authorId: input.direction === "outgoing" ? currentUser.id : undefined }, matchingAccessRef.current)
+        return store.sendMessage({ ...input, authorId: input.direction === "outgoing" ? currentUser.id : undefined,
+          senderKind: input.direction === "outgoing" ? "user" : input.senderKind ?? "patient" }, matchingAccessRef.current)
       },
+      setConversationMode: (input: Parameters<typeof store.setConversationMode>[0]) => store.setConversationMode(input, matchingAccessRef.current),
       sendSms: (input: Parameters<typeof store.sendSms>[0]) => {
         requirePermission("communication:send")
         requirePermission("sms:send_custom")
