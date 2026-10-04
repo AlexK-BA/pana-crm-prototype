@@ -16,13 +16,15 @@ import { getClinic, getClinicTone } from "@/lib/crm/catalog"
 import { PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { taskStatusText } from "@/lib/crm/display-labels"
 import { taskTypeLabel } from "@/lib/crm/task-type-labels"
+import { hasManualOrder, sortWithManualOrder } from "@/lib/crm/manual-order"
 import { TaskActions } from "./task-actions"
+import { SortableColumn, SortableColumns, SortableItem } from "./sortable-columns"
 
 const LOCALES = { pl: "pl-PL", ru: "ru-RU" } as const
 
 export function TaskCalendar(){
   const store=useScopedEntityStore(),{openCase}=useCasePanel(),{hasPermission}=useAuthorization(),{users}=useUserDirectory(),{tr,language}=useLanguage()
-  const [now,setNow]=useState(0),[offset,setOffset]=useState(0),[drag,setDrag]=useState<string|null>(null),[pending,setPending]=useState<{id:string;due:string}|null>(null),[selected,setSelected]=useState<string|null>(null),[history,setHistory]=useState(false)
+  const [now,setNow]=useState(0),[offset,setOffset]=useState(0),[pending,setPending]=useState<{id:string;due:string}|null>(null),[selected,setSelected]=useState<string|null>(null),[history,setHistory]=useState(false)
   useEffect(()=>{setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(timer)},[])
   if(!hasPermission("task:view"))return <p role="alert">{tr("Brak dostępu do kalendarza.","Нет доступа к календарю.")}</p>
   if(!now)return <div role="status" className="h-64 animate-pulse rounded bg-muted"><span className="sr-only">{tr("Ładowanie kalendarza…","Загрузка календаря…")}</span></div>
@@ -34,6 +36,17 @@ export function TaskCalendar(){
   const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient?`${patient.firstName} ${patient.lastName}`:tr("Kontakt","Контакт")}
   const ownerName=(ownerId?:string)=>users.find(user=>user.id===ownerId)?.name??tr("Brak właściciela","Без ответственного")
   const todayKey=new Date(now).toDateString()
+  const dayKey=(date:Date)=>`${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`
+  const orderKey=(key:string)=>`calendar:${key}`
+  const tasksByDay=Object.fromEntries(days.map(day=>[dayKey(day),sortWithManualOrder(dated.filter(task=>new Date(task.dueAt!).toDateString()===day.toDateString()),store.manualOrder[orderKey(dayKey(day))],task=>task.id,(a,b)=>new Date(a.dueAt!).getTime()-new Date(b.dueAt!).getTime())]))
+  const dayTaskIds=Object.fromEntries(Object.entries(tasksByDay).map(([key,items])=>[key,items.map(task=>task.id)]))
+  const calendarHasOrder=hasManualOrder(store.manualOrder,"calendar:")
+  const moveToDay=(taskId:string,_from:string,toKey:string)=>{
+    const task=store.tasks.find(item=>item.id===taskId),day=days.find(item=>dayKey(item)===toKey)
+    if(!task||!day||!isActive(task)||task.requiresCall||!hasPermission("task:work"))return
+    const original=new Date(task.dueAt!),due=new Date(day);due.setHours(original.getHours(),original.getMinutes(),0,0)
+    setPending({id:task.id,due:due.toISOString()})
+  }
   const weekHasTasks=days.some(day=>dated.some(task=>new Date(task.dueAt!).toDateString()===day.toDateString()))
   const range=`${days[0].toLocaleDateString(locale,{day:"numeric",month:"short"})} – ${days[6].toLocaleDateString(locale,{day:"numeric",month:"short",year:"numeric"})}`
   return <div className="space-y-4">
@@ -42,23 +55,25 @@ export function TaskCalendar(){
       <Button variant="outline" onClick={()=>setOffset(0)} disabled={offset===0}>{tr("Dzisiaj","Сегодня")}</Button>
       <Button variant="outline" size="icon" aria-label={tr("Następny tydzień","Следующая неделя")} onClick={()=>setOffset(offset+1)}><ChevronRight className="h-4 w-4"/></Button>
       <span className="px-2 text-sm font-medium" aria-live="polite">{range}</span>
+      {calendarHasOrder&&<Button variant="outline" size="sm" className="ml-2" onClick={()=>store.clearManualOrder("calendar:")}>{tr("Przywróć kolejność automatyczną","Вернуть автоматический порядок")}</Button>}
       <label className="ml-auto flex items-center gap-2 text-sm"><input type="checkbox" checked={history} onChange={event=>setHistory(event.target.checked)}/>{tr("Pokaż historię","Показать историю")}</label>
     </div>
-    <p className="text-xs text-muted-foreground">{tr("To kalendarz zadań, a nie wizyt. Przeniesienie zadania nie zmienia terminu wizyty. Zadania z telefonem przenosisz przez zapis wyniku rozmowy.","Это календарь задач, а не визитов. Перенос задачи не меняет дату визита. Задачи со звонком переносятся через запись результата звонка.")}</p>
+    <p className="text-xs text-muted-foreground">{tr("To kalendarz zadań, a nie wizyt. Przeniesienie zadania nie zmienia terminu wizyty. Zadania z telefonem przenosisz przez zapis wyniku rozmowy. Uchwytem zmienisz kolejność zadań w dniu; priorytet się nie zmienia.","Это календарь задач, а не визитов. Перенос задачи не меняет дату визита. Задачи со звонком переносятся через запись результата звонка. Маркером можно изменить порядок задач в дне; приоритет не меняется.")}</p>
     {!weekHasTasks&&<p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{tr("W tym tygodniu nie ma zaplanowanych zadań.","На этой неделе нет запланированных задач.")}{projection.overdue.length>0&&<> {tr("Przeterminowane zadania są poniżej.","Просроченные задачи показаны ниже.")}</>}</p>}
+    <SortableColumns id="task-calendar" columns={dayTaskIds} onReorder={(key,ids)=>store.saveManualOrder(orderKey(key),ids)} onMove={moveToDay} renderOverlay={taskId=><div className="w-40 rounded-md border bg-card p-2 text-xs font-semibold shadow-lg">{store.tasks.find(task=>task.id===taskId)?.title}</div>}>
     <div className="overflow-x-auto"><div className="grid min-w-[900px] grid-cols-7 gap-2">{days.map(day=>{
-      const dayTasks=dated.filter(task=>new Date(task.dueAt!).toDateString()===day.toDateString()),isToday=day.toDateString()===todayKey
-      return <section key={day.toISOString()} aria-label={day.toLocaleDateString(locale,{weekday:"long",day:"numeric",month:"long"})} className={cn("min-h-48 rounded-lg border p-2",isToday&&"border-primary/50 bg-primary/5")} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();const task=store.tasks.find(task=>task.id===drag);if(!task)return;const original=new Date(task.dueAt!),due=new Date(day);due.setHours(original.getHours(),original.getMinutes(),0,0);setPending({id:task.id,due:due.toISOString()});setDrag(null)}}>
+      const dayTasks=tasksByDay[dayKey(day)],isToday=day.toDateString()===todayKey
+      return <SortableColumn key={day.toISOString()} columnId={dayKey(day)} ids={dayTaskIds[dayKey(day)]} ariaLabel={day.toLocaleDateString(locale,{weekday:"long",day:"numeric",month:"long"})} overClassName="ring-2 ring-primary/40" className={cn("min-h-48 rounded-lg border p-2",isToday&&"border-primary/50 bg-primary/5")}>
         <h2 className={cn("mb-2 text-xs font-semibold capitalize",isToday&&"text-primary")}>{day.toLocaleDateString(locale,{weekday:"short",day:"numeric",month:"short"})}</h2>
-        {dayTasks.map(task=>{const item=store.cases.find(item=>item.id===task.caseId),overdue=isOverdue(task,now);return <button type="button" key={task.id} className={cn("mb-2 w-full space-y-1 rounded-md border bg-card p-2 text-left text-xs hover:bg-muted/50",overdue&&"border-red-300 bg-red-50/60")} draggable={isActive(task)&&!task.requiresCall&&hasPermission("task:work")} onDragStart={()=>setDrag(task.id)} onDragEnd={()=>setDrag(null)} onClick={()=>setSelected(task.id)}>
+        {dayTasks.map(task=>{const item=store.cases.find(item=>item.id===task.caseId),overdue=isOverdue(task,now);return <SortableItem key={task.id} id={task.id} disabled={!isActive(task)} handleLabel={tr("Zmień kolejność zadania","Изменить порядок задачи")}>{handle=><div className="mb-2 flex items-start gap-0.5"><div className="pt-2">{handle}</div><button type="button" className={cn("w-full min-w-0 flex-1 space-y-1 rounded-md border bg-card p-2 text-left text-xs hover:bg-muted/50",overdue&&"border-red-300 bg-red-50/60")} onClick={()=>setSelected(task.id)}>
           <span className="flex items-center gap-1.5"><span className={cn("h-2 w-2 shrink-0 rounded-full",PRIORITY_TONE[task.priority])} aria-hidden="true"/><span className="sr-only">{task.priority}</span><span className="font-semibold tabular-nums">{new Date(task.dueAt!).toLocaleTimeString(locale,{hour:"2-digit",minute:"2-digit"})}</span>{overdue&&<AlertCircle className="h-3 w-3 text-red-600" aria-label={tr("Po terminie","Просрочено")}/>}{task.requiresCall&&<Phone className="ml-auto h-3 w-3 text-muted-foreground" aria-label={tr("Wymaga telefonu","Нужен звонок")}/>}</span>
           <strong className="block leading-snug">{task.title}</strong>
           <span className="block text-muted-foreground">{patientName(item?.patientId)}</span>
           <span className={cn("block truncate rounded px-1",getClinicTone(item?.clinicId).chip)}>{getClinic(item?.clinicId)?.name}</span>
-        </button>})}
+        </button></div>}</SortableItem>})}
         {!dayTasks.length&&<p className="text-xs text-muted-foreground">{tr("Brak zadań","Нет задач")}</p>}
-      </section>
-    })}</div></div>
+      </SortableColumn>
+    })}</div></div></SortableColumns>
     {projection.overdue.length>0&&<section className="rounded-lg border border-red-200 bg-red-50/40 p-3"><h2 className="flex items-center gap-2 text-sm font-semibold text-red-800"><AlertCircle className="h-4 w-4" aria-hidden="true"/>{tr("Przeterminowane","Просроченные")} · {projection.overdue.length}</h2><p className="text-xs text-muted-foreground">{tr("Zachowują pierwotną datę i nie przenoszą się same na dziś.","Сохраняют исходную дату и не переносятся на сегодня автоматически.")}</p><div className="mt-2 flex flex-wrap gap-2">{projection.overdue.map(task=><Button key={task.id} variant="outline" size="sm" className="bg-background" onClick={()=>setSelected(task.id)}>{task.title} · {formatDateTime(task.dueAt!,timeZone)}</Button>)}</div></section>}
     <section className="rounded-lg border p-3"><h2 className="text-sm font-semibold">{tr("Bez terminu","Без срока")}</h2><div className="mt-2 flex flex-wrap gap-2">{projection.undated.filter(task=>history||isActive(task)).map(task=><Button key={task.id} variant="outline" size="sm" onClick={()=>setSelected(task.id)}>{task.title}</Button>)}</div>{!projection.undated.filter(task=>history||isActive(task)).length&&<p className="text-sm text-muted-foreground">{tr("Brak zadań bez terminu.","Нет задач без срока.")}</p>}</section>
     {detail&&<section className="space-y-2 rounded-lg border p-3" aria-label={detail.title}>

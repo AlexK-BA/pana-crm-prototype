@@ -14,9 +14,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, UserRound, BriefcaseBusiness, Save, ChevronDown, Clock3, AlertTriangle } from "lucide-react"
+import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, BriefcaseBusiness, Save, ChevronDown, Clock3, AlertTriangle } from "lucide-react"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { CreateCaseTask, TaskActions } from "@/components/crm/task-actions"
@@ -71,8 +71,8 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const canViewCommunication = hasPermission("communication:view")
   const canEditPatient = hasPermission("patient:edit_local")
   const canWorkTasks = hasPermission("task:work")
-  const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, matchDecisions, retrySms, saveCaseContactProfile } = useScopedEntityStore()
-  const { startOutgoingCall } = useCall()
+  const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, matchDecisions, retrySms, saveCaseContactProfile, addCaseComment } = useScopedEntityStore()
+  const { startOutgoingCall, phase: callPhase } = useCall()
   const { t, tr, language } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId)!
   const patient = patients.find((item) => item.id === engagementCase.patientId)
@@ -118,7 +118,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
     return entries.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
   }, [caseTasks, comments, audit, caseSms, canViewAudit, canViewCommunication, users, t])
   const [bookingOpen, setBookingOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState(patient ? "timeline" : "profile")
+  const [activeTab, setActiveTab] = useState("timeline")
   const [profileError, setProfileError] = useState("")
   const patientIdentities = identities.filter((item) => item.patientId === patient?.id)
   const [profileDraft, setProfileDraft] = useState({
@@ -131,6 +131,8 @@ function DrawerBody({ caseId }: { caseId: string }) {
   })
   const [profileSaved, setProfileSaved] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [actionError, setActionError] = useState("")
+  const [commentDraft, setCommentDraft] = useState("")
 
   const openTasks = caseTasks.filter((t) => !["completed", "cancelled", "failed"].includes(t.status))
   const nextTask = getNextTaskForCase(caseTasks, caseId)
@@ -143,7 +145,23 @@ function DrawerBody({ caseId }: { caseId: string }) {
 
   const handleCall = () => {
     if (!canHandleCalls) return
-    startOutgoingCall({ caseId, taskId: nextTask?.id })
+    if (callPhase !== "idle") { setActionError(tr("Najpierw zakończ bieżące połączenie i wrap-up.", "Сначала завершите текущий звонок и wrap-up.")); return }
+    const phoneIdentity = identities.find(item => item.channel === "phone" && (item.id === engagementCase.contactIdentityId || item.patientId === patient?.id))
+    if (!phoneIdentity) { setActionError(tr("Brak numeru telefonu. Uzupełnij profil lub wybierz wiadomość.", "Нет номера телефона. Заполните профиль или выберите сообщение.")); setDetailsOpen(true); return }
+    const callTask = openTasks.find(task => task.requiresCall) ?? (nextTask && /zadzwoń|call|telefon/i.test(nextTask.title) ? nextTask : undefined)
+    try { setActionError(""); startOutgoingCall({ caseId, taskId: callTask?.id, contactIdentityId: phoneIdentity.id }) }
+    catch (error) { setActionError(error instanceof Error ? error.message : tr("Nie udało się rozpocząć połączenia.", "Не удалось начать звонок.")) }
+  }
+
+  const handleMessage = () => {
+    setActionError("")
+    setActiveTab("history")
+    window.setTimeout(() => document.querySelector<HTMLTextAreaElement>(`[data-case-workspace="${caseId}"] [data-message-composer]`)?.focus(), 0)
+  }
+
+  const handleAddComment = () => {
+    try { if (!commentDraft.trim()) return; addCaseComment(caseId, commentDraft); setCommentDraft(""); setActionError("") }
+    catch (error) { setActionError(error instanceof Error ? error.message : tr("Nie udało się dodać komentarza.", "Не удалось добавить комментарий.")) }
   }
 
   const handleSaveProfile = () => {
@@ -157,7 +175,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-case-workspace={caseId}>
       <DialogHeader className="gap-3 border-b border-border px-6 py-4 text-left">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
@@ -193,9 +211,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
           {procedure && <Badge variant="secondary">{procedure.name}</Badge>}
           {doctor && <Badge variant="secondary">{doctor.name}</Badge>}
           <Badge variant="outline">{patientLinkLabel(patientLinkState, language)}</Badge>
-          {patient && <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
+          <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
             {tr("Szczegóły", "Подробнее")} <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", detailsOpen && "rotate-180")} />
-          </Button>}
+          </Button>
         </div>
 
         <section className={cn("rounded-lg border p-3", nextTaskOverdue ? "border-red-300 bg-red-50/70" : "border-primary/25 bg-primary/[0.04]")} aria-labelledby="case-now-title">
@@ -226,7 +244,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             <Phone className="h-3.5 w-3.5" />
             {t("call")}
           </Button>
-          <Button size="sm" variant="secondary" className="flex-1 gap-1.5" disabled={!canViewCommunication} onClick={() => setActiveTab("history")}>
+          <Button size="sm" variant={activeTab === "history" ? "default" : "secondary"} className="flex-1 gap-1.5" disabled={!canViewCommunication} onClick={handleMessage}>
             <MessageSquare className="h-3.5 w-3.5" />
             {t("message")}
           </Button>
@@ -247,15 +265,21 @@ function DrawerBody({ caseId }: { caseId: string }) {
           />
         </div>
 
-        <PatientLinkPanel caseId={caseId} />
-        {detailsOpen && patient && <div className="max-h-40 overflow-y-auto"><Patient360Actions patientId={patient.id} caseId={caseId} /></div>}
+        {actionError && <p role="alert" className="text-xs font-medium text-destructive">{actionError}</p>}
+
+        {detailsOpen && <section className="max-h-64 space-y-3 overflow-y-auto rounded-lg border bg-background p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{tr("Profil i dane kontaktowe", "Профиль и контактные данные")}</h3><p className="text-xs text-muted-foreground">{tr("Dostępne niezależnie od otwartej sekcji sprawy.", "Доступны независимо от открытого раздела кейса.")}</p></div>{patient&&<Badge variant="outline">{patientLinkLabel(patientLinkState,language)}</Badge>}</div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {([ ["firstName",tr("Imię","Имя")],["lastName",tr("Nazwisko","Фамилия")],["phone",tr("Telefon","Телефон")],["email","E-mail"],["pesel","PESEL"],["externalPatientId","Medical CRM ID"] ] as const).map(([field,label])=><label key={field} className="space-y-1 text-xs"><span className="text-muted-foreground">{label}</span><Input className="h-8" disabled={!canEditPatient} value={profileDraft[field]} onChange={event=>setProfileDraft(prev=>({...prev,[field]:event.target.value}))}/></label>)}
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">{profileError&&<p role="alert" className="mr-auto text-xs text-destructive">{profileError}</p>}<Button size="sm" disabled={!canEditPatient||!profileDraft.firstName.trim()||!profileDraft.lastName.trim()} onClick={handleSaveProfile}><Save className="mr-1 h-3.5 w-3.5"/>{profileSaved?tr("Zapisano","Сохранено"):tr("Zapisz i sprawdź powiązanie","Сохранить и проверить связь")}</Button></div>
+          <PatientLinkPanel caseId={caseId}/>
+          {patient&&<Patient360Actions patientId={patient.id} caseId={caseId}/>}
+        </section>}
       </DialogHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
         <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent px-3 py-0">
-          <TabsTrigger value="profile" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
-            <UserRound className="mr-1.5 h-3.5 w-3.5" />{tr("Profil", "Профиль")}
-          </TabsTrigger>
           <TabsTrigger value="timeline" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_timeline")}
           </TabsTrigger>
@@ -270,7 +294,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
           {canViewCommunication && <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_history")}
           </TabsTrigger>}
-          <TabsTrigger value="comments" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="comments" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none lg:hidden">
             {t("tab_comments")}
           </TabsTrigger>
           {canViewAudit && <TabsTrigger value="audit" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
@@ -281,45 +305,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
           </TabsTrigger>
         </TabsList>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          <TabsContent value="profile" className="mt-0 space-y-4">
-            <div className="rounded-lg border border-border bg-muted/20 p-4">
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold">{tr("Lokalne dane kontaktu sprawy", "Локальные контактные данные заявки")}</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{tr("Dane do wyszukania pacjenta. Zapis nie tworzy Patient i nie zmienia danych Medical CRM.", "Данные для поиска пациента. Сохранение не создаёт Patient и не изменяет данные Medical CRM.")}</p>
-                </div>
-                <Badge variant="outline">{patient ? tr("Profil istnieje", "Профиль существует") : tr("Kontakt bez Patient", "Контакт без Patient")}</Badge>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {([
-                  ["firstName", tr("Imię", "Имя")], ["lastName", tr("Nazwisko", "Фамилия")], ["pesel", tr("PESEL do wyszukania", "PESEL для поиска")], ["externalPatientId", tr("Medical CRM ID do wyszukania", "Medical CRM ID для поиска")], ["phone", tr("Telefon", "Телефон")], ["email", "E-mail"],
-                ] as const).map(([field, label]) => (
-                  <div key={field} className="space-y-1.5">
-                    <Label htmlFor={`profile-${field}`} className="text-xs text-muted-foreground">{label}</Label>
-                    <Input id={`profile-${field}`} disabled={!canEditPatient} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={`${tr("Uzupełnij", "Заполните")}: ${label.toLowerCase()}`} />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground">{tr("Dane kontaktu pozostają w sprawie; decyzja powiązania ma własną historię.", "Контактные данные остаются в заявке; решение о привязке имеет отдельную историю.")}</p>
-                <Button size="sm" className="gap-1.5" disabled={!canEditPatient || !profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
-                  <Save className="h-3.5 w-3.5" />{profileSaved ? tr("Zapisano", "Сохранено") : tr("Zapisz kontakt i wyszukaj", "Сохранить контакт и найти")}
-                </Button>
-              </div>
-            </div>
-            {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
-            {patient && (
-              <div className="rounded-lg border border-border p-4">
-                <h3 className="mb-2 text-sm font-semibold">{tr("Źródło i synchronizacja", "Источник и синхронизация")}</h3>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <Badge variant="outline">{patientLinkLabel(patientLinkState, language)}</Badge>
-                  {hasPermission("patient:view_medical") && patient.externalPatientId && <Badge variant="secondary">Medical CRM ID: {patient.externalPatientId}</Badge>}
-                  {patient.lastSyncAt && <span className="text-muted-foreground">{tr("Ostatnia synchronizacja", "Последняя синхронизация")}: {formatDateTime(patient.lastSyncAt)}</span>}
-                </div>
-              </div>
-            )}
-          </TabsContent>
+        <div className="flex min-h-0 flex-1"><div className="min-w-0 flex-1 overflow-y-auto px-5 py-4">
           <TabsContent value="timeline" className="mt-0">
             {smsError && <p role="alert" className="text-xs text-destructive">{smsError}</p>}
             <ol className="space-y-3">
@@ -368,6 +354,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
           </TabsContent>}
 
           <TabsContent value="comments" className="mt-0 space-y-3">
+            <div className="space-y-2 rounded-lg border p-3"><Textarea value={commentDraft} onChange={event=>setCommentDraft(event.target.value)} placeholder={tr("Dodaj komentarz dla zespołu…","Добавьте комментарий для команды…")}/><Button size="sm" disabled={!commentDraft.trim()} onClick={handleAddComment}>{tr("Dodaj komentarz","Добавить комментарий")}</Button></div>
             {comments.length === 0 && <p className="text-sm text-muted-foreground">{t("no_comments")}</p>}
             {comments.map((comment) => {
               const author = getOperator(comment.authorId)
@@ -422,6 +409,11 @@ function DrawerBody({ caseId }: { caseId: string }) {
             })}
           </TabsContent>
         </div>
+        <aside className="hidden w-80 shrink-0 flex-col border-l bg-muted/10 lg:flex" aria-label={tr("Komentarze zespołu","Комментарии команды")}>
+          <div className="border-b p-3"><h3 className="text-sm font-semibold">{tr("Komentarze zespołu","Комментарии команды")}</h3><p className="text-xs text-muted-foreground">{tr("Widoczne podczas pracy w każdej sekcji sprawy.","Видны при работе в любом разделе кейса.")}</p></div>
+          <div className="flex-1 space-y-2 overflow-y-auto p-3">{comments.length===0&&<p className="text-xs text-muted-foreground">{t("no_comments")}</p>}{comments.map(comment=>{const author=getOperator(comment.authorId);return <div key={comment.id} className="rounded-md border bg-background p-2.5"><p className="whitespace-pre-wrap text-sm">{comment.text}</p><p className="mt-1 text-[11px] text-muted-foreground">{author?.name??comment.authorId} · {formatDateTime(comment.at)}</p></div>})}</div>
+          <div className="space-y-2 border-t p-3"><Textarea rows={3} value={commentDraft} onChange={event=>setCommentDraft(event.target.value)} placeholder={tr("Nowy komentarz…","Новый комментарий…")}/><Button className="w-full" size="sm" disabled={!commentDraft.trim()} onClick={handleAddComment}>{tr("Dodaj komentarz","Добавить комментарий")}</Button></div>
+        </aside></div>
       </Tabs>
     </div>
   )

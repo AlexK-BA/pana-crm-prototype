@@ -441,6 +441,7 @@ export function ConversationThread({
           <Paperclip className="h-4 w-4" />
         </Button>
         <Textarea
+          data-message-composer
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {

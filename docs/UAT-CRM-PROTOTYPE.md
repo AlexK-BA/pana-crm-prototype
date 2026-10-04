@@ -612,3 +612,22 @@ Run against the deployment built from the exact tested `main` commit.
 - [ ] Approve a real matching candidate, then reopen all three views. They show the same linked/conflict/sync state.
 - [ ] Reprioritize, reassign and reschedule a Task as Team Leader with a reason. Audit shows readable action, before/after values, actor, reason and timestamp; no raw Task JSON is visible.
 - [ ] Regress call-required wrap-up, Patient Matching, SMS failure/retry, terminal-stage guard and role routes.
+
+## UAT-29 — Engagement Case workspace UX
+
+- [ ] Click `Zadzwoń` with a valid phone and idle telephony. The emulated call opens. If another call is active or the phone is missing, the operator sees an actionable explanation.
+- [ ] Click `Wiadomość` from every section. Communication opens and focus moves to the composer; clicking again while already open still focuses the composer.
+- [ ] Book a visit by selecting clinic, service, doctor, day and slot in that order. Dependent choices reset when an earlier choice changes. Saving stays a documented CRM emulation.
+- [ ] Create a Task in each funnel stage. The first screen shows only the stage's automatic/suggested task types plus `Własne zadanie`; unavailable medical actions stay hidden.
+- [ ] A predefined task derives title, description and call requirement. A custom task asks for title and operational comment. Deadline remains required; priority/past-date controls are under additional settings.
+- [ ] Open profile details from Timeline, Tasks, Communications, Audit and Cases. The same contact fields and Patient Link actions remain accessible without switching tabs.
+- [ ] On desktop, team comments remain visible beside every section and a new comment appears immediately. On mobile, Comments remains an accessible section with the same composer and history.
+
+## UAT-30 — Manual order without business-state mutation
+
+- [ ] In Schedule, Task Calendar, Waitlist and a CRM Board column, the handle changes only the current user's private display order; priority, due date and stage remain unchanged.
+- [ ] A newly created, previously unranked Task appears before manually ranked items so new urgent work cannot be silently buried.
+- [ ] With search or filters active on CRM Board and Waitlist, drag handles are unavailable; neither reordering nor cross-stage movement can be triggered from a partial result set.
+- [ ] Moving a card between unfiltered CRM Board columns still opens the standard stage-transition dialog and cannot bypass next-action selection.
+- [ ] Reordering creates no Audit event. A real stage, deadline or owner change remains audited by its domain command.
+- [ ] “Przywróć kolejność automatyczną” removes only the current user's presentation order and restores due-date/priority ordering.

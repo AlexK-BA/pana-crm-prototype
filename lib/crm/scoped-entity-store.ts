@@ -74,6 +74,14 @@ export function useScopedEntityStore() {
         candidates: canReview ? item.candidates.filter(candidate => matchingPatientIds.has(candidate.candidatePatientId)) : [],
         candidatePatientId: canReview && item.candidatePatientId && matchingPatientIds.has(item.candidatePatientId) ? item.candidatePatientId : undefined,
         reason: canReview ? item.reason : "Powiązanie pacjenta wymaga bezpiecznej weryfikacji. Sprawa nadal pozostaje dostępna do pracy." })),
+      manualOrder: store.manualOrder[currentUser.id] ?? {},
+      saveManualOrder: (listKey: string, orderedIds: string[]) => {
+        const isTaskList = listKey === "tasks" || listKey.startsWith("calendar:")
+        if (currentUser.status !== "active" || !hasPermission(isTaskList ? "task:view" : "case:view")) throw new AccessCommandError("Brak uprawnień do zmiany kolejności.")
+        const visibleIds = new Set(isTaskList ? store.tasks.filter(task => caseIds.has(task.caseId)).map(task => task.id) : cases.map(item => item.id))
+        store.saveManualOrder(currentUser.id, listKey, orderedIds.filter(id => visibleIds.has(id)))
+      },
+      clearManualOrder: (listKeyPrefix?: string) => store.clearManualOrder(currentUser.id, listKeyPrefix),
       bookAppointment: (input:Parameters<typeof store.bookAppointment>[0]) => store.bookAppointment(input,matchingAccessRef.current),
       changeTask: (id:string,input:Parameters<typeof store.changeTask>[1]) => store.changeTask(id,input,matchingAccessRef.current),
       completeTask: (id:string,outcome:Parameters<typeof store.completeTask>[1]) => store.completeTask(id,outcome,{access:matchingAccessRef.current}),
