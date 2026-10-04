@@ -33,13 +33,6 @@ export function formatDateTime(iso: string, timeZone = CLINIC_TIME_ZONE, locale 
   })
 }
 
-export const PRIORITY_LABEL: Record<string, string> = {
-  urgent: "Pilne",
-  high: "Wysoki",
-  normal: "Zwykły",
-  low: "Niski",
-}
-
 export const PRIORITY_CLASS: Record<string, string> = {
   urgent: "bg-red-100 text-red-700 border-red-200",
   high: "bg-orange-100 text-orange-700 border-orange-200",

@@ -5,7 +5,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
   const { id } = await params
 
   return (
-    <PageShell title="Profil pacjenta" subtitle="Patient 360 · sprawy, zadania, komunikacje i Medical CRM">
+    <PageShell title="Profil pacjenta" titleRu="Профиль пациента" subtitle="Patient 360 · sprawy, zadania, komunikacje i Medical CRM" subtitleRu="Patient 360 · кейсы, задачи, коммуникации и Medical CRM">
       <PatientProfile patientId={id} />
     </PageShell>
   )

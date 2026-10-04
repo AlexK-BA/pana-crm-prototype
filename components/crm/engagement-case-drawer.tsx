@@ -20,6 +20,7 @@ import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, UserRound
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { CreateCaseTask, TaskActions } from "@/components/crm/task-actions"
+import { getWorkflowStageRule } from "@/lib/crm/workflow-rules"
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
@@ -134,6 +135,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const lastCompletedTask = caseTasks
     .filter((task) => task.status === "completed")
     .sort((a, b) => new Date(b.completedAt ?? b.createdAt).getTime() - new Date(a.completedAt ?? a.createdAt).getTime())[0]
+  const isTerminalStage = Boolean(getWorkflowStageRule(engagementCase.board, engagementCase.status)?.terminal)
   const nextTaskOverdue = Boolean(nextTask?.dueAt && new Date(nextTask.dueAt).getTime() < Date.now())
   const relatedCases = patient ? cases.filter((item) => item.patientId === patient.id) : [engagementCase]
 
@@ -212,6 +214,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
             {nextTask && <Badge variant={nextTaskOverdue ? "destructive" : "secondary"}>{nextTask.priority}</Badge>}
           </div>
           {lastCompletedTask && <p className="mt-2 truncate border-t pt-2 text-xs text-muted-foreground">{tr("Ostatnio wykonano", "Последнее выполненное действие")}: {lastCompletedTask.title}</p>}
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2">
+            <CreateCaseTask caseId={caseId} variant="secondary" terminal={isTerminalStage} />
+          </div>
         </section>
 
         <div className="flex gap-2">

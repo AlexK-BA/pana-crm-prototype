@@ -18,6 +18,8 @@ import {
 } from "./entity-data"
 import { getClinic, getDoctor, getProcedure } from "./catalog"
 import { getCatalogUser } from "./user-catalog"
+import { priorityText } from "./display-labels"
+import type { Language } from "./language-context"
 import { effectiveStatus, isOverdue, overdueDurationMs } from "./entity-queue"
 
 /** "Action filter" chips for the queue — what kind of hands-on action a task needs. */
@@ -66,14 +68,6 @@ export interface QueueItem {
   clinicAssigned: boolean
 }
 
-const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  P0: "Ręczna eskalacja",
-  P1: "Pilny oddzwonienie",
-  P2: "Zaplanowane zadanie",
-  P3: "Nowy lead",
-  P4: "Kolejna próba",
-}
-
 export const PRIORITY_TONE: Record<TaskPriority, string> = {
   P0: "bg-red-700",
   P1: "bg-red-500",
@@ -90,8 +84,9 @@ export const PRIORITY_TEXT_TONE: Record<TaskPriority, string> = {
   P4: "text-slate-500",
 }
 
-export function priorityLabel(p: TaskPriority) {
-  return PRIORITY_LABEL[p]
+/** Compatibility wrapper: the single label catalog lives in display-labels.ts. */
+export function priorityLabel(p: TaskPriority, language: Language = "pl") {
+  return priorityText(p, language)
 }
 
 export function buildQueueItem(task: Task, nowMs = Date.now(), cases: EngagementCase[] = ENGAGEMENT_CASES): QueueItem | undefined {

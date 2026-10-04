@@ -54,7 +54,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
   const { simulateIncomingCall, routeIncomingCall } = useCall()
   const { tasks, cases, createDraftCase } = useScopedEntityStore()
   const { openCase } = useCasePanel()
-  const { language, setLanguage, t } = useLanguage()
+  const { language, setLanguage, t, tr } = useLanguage()
   const { hasPermission } = useAuthorization()
   const canHandleCalls = hasPermission("call:handle")
   const canViewTasks = hasPermission("task:view")
@@ -325,26 +325,26 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
                 placeholder="np. MED-10234"
               />
               <p className="text-[11px] text-muted-foreground">
-                Tylko unikalne, bezpieczne dopasowanie połączy sprawę automatycznie. Pozostałe wyniki wymagają weryfikacji.
+                {tr("Tylko unikalne, bezpieczne dopasowanie połączy sprawę automatycznie. Pozostałe wyniki wymagają weryfikacji.","Только однозначное безопасное совпадение свяжет заявку автоматически. Остальные результаты требуют проверки.")}
               </p>
             </div>
-            <div className="space-y-1.5"><Label className="text-xs">PESEL do wyszukania (opcjonalny)</Label><Input value={newCasePesel} onChange={(event) => setNewCasePesel(event.target.value)} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">{tr("PESEL do wyszukania (opcjonalny)","PESEL для поиска (необязательно)")}</Label><Input value={newCasePesel} onChange={(event) => setNewCasePesel(event.target.value)} /></div>
             {newCaseError && <p role="alert" className="text-sm text-destructive">{newCaseError}</p>}
             <div className="space-y-1.5">
-              <Label className="text-xs">Pierwsza notatka / wiadomość</Label>
+              <Label className="text-xs">{tr("Pierwsza notatka / wiadomość","Первая заметка / сообщение")}</Label>
               <Textarea
                 value={newCaseMessage}
                 onChange={(e) => setNewCaseMessage(e.target.value)}
-                placeholder="Krótki opis zapytania pacjenta..."
+                placeholder={tr("Krótki opis zapytania pacjenta...","Краткое описание обращения пациента...")}
                 className="min-h-20"
               />
             </div>
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline">Anuluj</Button>} />
+            <DialogClose render={<Button variant="outline">{tr("Anuluj","Отмена")}</Button>} />
             <Button onClick={handleCreateCase} disabled={!hasIdentifier || creating} className="gap-1.5">
               {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Utwórz sprawę
+              {tr("Utwórz sprawę", "Создать заявку")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -352,7 +352,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
 
       {canCreateCase && <Button size="sm" className="gap-1.5" onClick={() => setNewCaseOpen(true)}>
         <Plus className="h-4 w-4" />
-        Nowa sprawa
+        {tr("Nowa sprawa", "Новая заявка")}
       </Button>}
     </header>
   )

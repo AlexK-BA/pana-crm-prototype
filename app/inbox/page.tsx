@@ -156,7 +156,7 @@ export default function InboxPage() {
   }
 
   return (
-    <PageShell title="Inbox" subtitle="Wszystkie rozmowy czatowe, niezależnie od kart CRM" noPadding>
+    <PageShell title="Inbox" titleRu="Входящие" subtitle="Wszystkie rozmowy czatowe, niezależnie od kart CRM" subtitleRu="Все чаты независимо от карточек CRM" noPadding>
       <div className="flex h-full">
         <div className="flex w-[340px] shrink-0 flex-col border-r border-border">
           <div className="space-y-2 border-b border-border px-3 py-3">

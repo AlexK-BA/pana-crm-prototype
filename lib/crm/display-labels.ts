@@ -44,7 +44,22 @@ const CHANNEL: Record<string, Record<Language, string>> = {
   personal_account: { pl: "Konto pacjenta", ru: "Личный кабинет" },
 }
 
+/** Composer channels: the "website" channel is a live chat and "phone" is sent as SMS. */
+const SEND_CHANNEL: Record<string, Record<Language, string>> = {
+  website: { pl: "Czat", ru: "Чат" },
+  phone: { pl: "SMS", ru: "SMS" },
+  tiktok: { pl: "TikTok", ru: "TikTok" },
+}
+
+const POTENTIAL_CHANNEL: Record<Language, { badge: string; tooltip: string }> = {
+  pl: { badge: "Potencjalny", tooltip: "Integracja nie jest jeszcze podłączona" },
+  ru: { badge: "Потенциальный", tooltip: "Интеграция ещё не подключена" },
+}
+
 export const priorityText = (priority: TaskPriority, language: Language) => PRIORITY[priority][language]
+export const sendChannelText = (channel: ContactChannel | string, language: Language) =>
+  SEND_CHANNEL[channel]?.[language] ?? CHANNEL[channel]?.[language] ?? channel
+export const potentialChannelText = (language: Language) => POTENTIAL_CHANNEL[language]
 export const actionKindText = (kind: ActionKind, language: Language) => ACTION[kind][language]
 export const taskStatusText = (status: string, language: Language) => TASK_STATUS[status]?.[language] ?? status
 export const channelText = (channel: ContactChannel | string, language: Language) => CHANNEL[channel]?.[language] ?? channel

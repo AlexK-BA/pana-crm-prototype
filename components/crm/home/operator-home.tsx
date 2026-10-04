@@ -49,9 +49,8 @@ export function OperatorHome() {
   const teamQueue = useMemo(() => getQueue(tasks, {}, now), [tasks, now])
   const mineQueue = useMemo(() => getQueue(tasks, { ownerId: currentUser.id }, now), [tasks, currentUser.id, now])
   const unassignedQueue = useMemo(() => getQueue(tasks, { unassignedOnly: true }, now), [tasks, now])
-  const counters = useMemo(() => getQueueCounters(tasks, now), [tasks, now])
-
   const visibleTasks = tab === "mine" ? mineQueue : tab === "unassigned" ? unassignedQueue : teamQueue
+  const counters = useMemo(() => getQueueCounters(visibleTasks, now), [visibleTasks, now])
   const allVisibleItems = visibleTasks.map((t) => buildQueueItem(t, now, cases)).filter((i): i is QueueItem => !!i)
   const actionFiltered = actionFilter === "all" ? allVisibleItems : allVisibleItems.filter((i) => i.actionKind === actionFilter)
   const visibleItems = !tileFilter
@@ -74,7 +73,6 @@ export function OperatorHome() {
       })
 
   function handleTileClick(key: TileFilter) {
-    setTab("team")
     setTileFilter((prev) => (prev === key ? null : key))
   }
   const actionCounts = ACTION_KINDS.reduce<Record<ActionKind, number>>((acc, kind) => {
@@ -151,7 +149,11 @@ export function OperatorHome() {
       )}
 
       <p className="text-[11px] font-medium text-muted-foreground">
-        {tr("Liczniki dla całego zespołu — kliknij, aby przefiltrować listę", "Счётчики по всей команде — нажмите, чтобы отфильтровать список")}
+        {tab === "mine"
+          ? tr("Liczniki dla Twojej kolejki — kliknij, aby przefiltrować listę", "Счётчики вашей очереди — нажмите, чтобы отфильтровать список")
+          : tab === "unassigned"
+            ? tr("Liczniki dla zadań nieprzypisanych — kliknij, aby przefiltrować listę", "Счётчики неназначенных задач — нажмите, чтобы отфильтровать список")
+            : tr("Liczniki dla całego zespołu — kliknij, aby przefiltrować listę", "Счётчики по всей команде — нажмите, чтобы отфильтровать список")}
       </p>
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         {counterTiles.map((c) => (

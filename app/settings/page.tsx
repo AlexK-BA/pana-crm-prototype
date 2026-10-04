@@ -3,7 +3,7 @@ import { SettingsView } from "@/components/crm/settings-view"
 
 export default function SettingsPage() {
   return (
-    <PageShell title="Ustawienia" subtitle="Workspace, role, zespół, katalog klinik i etapy">
+    <PageShell title="Ustawienia" titleRu="Настройки" subtitle="Workspace, role, zespół, katalog klinik i etapy" subtitleRu="Workspace, роли, команда, каталог клиник и этапы">
       <SettingsView />
     </PageShell>
   )

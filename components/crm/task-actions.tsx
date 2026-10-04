@@ -9,6 +9,7 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 import { useUserDirectory } from "@/lib/crm/user-directory"
 import { useCall } from "@/lib/crm/call-context"
+import { useLanguage } from "@/lib/crm/language-context"
 import { TASK_TYPES, type TaskChangeInput } from "@/lib/crm/entity-store"
 import { isActive, taskType } from "@/lib/crm/entity-queue"
 import type { Task, TaskPriority, TaskType, TaskOutcome, ContactChannel } from "@/lib/crm/entities"
@@ -62,16 +63,17 @@ export function TaskActions({task, proposedDue, onClose}:{task:Task; proposedDue
 export function toLocalDateTime(iso?:string){if(!iso)return "";const date=new Date(iso);if(!Number.isFinite(date.getTime()))return "";return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16)}
 
 /** Form state only; submission goes to the canonical guarded EntityStore command. */
-export function CreateCaseTask({caseId}:{caseId?:string}){
-  const store=useScopedEntityStore(),{hasPermission}=useAuthorization()
+export function CreateCaseTask({caseId,terminal=false,variant="outline"}:{caseId?:string;terminal?:boolean;variant?:"outline"|"secondary"}){
+  const store=useScopedEntityStore(),{hasPermission}=useAuthorization(),{tr}=useLanguage()
   const [open,setOpen]=useState(false),[error,setError]=useState("")
   if(!hasPermission("task:work")||!hasPermission("case:edit"))return null
-  return <><Button size="sm" variant="outline" onClick={()=>{setOpen(true);setError("")}}>Utwórz zadanie</Button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nowe zadanie w sprawie</DialogTitle></DialogHeader><form className="space-y-3" onSubmit={event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{store.createPatientTask({caseId:String(data.get("caseId")),title:String(data.get("title")),description:String(data.get("description")),type:String(data.get("type")) as TaskType,priority:String(data.get("priority")) as TaskPriority,dueAt:String(data.get("dueAt")),channel:String(data.get("channel")) as ContactChannel,requiresCall:data.has("requiresCall"),allowPast:data.has("allowPast")});setOpen(false)}catch(error){setError(error instanceof Error?error.message:"Nie udało się utworzyć zadania.")}}}>
+  const hintId=`create-task-terminal-${caseId??"any"}`
+  return <><Button size="sm" variant={variant} disabled={terminal} aria-describedby={terminal?hintId:undefined} onClick={()=>{setOpen(true);setError("")}}>{tr("Utwórz zadanie","Создать задачу")}</Button>{terminal&&<p id={hintId} className="text-xs text-muted-foreground">{tr("Najpierw przywróć sprawę do etapu roboczego.","Сначала верните кейс в рабочий этап.")}</p>}<Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{tr("Nowe zadanie w sprawie","Новая задача по кейсу")}</DialogTitle></DialogHeader><form className="space-y-3" onSubmit={event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{store.createPatientTask({caseId:String(data.get("caseId")),title:String(data.get("title")),description:String(data.get("description")),type:String(data.get("type")) as TaskType,priority:String(data.get("priority")) as TaskPriority,dueAt:String(data.get("dueAt")),channel:String(data.get("channel")) as ContactChannel,requiresCall:data.has("requiresCall"),allowPast:data.has("allowPast")});setOpen(false)}catch(error){setError(error instanceof Error?error.message:"Nie udało się utworzyć zadania.")}}}>
     <label className="block">Sprawa<select className="block w-full rounded border p-2" name="caseId" defaultValue={caseId??""} required><option value="">Wybierz sprawę</option>{store.cases.filter(item=>!caseId||item.id===caseId).map(item=><option key={item.id} value={item.id}>{item.id} · {item.board}/{item.status}</option>)}</select></label>
     <label className="block">Tytuł<Input name="title" required/></label><label className="block">Opis / istota zadania<Textarea name="description" required/></label>
     <label className="block">Typ<select className="block w-full rounded border p-2" name="type" defaultValue="custom">{TASK_TYPES.map(type=><option key={type}>{type}</option>)}</select></label>
     <label className="block">Kanał<select className="block w-full rounded border p-2" name="channel" defaultValue="email">{["email","phone","website","whatsapp","instagram","facebook","telegram"].map(channel=><option key={channel}>{channel}</option>)}</select></label>
-    <label className="block">Termin<Input name="dueAt" type="datetime-local" required/></label><label className="block">Priorytet<select className="block w-full rounded border p-2" name="priority" defaultValue="P2">{["P0","P1","P2","P3","P4"].map(value=><option key={value}>{value}</option>)}</select></label>
+    <label className="block">Termin<Input name="dueAt" type="datetime-local" required/></label><label className="block">Priorytet<select className="block w-full rounded border p-2" name="priority" defaultValue="P2" required>{["P0","P1","P2","P3","P4"].map(value=><option key={value}>{value}</option>)}</select></label>
     <label className="flex gap-2"><input name="requiresCall" type="checkbox"/>Wymaga połączenia i wrap-up</label><label className="flex gap-2"><input name="allowPast" type="checkbox"/>Świadomie dopuszczam termin w przeszłości</label>
     <p className="text-xs text-muted-foreground">Pacjent i klinika pochodzą ze sprawy. Właściciel: bieżący użytkownik. Wysyłka planu wymaga uprawnień medycznych i istniejącego planu.</p>
     {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}<DialogFooter><Button type="button" variant="ghost" onClick={()=>setOpen(false)}>Anuluj</Button><Button type="submit">Utwórz</Button></DialogFooter>
