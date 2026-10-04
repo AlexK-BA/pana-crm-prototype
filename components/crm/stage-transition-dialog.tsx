@@ -53,11 +53,13 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
   const activeTasks = useMemo(() => tasks.filter(task => task.caseId === pending.caseId && isActive(task)), [tasks, pending.caseId])
   const canAssign = hasPermission("task:assign")
   const automatic = rule?.automaticTask
-  const needsExplicitDate = Boolean(automatic && automatic.duePolicy !== "sla" && !rule?.terminal && !advanced.skipAutomatic)
+  const needsExplicitDate = Boolean(!rule?.terminal && !advanced.skipAutomatic && (advanced.taskType || (automatic && automatic.duePolicy !== "sla")))
   const reasonRequired = Boolean(rule?.requiresReason || activeDecision === "cancel" || advanced.override || advanced.skipAutomatic)
   const nextType = (advanced.taskType || automatic?.type) as TaskType | undefined
   const nextTitle = nextType ? taskTypeLabel(nextType, language) : automatic?.title
-  const customTaskInvalid = advanced.taskType === "custom" && !advanced.title.trim()
+  const customTitleInvalid = advanced.taskType === "custom" && !advanced.title.trim()
+  const customDescriptionInvalid = advanced.taskType === "custom" && !advanced.description.trim()
+  const customTaskInvalid = customTitleInvalid || customDescriptionInvalid
   const blocked = (reasonRequired && !reason.trim()) || (needsExplicitDate && !due) || customTaskInvalid
 
   function confirm() {
@@ -134,10 +136,12 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
                 </select>
               </label>
               {advanced.taskType === "custom" && <>
-                <label className="block text-xs">{tr("Tytuł zadania *", "Название задачи *")}<Input value={advanced.title} aria-invalid={customTaskInvalid} onChange={event => setAdvanced({ ...advanced, title: event.target.value })} className="mt-1" />
-                  {customTaskInvalid && <span role="status" className="mt-1 block text-xs text-destructive">{tr("Zadanie indywidualne wymaga tytułu.", "Для индивидуальной задачи нужно название.")}</span>}
+                <label className="block text-xs">{tr("Tytuł zadania *", "Название задачи *")}<Input value={advanced.title} aria-invalid={customTitleInvalid} onChange={event => setAdvanced({ ...advanced, title: event.target.value })} className="mt-1" />
+                  {customTitleInvalid && <span role="status" className="mt-1 block text-xs text-destructive">{tr("Zadanie indywidualne wymaga tytułu.", "Для индивидуальной задачи нужно название.")}</span>}
                 </label>
-                <label className="block text-xs">{tr("Opis zadania", "Описание задачи")}<Textarea value={advanced.description} onChange={event => setAdvanced({ ...advanced, description: event.target.value })} className="mt-1" /></label>
+                <label className="block text-xs">{tr("Opis zadania *", "Описание задачи *")}<Textarea value={advanced.description} aria-invalid={customDescriptionInvalid} onChange={event => setAdvanced({ ...advanced, description: event.target.value })} className="mt-1" />
+                  {customDescriptionInvalid && <span role="status" className="mt-1 block text-xs text-destructive">{tr("Zadanie indywidualne wymaga opisu.", "Для индивидуальной задачи нужно описание.")}</span>}
+                </label>
               </>}
               <label className="flex items-center gap-2"><input type="checkbox" checked={advanced.allowPast} onChange={event => setAdvanced({ ...advanced, allowPast: event.target.checked })} />{tr("Dopuszczam termin w przeszłości", "Допускаю срок в прошлом")}</label>
             </>}

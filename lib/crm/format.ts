@@ -20,7 +20,7 @@ export function formatRelative(iso: string) {
 // hydration mismatches.
 export const CLINIC_TIME_ZONE = "Europe/Warsaw"
 
-export function formatDateTime(iso: string, timeZone = "UTC", locale = "pl-PL") {
+export function formatDateTime(iso: string, timeZone = CLINIC_TIME_ZONE, locale = "pl-PL") {
   const d = new Date(iso)
   return d.toLocaleString(locale, {
     timeZone,
