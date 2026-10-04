@@ -83,7 +83,9 @@ Expected:
 Expected:
 
 - overdue tasks remain visible and are not removed because their due date is in the past;
-- task order is priority, overdue duration, due date, then queue age;
+- operational buckets rank overdue mandatory/workflow, other overdue and future work;
+- inside the same bucket, task order is priority, due date, then queue age;
+- an overdue P1 missed-call callback ranks above an overdue P3 new-lead task;
 - the selected task opens the correct engagement case;
 - tasks and cases are not presented as the same entity.
 
