@@ -351,7 +351,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             </ol>
           </TabsContent>
 
-          <TabsContent value="tasks" className="mt-0 space-y-2"><CreateCaseTask caseId={caseId}/>
+          <TabsContent value="tasks" className="mt-0 space-y-2"><CreateCaseTask caseId={caseId} terminal={isTerminalStage}/>
             {caseTasks.length === 0 && <p className="text-sm text-muted-foreground">{t("no_tasks")}</p>}
             {caseTasks.map(task=><div key={task.id} className="space-y-2 rounded border p-3"><p className="font-medium">{task.title}</p><p className="text-sm text-muted-foreground">{task.description ?? tr("Brak opisu (dane historyczne)", "Нет описания (исторические данные)")}</p><p className="text-xs">{task.status} · {task.priority} · {task.dueAt ? formatDateTime(task.dueAt) : tr("Bez terminu", "Без срока")} · {tr("przeniesienia", "переносы")} {task.rescheduleCount??0}</p><TaskActions task={task}/></div>)}
           </TabsContent>

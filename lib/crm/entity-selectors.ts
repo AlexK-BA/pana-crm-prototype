@@ -27,14 +27,6 @@ export type ActionKind = "unassigned_clinic" | "reply" | "call" | "follow_up" | 
 
 const CHAT_CHANNELS: ContactChannel[] = ["instagram", "facebook", "whatsapp", "telegram", "tiktok", "viber", "website", "personal_account"]
 
-export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
-  unassigned_clinic: "Przypisz klinikę",
-  reply: "Odpowiedz w czacie",
-  call: "Zadzwoń",
-  follow_up: "Kolejna próba",
-  treatment_plan: "Wyślij plan leczenia",
-}
-
 export function getActionKind(task: Task, engagementCase?: EngagementCase, identity?: ReturnType<typeof getIdentity>): ActionKind {
   if (engagementCase && !engagementCase.clinicId) return "unassigned_clinic"
   if (/plan leczenia/i.test(task.title)) return "treatment_plan"

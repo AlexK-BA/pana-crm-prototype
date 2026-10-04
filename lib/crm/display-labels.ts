@@ -56,7 +56,33 @@ const POTENTIAL_CHANNEL: Record<Language, { badge: string; tooltip: string }> = 
   ru: { badge: "Потенциальный", tooltip: "Интеграция ещё не подключена" },
 }
 
+const TASK_TYPE: Record<string, Record<Language, string>> = {
+  call: { pl: "Telefon", ru: "Звонок" },
+  message: { pl: "Wiadomość", ru: "Сообщение" },
+  sms: { pl: "SMS", ru: "SMS" },
+  email: { pl: "E-mail", ru: "E-mail" },
+  qualification: { pl: "Kwalifikacja", ru: "Квалификация" },
+  appointment_confirmation: { pl: "Potwierdzenie wizyty", ru: "Подтверждение визита" },
+  appointment_booking: { pl: "Rezerwacja wizyty", ru: "Запись на визит" },
+  post_visit_follow_up: { pl: "Kontakt po wizycie", ru: "Контакт после визита" },
+  waitlist_contact: { pl: "Kontakt z listy oczekujących", ru: "Контакт из листа ожидания" },
+  patient_care_handoff: { pl: "Przekazanie opieki", ru: "Передача сопровождения" },
+  treatment_plan_review: { pl: "Przegląd planu leczenia", ru: "Проверка плана лечения" },
+  send_treatment_plan: { pl: "Wysyłka planu leczenia", ru: "Отправка плана лечения" },
+  custom: { pl: "Własne zadanie", ru: "Своя задача" },
+}
+
+const TASK_OUTCOME: Record<string, Record<Language, string>> = {
+  done: { pl: "Wykonane", ru: "Выполнено" },
+  sent: { pl: "Wysłane", ru: "Отправлено" },
+  failed: { pl: "Nieudane", ru: "Не удалось" },
+  patient_declined: { pl: "Pacjent odmówił", ru: "Пациент отказался" },
+  no_valid_channel: { pl: "Brak działającego kanału", ru: "Нет рабочего канала" },
+}
+
 export const priorityText = (priority: TaskPriority, language: Language) => PRIORITY[priority][language]
+export const taskTypeText = (type: string, language: Language) => TASK_TYPE[type]?.[language] ?? type
+export const taskOutcomeText = (outcome: string, language: Language) => TASK_OUTCOME[outcome]?.[language] ?? outcome
 export const sendChannelText = (channel: ContactChannel | string, language: Language) =>
   SEND_CHANNEL[channel]?.[language] ?? CHANNEL[channel]?.[language] ?? channel
 export const potentialChannelText = (language: Language) => POTENTIAL_CHANNEL[language]
