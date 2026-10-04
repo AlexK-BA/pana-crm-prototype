@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 
-export function AppSidebar() {
+export function AppSidebar({ mobile = false, onNavigate }: { mobile?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname()
   const { role } = useRole()
   const { t, tr } = useLanguage()
@@ -52,7 +52,7 @@ export function AppSidebar() {
   ].filter((item) => canAccessRoute(item.href))
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+    <aside className={cn("w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar", mobile ? "flex h-full w-full" : "hidden md:flex")}>
       <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Stethoscope className="h-4 w-4" />
@@ -72,6 +72,7 @@ export function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
                 active
@@ -90,6 +91,7 @@ export function AppSidebar() {
         {canAccessRoute("/settings") && (
           <Link
             href="/settings"
+            onClick={onNavigate}
             className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
           >
             <Settings className="h-4 w-4" />

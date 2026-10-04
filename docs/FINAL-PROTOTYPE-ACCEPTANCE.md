@@ -43,6 +43,7 @@ The prototype release candidate passes when:
 5. Role-route tests confirm least-privilege defaults and Admin audit access.
 6. The published Vercel production alias points to the tested `main` commit.
 7. Daniel's manual UAT covers statuses, telephony flow, breaks/agent view and the simplified Operator workspace.
+8. Final stabilization UAT confirms mobile navigation, exact custom SMS content, one Patient Link state and human-readable task audit entries.
 
 ## Deferred backlog after acceptance
 
@@ -51,3 +52,10 @@ The prototype release candidate passes when:
 - Complete content localization beyond critical operational UI.
 - Reporting formula contracts and production analytics pipeline.
 - Final accessibility, responsive and browser compatibility certification.
+
+## Final UAT findings resolved in the stabilization branch
+
+- Mobile now exposes an application menu, search and call simulation instead of trapping the user on the current page.
+- SMS clinic defaults are inserted only by an explicit action; context changes cannot overwrite a human draft.
+- A local Patient grouping remains `unlinked` until the Medical CRM relationship is actually resolved. Case drawer, Patient Link and Patient 360 use the same resolver.
+- Task audit renders operational before/after values and localized action names instead of raw serialized Task objects.

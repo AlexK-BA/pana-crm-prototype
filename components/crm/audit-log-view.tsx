@@ -102,6 +102,43 @@ function actorColor(actorId: string, users: AppUser[]) {
   return users.find((o) => o.id === actorId)?.color ?? "bg-slate-400"
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  task_edit: "Edycja zadania",
+  task_reschedule: "Zmiana terminu zadania",
+  task_reassign: "Zmiana właściciela zadania",
+  task_reprioritize: "Zmiana priorytetu zadania",
+  task_replace: "Zastąpienie zadania",
+  task_cancel: "Anulowanie zadania",
+  task_complete: "Zakończenie zadania",
+  task_reopen: "Ponowne otwarcie zadania",
+  task_created: "Utworzenie zadania",
+  workflow_task_skipped: "Pominięcie zadania workflow",
+}
+
+function readableSummary(event: AuditEvent) {
+  const actionId = event.action
+  const action = actionId ? ACTION_LABELS[actionId] : undefined
+  if (!actionId || !action || !event.summary.startsWith(actionId)) return event.summary
+  return `${action}${event.summary.slice(actionId.length)}`
+}
+
+function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[]) {
+  if (!value) return undefined
+  if (value === "no_task") return "Brak zadania"
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value
+    if (event.action === "task_reprioritize") return String(parsed.priority ?? "—")
+    if (event.action === "task_reassign") return actorName(String(parsed.ownerId ?? "—"), users)
+    if (event.action === "task_reschedule") return typeof parsed.dueAt === "string" ? formatDateTime(parsed.dueAt) : "Bez terminu"
+    if (["task_complete", "task_cancel", "task_reopen"].includes(event.action ?? "")) return [parsed.status, parsed.outcome].filter(Boolean).join(" · ") || "—"
+    if (event.action === "task_replace") return String(parsed.replacementTaskId ?? parsed.status ?? "—")
+    return [parsed.title, parsed.status, parsed.priority].filter(Boolean).join(" · ") || "Zmieniono dane"
+  } catch {
+    return value
+  }
+}
+
 function matchesQuery(event: AuditEvent, query: string, users: AppUser[]) {
   if (!query.trim()) return true
   const haystack = [event.summary, event.caseId, event.patientId, event.before, event.after, actorName(event.actorId, users), event.targetUserId, event.targetRole, event.targetUserId ? actorName(event.targetUserId, users) : undefined]
@@ -200,6 +237,8 @@ export function AuditLogView() {
           <ul className="divide-y divide-border">
             {filtered.map((event) => {
               const meta = TYPE_META[event.type]
+              const before = readableAuditValue(event.before, event, users)
+              const after = readableAuditValue(event.after, event, users)
               return (
                 <li key={event.id} className="flex items-start gap-3 px-4 py-3">
                   <span
@@ -209,19 +248,19 @@ export function AuditLogView() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{event.summary}</span>
+                      <span className="text-sm font-medium text-foreground">{readableSummary(event)}</span>
                       {event.occurrences && event.occurrences > 1 ? (
                         <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
                           ×{event.occurrences}
                         </span>
                       ) : null}
                     </div>
-                    {(event.before || event.after) && (
+                    {(before || after) && (
                       <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                        {event.before ? <span className="rounded bg-secondary px-1.5 py-0.5">{event.before}</span> : null}
-                        {event.before && event.after ? <ArrowRight className="h-3 w-3" /> : null}
-                        {event.after ? (
-                          <span className="rounded bg-secondary px-1.5 py-0.5 font-medium text-foreground">{event.after}</span>
+                        {before ? <span className="max-w-full break-words rounded bg-secondary px-1.5 py-0.5">{before}</span> : null}
+                        {before && after ? <ArrowRight className="h-3 w-3 shrink-0" /> : null}
+                        {after ? (
+                          <span className="max-w-full break-words rounded bg-secondary px-1.5 py-0.5 font-medium text-foreground">{after}</span>
                         ) : null}
                       </div>
                     )}
