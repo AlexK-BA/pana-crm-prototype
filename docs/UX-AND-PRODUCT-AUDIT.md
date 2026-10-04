@@ -19,12 +19,12 @@ Target interaction: **event → prioritized task → prepared context → one pr
 | UX-04 | P0 | Appointment UI is a demo availability calendar but no canonical Appointment/Medical CRM write exists. | Users may confuse “saved in CRM” with a real reserved visit. | Explicit DEMO copy exists. Production requires adapter, structured appointment and conflict/idempotency handling. |
 | UX-05 | P1 | Settings were one long page mixing workflows, users, clinics, SMS, bot, KB and compliance. | High cognitive load and risk of editing the wrong area. | Fixed: task-oriented four-section settings hub. |
 | UX-06 | P1 | Kanban stage transition exposes technical terms (`override`, workflow IDs, SLA internals). | Ordinary managers must understand implementation concepts. | Primary form is simplified; technical block remains permission-gated. Replace terminology before production. |
-| UX-07 | P1 | Case drawer is large and combines profile, work, communication, medical link and admin actions. | Important next action competes with secondary information. | Keep persistent header and tabs; next refactor should create a fixed “Now” action area and lazy-load secondary panels. |
+| UX-07 | P1 | Case drawer is large and combines profile, work, communication, medical link and admin actions. | Important next action competes with secondary information. | Fixed first step: persistent “What to do now” area shows the next Task, deadline, priority and last completed action. Continue lazy-loading secondary panels. |
 | UX-08 | P1 | Patient 360 and case drawer partially duplicate profile/actions. | Users may not know which screen is authoritative. | Rule: drawer is case execution; Patient 360 is longitudinal patient view. Reflect in labels/navigation. |
-| UX-09 | P1 | `/inbox` and Patient conversation workspace implement similar lists independently. | UI drift and duplicate fixes. | Extract shared channel/thread list, status and search primitives. |
+| UX-09 | P1 | `/inbox` and Patient conversation workspace intentionally serve different scopes: all conversations versus one Patient. Some channel/thread UI primitives are implemented independently. | The product distinction is correct; only presentation/status behavior may drift. | Preserve both views and their scopes. Extract shared low-level channel/thread/status/search primitives only when the behavior has stabilized. |
 | UX-10 | P1 | Calendar and schedule expose technical task type/status text and dense controls. | Higher training cost; mobile operation is difficult. | Keep canonical Task projection; redesign cards/action sheet after UAT observation. |
-| UX-11 | P1 | PL/RU i18n is partial; many older screens contain inline Polish. | Mixed-language experience and harder reuse. | Continue dictionary extraction by route; do not translate patient/authored content automatically. |
-| UX-12 | P1 | AI Compliance Center looks like configuration but is read-only/static. | Admin may assume changes can be published. | Keep readiness/preview wording; production editor needs draft/version/approval/publish/audit. |
+| UX-11 | P1 | PL/RU i18n is partial; many older screens contain inline Polish. | Mixed-language experience and harder reuse. | Case execution and Settings critical labels were corrected in this pass. Continue dictionary extraction route-by-route; never translate patient/authored content automatically. |
+| UX-12 | P1 | AI Compliance Center looked like editable configuration while being read-only/static. | Admin may assume changes can be published. | Fixed prototype semantics: explicitly named and labelled as a read-only readiness/evidence preview. Production editor remains a separate draft/version/approval/publish/audit workflow. |
 | UX-13 | P1 | AI/KB settings are session-only and allow destructive-looking article deletion. | False confidence and no governed publication lifecycle. | Replace with draft/archive/version semantics in backend phase; never physically delete published evidence. |
 | UX-14 | P2 | Case cards displayed a dense technical sentence with active counts and `requiresCall`. | Poor scanability. | Fixed: explicit “Last”, “Now/Next”, current worker and exception state. |
 | UX-15 | P2 | Task type Polish labels existed in two source files. | Translation/business copy drift. | Fixed: one canonical label catalog. |
@@ -47,9 +47,9 @@ Target interaction: **event → prioritized task → prepared context → one pr
 
 ## Recommended next refactor order
 
-1. Case drawer “Now” panel and contextual default tab.
-2. Shared Inbox/Patient conversation primitives.
+1. Contextual default tab and lazy loading for secondary case panels (the “Now” panel is now present).
+2. Complete route-by-route PL/RU UI extraction.
 3. Task/calendar action-sheet redesign and mobile layout.
-4. Complete route-by-route PL/RU UI extraction.
+4. Extract shared low-level conversation primitives without merging Inbox and Patient communication scopes.
 5. Split EntityStore into domain command modules while preserving one provider/state graph.
 6. Replace static settings with versioned backend configuration only after contracts are approved.

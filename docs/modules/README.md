@@ -8,6 +8,8 @@ Canonical prototype ownership and the production mapping guardrail are defined i
 
 The page-by-page product behavior and current feature inventory are maintained in [../PRODUCT-FUNCTIONAL-MAP.md](../PRODUCT-FUNCTIONAL-MAP.md). Current usability risks and simplification priorities are maintained in [../UX-AND-PRODUCT-AUDIT.md](../UX-AND-PRODUCT-AUDIT.md).
 
+Safe code decomposition boundaries and the one-store invariant are defined in [../REFACTORING-BOUNDARIES.md](../REFACTORING-BOUNDARIES.md).
+
 ## Documentation rules
 
 - Product logic belongs to a domain module; UI is one consumer of that logic.

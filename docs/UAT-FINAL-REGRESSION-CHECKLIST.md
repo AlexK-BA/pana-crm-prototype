@@ -44,6 +44,8 @@ Expected baseline: all commands succeed and the production dependency audit has 
 | REG-16 | Audit | Perform stage, task, call, SMS, AI, matching, access and manual admin actions. | Actor, time, entity, previous/new value, reason and correlation are available where applicable; rerendering creates no duplicate event. |
 | REG-17 | Operator assistance | Give the operator personal, unassigned and other-user tasks with different priorities. | The suggested next action is personal first, then unassigned; another user's assigned task is not proposed. A call-required action starts the call directly; no misleading skip control is shown. |
 | REG-18 | Settings complexity | Open Settings and switch among all four areas. | Only controls related to the selected administrator task are visible; state is retained while switching; unauthorized roles cannot access the route. |
+| REG-19 | Case “now” assistance | Open cases with an overdue Task, future Task, no active Task and a previously completed Task. | The persistent summary identifies exactly one next action, priority and deadline, warns about overdue/missing work and shows the last completed action without opening another tab. |
+| REG-20 | AI readiness semantics | Open AI settings as an authorized admin and compare draft/published readiness. | The center is visibly read-only, distinguishes UI language from patient-content language and never implies that previewing a draft publishes it. |
 
 ## Language and content separation
 
