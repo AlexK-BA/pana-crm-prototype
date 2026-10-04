@@ -346,7 +346,8 @@ export function RecordsTable() {
               const tone = getClinicTone(c.clinicId)
               const procedure = getProcedure(c.serviceInterest)
               const owner = getOperator(c.responsibleTeamId)
-              const statusLabel = BOARD_COLUMNS[c.board].find((col) => col.id === c.status)?.label ?? c.status
+              const statusColumn = BOARD_COLUMNS[c.board].find((col) => col.id === c.status)
+              const statusLabel = statusColumn ? t(statusColumn.labelKey) : c.status
               const openTasks = tasks.filter((t) => t.caseId === c.id && t.status !== "completed" && t.status !== "cancelled").length
 
               return (

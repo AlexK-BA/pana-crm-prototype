@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils"
 import { PatientLinkPanel } from "@/components/crm/patient-link-panel"
 import { Patient360Actions } from "@/components/crm/patient-360-actions"
 import { PatientConversationWorkspace } from "@/components/crm/patient-conversation-workspace"
-import { AppointmentSlotPicker } from "@/components/crm/appointment-slot-picker"
+import { AppointmentBookingDialog } from "@/components/crm/appointment-slot-picker"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 import { useUserDirectory } from "@/lib/crm/user-directory"
 
@@ -114,6 +114,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
     }
     return entries.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
   }, [caseTasks, comments, audit, caseSms, canViewAudit, canViewCommunication, users, t])
+  const [bookingOpen, setBookingOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(patient ? "timeline" : "profile")
   const [profileError, setProfileError] = useState("")
   const patientIdentities = identities.filter((item) => item.patientId === patient?.id)
@@ -198,24 +199,21 @@ function DrawerBody({ caseId }: { caseId: string }) {
             <MessageSquare className="h-3.5 w-3.5" />
             {t("message")}
           </Button>
-          <Popover>
-            <PopoverTrigger
-              render={
-                <Button size="sm" variant="secondary" className="flex-1 gap-1.5" disabled={!canWorkTasks}>
-                  <Calendar className="h-3.5 w-3.5" />
-                  {t("book_appointment")}
-                </Button>
-              }
-            />
-            <AppointmentSlotPicker
-              caseId={caseId}
-              taskId={nextTask?.id}
-              patientId={patient?.id ?? engagementCase.patientId}
-              clinicId={engagementCase.clinicId}
-              procedureId={engagementCase.serviceInterest}
-              doctorId={engagementCase.doctorId}
-            />
-          </Popover>
+          <Button size="sm" variant="secondary" className="flex-1 gap-1.5" disabled={!canWorkTasks} onClick={() => setBookingOpen(true)}>
+            <Calendar className="h-3.5 w-3.5" />
+            {t("book_appointment")}
+          </Button>
+          <AppointmentBookingDialog
+            open={bookingOpen}
+            onOpenChange={setBookingOpen}
+            caseId={caseId}
+            taskId={nextTask?.id}
+            patientId={patient?.id ?? engagementCase.patientId}
+            patientName={patient ? `${patient.firstName} ${patient.lastName}` : undefined}
+            clinicId={engagementCase.clinicId}
+            procedureId={engagementCase.serviceInterest}
+            doctorId={engagementCase.doctorId}
+          />
         </div>
 
         <PatientLinkPanel caseId={caseId} />

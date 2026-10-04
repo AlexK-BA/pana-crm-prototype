@@ -214,10 +214,16 @@ const DICTIONARY = {
 
 export type DictionaryKey = keyof typeof DICTIONARY
 
+/** UI language only. Patient preferred language and content language are separate concepts. */
+export const UI_LOCALES: Record<Language, string> = { pl: "pl-PL", ru: "ru-RU" }
+
 interface LanguageContextValue {
   language: Language
   setLanguage: (lang: Language) => void
   t: (key: DictionaryKey) => string
+  /** Picks a system label for the current UI language. Never use it for user data. */
+  tr: (pl: string, ru: string) => string
+  locale: string
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null)
@@ -240,7 +246,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLanguage = (lang: Language) => setLanguageState(lang)
   const t = (key: DictionaryKey) => DICTIONARY[key][language]
 
-  return <LanguageContext.Provider value={{ language, setLanguage, t }}>{children}</LanguageContext.Provider>
+  const tr = (pl: string, ru: string) => (language === "ru" ? ru : pl)
+
+  return <LanguageContext.Provider value={{ language, setLanguage, t, tr, locale: UI_LOCALES[language] }}>{children}</LanguageContext.Provider>
 }
 
 export function useLanguage() {
