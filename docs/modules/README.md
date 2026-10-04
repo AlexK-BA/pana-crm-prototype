@@ -6,6 +6,10 @@ Architecture/stakeholder mapping is maintained in [../TRACEABILITY-AND-ARCHITECT
 
 Canonical prototype ownership and the production mapping guardrail are defined in [../ENTITY-MODEL-SOURCE-OF-TRUTH.md](../ENTITY-MODEL-SOURCE-OF-TRUTH.md).
 
+The page-by-page product behavior and current feature inventory are maintained in [../PRODUCT-FUNCTIONAL-MAP.md](../PRODUCT-FUNCTIONAL-MAP.md). Current usability risks and simplification priorities are maintained in [../UX-AND-PRODUCT-AUDIT.md](../UX-AND-PRODUCT-AUDIT.md).
+
+Safe code decomposition boundaries and the one-store invariant are defined in [../REFACTORING-BOUNDARIES.md](../REFACTORING-BOUNDARIES.md).
+
 ## Documentation rules
 
 - Product logic belongs to a domain module; UI is one consumer of that logic.
@@ -32,6 +36,9 @@ Canonical prototype ownership and the production mapping guardrail are defined i
 | Audit and analytics | Immutable change history, operational metrics and reporting contracts | [10-AUDIT-ANALYTICS.md](10-AUDIT-ANALYTICS.md) |
 | Users and RBAC | User lifecycle, permissions and data scope | [../RBAC-AND-USER-MANAGEMENT.md](../RBAC-AND-USER-MANAGEMENT.md) |
 | SMS | Provider-neutral sending, templates and two-way messaging | [../SMS-INTEGRATION-SPEC.md](../SMS-INTEGRATION-SPEC.md) |
+| AI, knowledge and compliance | Bot ownership, activation, KB evidence, human handoff and transparency policy | [../AI-GOVERNANCE-KB-TRACEABILITY.md](../AI-GOVERNANCE-KB-TRACEABILITY.md) |
+| Application sections and role workspaces | Route purpose, visible features, primary actions and prototype boundaries | [../PRODUCT-FUNCTIONAL-MAP.md](../PRODUCT-FUNCTIONAL-MAP.md) |
+| Security and portability | Production blockers, tenant configuration and reusable provider boundaries | [../SECURITY-REVIEW.md](../SECURITY-REVIEW.md), [../CONFIGURABILITY-AND-PORTABILITY-REGISTER.md](../CONFIGURABILITY-AND-PORTABILITY-REGISTER.md) |
 
 ## Shared entities
 

@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, UserRound, BriefcaseBusiness, Save, ChevronDown } from "lucide-react"
+import { Phone, MessageSquare, Calendar, History, CheckCircle2, XIcon, UserRound, BriefcaseBusiness, Save, ChevronDown, Clock3, AlertTriangle } from "lucide-react"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { CreateCaseTask, TaskActions } from "@/components/crm/task-actions"
@@ -71,7 +71,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const canWorkTasks = hasPermission("task:work")
   const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, retrySms, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
-  const { t } = useLanguage()
+  const { t, tr } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId)!
   const patient = patients.find((item) => item.id === engagementCase.patientId)
   const identity = identities.find((item) => item.id === engagementCase.contactIdentityId)
@@ -131,6 +131,10 @@ function DrawerBody({ caseId }: { caseId: string }) {
 
   const openTasks = caseTasks.filter((t) => !["completed", "cancelled", "failed"].includes(t.status))
   const nextTask = getNextTaskForCase(caseTasks, caseId)
+  const lastCompletedTask = caseTasks
+    .filter((task) => task.status === "completed")
+    .sort((a, b) => new Date(b.completedAt ?? b.createdAt).getTime() - new Date(a.completedAt ?? a.createdAt).getTime())[0]
+  const nextTaskOverdue = Boolean(nextTask?.dueAt && new Date(nextTask.dueAt).getTime() < Date.now())
   const relatedCases = patient ? cases.filter((item) => item.patientId === patient.id) : [engagementCase]
 
   const handleCall = () => {
@@ -145,7 +149,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
       saveCaseContactProfile({ caseId, ...profileDraft, actorId: currentUser.id })
       setProfileSaved(true)
       setTimeout(() => setProfileSaved(false), 1800)
-    } catch (error) { setProfileError(error instanceof Error ? error.message : "Nie udało się zapisać danych.") }
+    } catch (error) { setProfileError(error instanceof Error ? error.message : tr("Nie udało się zapisać danych.", "Не удалось сохранить данные.")) }
   }
 
   return (
@@ -186,9 +190,29 @@ function DrawerBody({ caseId }: { caseId: string }) {
           {doctor && <Badge variant="secondary">{doctor.name}</Badge>}
           {patient && <Badge variant="outline">{patient.integrationState}</Badge>}
           {patient && <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
-            Szczegóły <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", detailsOpen && "rotate-180")} />
+            {tr("Szczegóły", "Подробнее")} <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", detailsOpen && "rotate-180")} />
           </Button>}
         </div>
+
+        <section className={cn("rounded-lg border p-3", nextTaskOverdue ? "border-red-300 bg-red-50/70" : "border-primary/25 bg-primary/[0.04]")} aria-labelledby="case-now-title">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <p id="case-now-title" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {nextTaskOverdue ? <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> : <Clock3 className="h-3.5 w-3.5" />}
+                {tr("Co zrobić teraz", "Что делать сейчас")}
+              </p>
+              {nextTask ? <>
+                <p className="truncate text-sm font-semibold">{nextTask.title}</p>
+                {nextTask.description && <p className="line-clamp-2 text-xs text-muted-foreground">{nextTask.description}</p>}
+                <p className={cn("text-xs", nextTaskOverdue ? "font-medium text-red-700" : "text-muted-foreground")}>
+                  {nextTask.dueAt ? `${tr("Termin", "Срок")}: ${formatDateTime(nextTask.dueAt)} · ${formatRelative(nextTask.dueAt)}` : tr("Brak terminu — wymaga zaplanowania", "Нет срока — требуется планирование")}
+                </p>
+              </> : <p className="text-sm font-medium text-amber-800">{tr("Brak następnego działania — utwórz zadanie przed zamknięciem sprawy.", "Нет следующего действия — создайте задачу до закрытия заявки.")}</p>}
+            </div>
+            {nextTask && <Badge variant={nextTaskOverdue ? "destructive" : "secondary"}>{nextTask.priority}</Badge>}
+          </div>
+          {lastCompletedTask && <p className="mt-2 truncate border-t pt-2 text-xs text-muted-foreground">{tr("Ostatnio wykonano", "Последнее выполненное действие")}: {lastCompletedTask.title}</p>}
+        </section>
 
         <div className="flex gap-2">
           <Button size="sm" className="flex-1 gap-1.5" disabled={!canHandleCalls} onClick={handleCall}>
@@ -223,7 +247,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
         <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent px-3 py-0">
           <TabsTrigger value="profile" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
-            <UserRound className="mr-1.5 h-3.5 w-3.5" />Profil
+            <UserRound className="mr-1.5 h-3.5 w-3.5" />{tr("Profil", "Профиль")}
           </TabsTrigger>
           <TabsTrigger value="timeline" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             {t("tab_timeline")}
@@ -246,7 +270,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             {t("tab_audit")}
           </TabsTrigger>}
           <TabsTrigger value="cases" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
-            <BriefcaseBusiness className="mr-1.5 h-3.5 w-3.5" />Sprawy ({relatedCases.length})
+            <BriefcaseBusiness className="mr-1.5 h-3.5 w-3.5" />{tr("Sprawy", "Заявки")} ({relatedCases.length})
           </TabsTrigger>
         </TabsList>
 
@@ -255,36 +279,36 @@ function DrawerBody({ caseId }: { caseId: string }) {
             <div className="rounded-lg border border-border bg-muted/20 p-4">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold">Lokalne dane kontaktu sprawy</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Dane do wyszukania pacjenta. Zapis nie tworzy Patient i nie zmienia danych Medical CRM.</p>
+                  <h3 className="text-sm font-semibold">{tr("Lokalne dane kontaktu sprawy", "Локальные контактные данные заявки")}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{tr("Dane do wyszukania pacjenta. Zapis nie tworzy Patient i nie zmienia danych Medical CRM.", "Данные для поиска пациента. Сохранение не создаёт Patient и не изменяет данные Medical CRM.")}</p>
                 </div>
-                <Badge variant="outline">{patient ? "Profil istnieje" : "Kontakt bez Patient"}</Badge>
+                <Badge variant="outline">{patient ? tr("Profil istnieje", "Профиль существует") : tr("Kontakt bez Patient", "Контакт без Patient")}</Badge>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {([
-                  ["firstName", "Imię"], ["lastName", "Nazwisko"], ["pesel", "PESEL do wyszukania"], ["externalPatientId", "Medical CRM ID do wyszukania"], ["phone", "Telefon"], ["email", "E-mail"],
+                  ["firstName", tr("Imię", "Имя")], ["lastName", tr("Nazwisko", "Фамилия")], ["pesel", tr("PESEL do wyszukania", "PESEL для поиска")], ["externalPatientId", tr("Medical CRM ID do wyszukania", "Medical CRM ID для поиска")], ["phone", tr("Telefon", "Телефон")], ["email", "E-mail"],
                 ] as const).map(([field, label]) => (
                   <div key={field} className="space-y-1.5">
                     <Label htmlFor={`profile-${field}`} className="text-xs text-muted-foreground">{label}</Label>
-                    <Input id={`profile-${field}`} disabled={!canEditPatient} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={`Uzupełnij: ${label.toLowerCase()}`} />
+                    <Input id={`profile-${field}`} disabled={!canEditPatient} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={`${tr("Uzupełnij", "Заполните")}: ${label.toLowerCase()}`} />
                   </div>
                 ))}
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground">Dane kontaktu pozostają w sprawie; decyzja powiązania ma własną historię.</p>
+                <p className="text-xs text-muted-foreground">{tr("Dane kontaktu pozostają w sprawie; decyzja powiązania ma własną historię.", "Контактные данные остаются в заявке; решение о привязке имеет отдельную историю.")}</p>
                 <Button size="sm" className="gap-1.5" disabled={!canEditPatient || !profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
-                  <Save className="h-3.5 w-3.5" />{profileSaved ? "Zapisano" : "Zapisz kontakt i wyszukaj"}
+                  <Save className="h-3.5 w-3.5" />{profileSaved ? tr("Zapisano", "Сохранено") : tr("Zapisz kontakt i wyszukaj", "Сохранить контакт и найти")}
                 </Button>
               </div>
             </div>
             {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
             {patient && (
               <div className="rounded-lg border border-border p-4">
-                <h3 className="mb-2 text-sm font-semibold">Źródło i synchronizacja</h3>
+                <h3 className="mb-2 text-sm font-semibold">{tr("Źródło i synchronizacja", "Источник и синхронизация")}</h3>
                 <div className="flex flex-wrap gap-2 text-xs">
                   <Badge variant="outline">{patient.integrationState}</Badge>
                   {hasPermission("patient:view_medical") && patient.externalPatientId && <Badge variant="secondary">Medical CRM ID: {patient.externalPatientId}</Badge>}
-                  {patient.lastSyncAt && <span className="text-muted-foreground">Ostatnia synchronizacja: {formatDateTime(patient.lastSyncAt)}</span>}
+                  {patient.lastSyncAt && <span className="text-muted-foreground">{tr("Ostatnia synchronizacja", "Последняя синхронизация")}: {formatDateTime(patient.lastSyncAt)}</span>}
                 </div>
               </div>
             )}
@@ -302,15 +326,15 @@ function DrawerBody({ caseId }: { caseId: string }) {
                   <div className="flex-1">
                     <p className="whitespace-pre-wrap text-sm text-foreground">{entry.title}</p>
                     {entry.sms && <div className="mt-1 space-y-1 text-xs text-muted-foreground">
-                      <p>SMS · {entry.sms.direction === "incoming" ? "Przychodzący" : "Wychodzący"} · {getSmsStatusLabel(entry.sms)}</p>
-                      {entry.sms.taskId && <p>Zadanie: {tasks.find((task) => task.id === entry.sms?.taskId)?.title ?? entry.sms.taskId}</p>}
+                      <p>SMS · {entry.sms.direction === "incoming" ? tr("Przychodzący", "Входящее") : tr("Wychodzący", "Исходящее")} · {getSmsStatusLabel(entry.sms)}</p>
+                      {entry.sms.taskId && <p>{tr("Zadanie", "Задача")}: {tasks.find((task) => task.id === entry.sms?.taskId)?.title ?? entry.sms.taskId}</p>}
                       {entry.sms.errorMessage && <p className="text-destructive">{entry.sms.errorMessage}</p>}
                       {entry.sms.retryOfId && <p>Ponowienie: {entry.sms.retryOfId}</p>}
                       {entry.sms.deliveryStatus === "failed" && entry.sms.direction === "outgoing" && hasPermission("sms:retry") && hasPermission("sms:send_custom") && hasPermission("communication:send") &&
                         <Button size="sm" variant="outline" onClick={() => {
                           try { retrySms(entry.id, currentUser.id); setSmsError("") }
                           catch (error) { setSmsError(error instanceof Error ? error.message : "Błąd SMS.") }
-                        }}>Ponów SMS</Button>}
+                        }}>{tr("Ponów SMS", "Повторить SMS")}</Button>}
                     </div>}
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {entry.actor ?? t("unassigned_owner")} · {formatDateTime(entry.at)}
@@ -324,7 +348,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
 
           <TabsContent value="tasks" className="mt-0 space-y-2"><CreateCaseTask caseId={caseId}/>
             {caseTasks.length === 0 && <p className="text-sm text-muted-foreground">{t("no_tasks")}</p>}
-            {caseTasks.map(task=><div key={task.id} className="space-y-2 rounded border p-3"><p className="font-medium">{task.title}</p><p className="text-sm text-muted-foreground">{task.description ?? "Brak opisu (dane historyczne)"}</p><p className="text-xs">{task.status} · {task.priority} · {task.dueAt ? formatDateTime(task.dueAt) : "Bez terminu"} · przeniesienia {task.rescheduleCount??0}</p><TaskActions task={task}/></div>)}
+            {caseTasks.map(task=><div key={task.id} className="space-y-2 rounded border p-3"><p className="font-medium">{task.title}</p><p className="text-sm text-muted-foreground">{task.description ?? tr("Brak opisu (dane historyczne)", "Нет описания (исторические данные)")}</p><p className="text-xs">{task.status} · {task.priority} · {task.dueAt ? formatDateTime(task.dueAt) : tr("Bez terminu", "Без срока")} · {tr("przeniesienia", "переносы")} {task.rescheduleCount??0}</p><TaskActions task={task}/></div>)}
           </TabsContent>
 
           {canViewCommunication && <TabsContent value="history" className="-mx-5 -my-4 mt-0 h-full">
@@ -381,10 +405,10 @@ function DrawerBody({ caseId }: { caseId: string }) {
                 <div key={item.id} className={cn("rounded-lg border p-3", item.id === caseId && "border-primary bg-primary/5")}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium">{item.id} · {itemClinic?.name ?? "Bez kliniki"}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{item.board} / {item.status} · otwarte zadania: {itemTasks.length}</p>
+                      <p className="text-sm font-medium">{item.id} · {itemClinic?.name ?? tr("Bez kliniki", "Без клиники")}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{item.board} / {item.status} · {tr("otwarte zadania", "открытые задачи")}: {itemTasks.length}</p>
                     </div>
-                    {item.id === caseId && <Badge>Bieżąca sprawa</Badge>}
+                    {item.id === caseId && <Badge>{tr("Bieżąca sprawa", "Текущая заявка")}</Badge>}
                   </div>
                 </div>
               )

@@ -40,8 +40,12 @@ export function AiComplianceCenter() {
   return (
     <section className="space-y-4 rounded border p-4" aria-labelledby="ai-compliance-title">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="ai-compliance-title" className="font-semibold">{tr("Zgodność AI i prywatność", "Соответствие AI и приватность")}</h2>
+        <div>
+          <h2 id="ai-compliance-title" className="font-semibold">{tr("Centrum gotowości AI", "Центр готовности AI")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{tr("Kontrola, dowody i podgląd — nie edytor polityki", "Контроль, доказательства и предпросмотр — не редактор политики")}</p>
+        </div>
         <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">{tr("Tylko odczyt · prototyp", "Только чтение · прототип")}</Badge>
           <Badge variant={config.status === "published" ? "default" : "secondary"}>{STATUS_LABELS[config.status][language]}</Badge>
           <Badge variant="outline">{tr("informacja", "информация")} v{config.version} · {tr("polityka bota", "политика бота")} v{config.botPolicyVersion}</Badge>
         </div>
@@ -50,6 +54,11 @@ export function AiComplianceCenter() {
         {tr("Pacjent zobaczy informację o AI wyłącznie po publikacji zatwierdzonej przez DPO. Dopóki konfiguracja jest roboczym szkicem, bot nie może jej wyświetlać.",
           "Пациент увидит информацию об AI только после публикации, одобренной DPO. Пока конфигурация — черновик, бот не может её показывать.")}
       </p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-md border p-3"><p className="text-xs font-medium">1. {tr("Wersja robocza", "Черновик")}</p><p className="mt-1 text-xs text-muted-foreground">{tr("Treść, reguły bota, języki i źródła prawne.", "Текст, правила бота, языки и правовые источники.")}</p></div>
+        <div className="rounded-md border p-3"><p className="text-xs font-medium">2. {tr("Weryfikacja", "Проверка")}</p><p className="mt-1 text-xs text-muted-foreground">{tr("DPO zatwierdza konkretną wersję i komplet dowodów.", "DPO одобряет конкретную версию и комплект доказательств.")}</p></div>
+        <div className="rounded-md border p-3"><p className="text-xs font-medium">3. {tr("Publikacja", "Публикация")}</p><p className="mt-1 text-xs text-muted-foreground">{tr("Bot używa wyłącznie zatwierdzonej, aktywnej wersji.", "Бот использует только одобренную активную версию.")}</p></div>
+      </div>
       {INITIAL_AI_COMPLIANCE_CONFIGURATIONS.length > 1 && (
         <select aria-label={tr("Konfiguracja", "Конфигурация")} className="rounded border bg-background p-2 text-sm" value={config.id} onChange={event => setSelectedId(event.target.value)}>
           {INITIAL_AI_COMPLIANCE_CONFIGURATIONS.map(item => <option key={item.id} value={item.id}>{item.name} v{item.version}</option>)}

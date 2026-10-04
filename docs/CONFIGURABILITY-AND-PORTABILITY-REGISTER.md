@@ -1,7 +1,7 @@
 # Configurability and portability register
 
 Status: living architecture document  
-Updated: 2026-10-02
+Updated: 2026-10-04
 
 See also: [TRACEABILITY-AND-ARCHITECTURE-ALIGNMENT.md](TRACEABILITY-AND-ARCHITECTURE-ALIGNMENT.md) for mapping to the current Frappe/FastAPI/Yeastar architecture and stakeholder sources.
 
@@ -39,6 +39,7 @@ Estimated adaptation today:
 | CFG-14 | Reporting | Metrics are derived from demo state and PaNa-specific statuses. | Custom workflows break comparable reports. | Canonical events and semantic metric definitions mapped from workflows. | P1 | Open |
 | CFG-15 | Retention/compliance | Retention and consent rules are not tenant-configured. | Different legal/operational policies cannot be applied. | Retention, consent, recording and export policies per tenant/clinic. | P0 for production | Open |
 | CFG-16 | User directory | Prototype users and telephony extensions now have one canonical catalog, but it is still a frontend seed. | Adding users/extensions in production cannot rely on a deployment artifact. | Identity-service/Frappe user API with stable IDs, clinic scope, roles and provider extension mappings. | P0 | Duplicate seeds removed; backend persistence open |
+| CFG-17 | Application settings | Workflow, clinic, bot, KB, compliance and provider controls use different static/session sources. | A new tenant may appear configurable while changes are neither durable nor consistently versioned. | Task-oriented settings UI backed by typed, versioned domain configurations and one production owner per configuration type. | P0 | UI grouped; persistence/ownership open |
 
 ## Rules for all new development
 

@@ -13,6 +13,7 @@ import { getOperator, PRIORITY_TONE, priorityLabel } from "@/lib/crm/entity-sele
 import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { getCaseWorkState, getNextTaskForCase } from "@/lib/crm/entity-queue"
+import { useLanguage } from "@/lib/crm/language-context"
 
 const CHANNEL_ICON: Record<string, typeof Phone> = {
   phone: Phone,
@@ -59,6 +60,7 @@ export function EntityCaseCard({
   onClick?: () => void
 }) {
   const store=useScopedEntityStore()
+  const { tr } = useLanguage()
   const {users}=useUserDirectory()
   const patient = store.patients.find(item=>item.id===engagementCase.patientId)
   const identity = store.identities.find(item=>item.id===engagementCase.contactIdentityId)
@@ -97,8 +99,12 @@ export function EntityCaseCard({
           )}
         </div>
 
-        <p className="text-xs text-muted-foreground">Aktywne zadania: {work.activeTaskCount} · pracuje: {users.find(user=>user.id===openTask?.currentWorkerId)?.name??"—"} · {openTask?.requiresCall?"Wymaga połączenia":""} · poprzednie: {work.previousCompletedTask?.title??"Brak"}</p>
-        {work.missingNextAction&&<p className="text-xs font-medium text-amber-700">Brak następnego działania</p>}
+        <div className="space-y-0.5 text-xs">
+          <p className="truncate text-muted-foreground">{tr("Ostatnio", "Последнее действие")}: {work.previousCompletedTask?.title ?? tr("brak wykonanych działań", "нет выполненных действий")}</p>
+          {openTask?.currentWorkerId && <p className="truncate text-sky-700">{tr("Aktualnie pracuje", "Сейчас работает")}: {users.find(user=>user.id===openTask.currentWorkerId)?.name ?? tr("inny konsultant", "другой сотрудник")}</p>}
+          {work.activeTaskCount > 1 && <p className="text-muted-foreground">{tr("Pozostałe aktywne zadania", "Другие активные задачи")}: {work.activeTaskCount - 1}</p>}
+        </div>
+        {work.missingNextAction&&<p className="rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{tr("Brak następnego działania — wymaga decyzji", "Нет следующего действия — требуется решение")}</p>}
         <p className="truncate text-xs text-muted-foreground">
           {clinic ? (
             <span className={cn("mr-1 inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium", tone.chip)}>
@@ -121,9 +127,9 @@ export function EntityCaseCard({
         )}
 
         {openTask && (
-          <div className="flex items-center gap-1.5 text-xs text-foreground">
+          <div className="flex items-center gap-1.5 rounded bg-muted/40 px-2 py-1.5 text-xs text-foreground">
             <Clock className={cn("h-3 w-3 shrink-0", overdue && "text-red-600")} suppressHydrationWarning />
-            <span className="min-w-0 truncate">{openTask.title}</span>
+            <span className="min-w-0 truncate"><span className="text-muted-foreground">{tr("Dalej", "Далее")}:</span> {openTask.title}</span>
             {openTask.dueAt && (
               <span className={cn("shrink-0", overdue ? "font-medium text-red-600" : "text-muted-foreground")} suppressHydrationWarning>
                 {formatRelative(openTask.dueAt)}

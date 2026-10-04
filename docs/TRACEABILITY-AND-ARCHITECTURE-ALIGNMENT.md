@@ -134,3 +134,16 @@ The target CRM is not being designed from scratch. It is a structured evolution 
 - the Next.js prototype validates behavior and contracts but does not redefine production data ownership.
 
 Before production implementation, the two largest design tasks are the Frappe mapping for Patient/Task and the cross-service authorization contract.
+
+## 10. UX assistance and simplicity guardrail
+
+The October 2026 product audit adds a delivery rule across all modules: the UI projects existing Frappe/FastAPI business state into a prepared next action; it must not move workflow decisions into ad-hoc React-only logic.
+
+- queue calculation and ownership map to persisted Task/assignment data;
+- one-click call start uses the telephony command and mandatory wrap-up contract;
+- stage suggestions come from the versioned workflow definition;
+- settings navigation simplifies presentation but does not create a second configuration store;
+- role workspaces are scoped projections, not copies of Patient, Case or Task;
+- provider/demo limitations remain explicit until the corresponding adapter and persistence exist.
+
+The current page/feature inventory is [PRODUCT-FUNCTIONAL-MAP.md](PRODUCT-FUNCTIONAL-MAP.md); prioritized UX debt is [UX-AND-PRODUCT-AUDIT.md](UX-AND-PRODUCT-AUDIT.md).

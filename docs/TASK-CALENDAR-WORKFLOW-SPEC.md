@@ -1,5 +1,11 @@
 # Task, Calendar and workflow actions
 
+## Operator assistance rule
+
+The operator workspace selects the next personal active Task. When none exists, it may propose an unassigned Task, but it must not present a Task assigned to another active user as the operator's own next action. A call-required next action starts the call command directly; all other actions open the parent case. Skip, cancel and reschedule controls are labelled as such only when they execute that command and collect every required reason/result.
+
+The system infers Patient, case, clinic, owner, task type and default SLA from context. It asks the user only for missing business information or a privileged override reason.
+
 Base: `022e10371a9750320b6d94662ddfbb315c006598`, after Patient 360 PR #13.
 
 ## Ownership and operational chain
