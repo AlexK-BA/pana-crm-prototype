@@ -1,5 +1,7 @@
 # Final UAT and regression checklist
 
+The stakeholder acceptance boundary and explicit production dependencies are summarized in [FINAL-PROTOTYPE-ACCEPTANCE.md](FINAL-PROTOTYPE-ACCEPTANCE.md).
+
 Use this checklist after all feature branches are merged into `main`. A successful build or component-level test is not a substitute for these end-to-end checks.
 
 ## Release gate

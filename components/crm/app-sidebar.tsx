@@ -26,7 +26,7 @@ import { useAuthorization } from "@/lib/crm/authorization-context"
 export function AppSidebar() {
   const pathname = usePathname()
   const { role } = useRole()
-  const { t } = useLanguage()
+  const { t, tr } = useLanguage()
   const { canAccessRoute } = useAuthorization()
   const profile = ROLE_PROFILES[role]
 
@@ -48,7 +48,7 @@ export function AppSidebar() {
           { href: "/docs", label: t("nav_docs"), icon: BookOpen },
         ]
       : []),
-    ...(role === "admin" ? [{ href: "/users", label: "Użytkownicy", icon: UsersRound }] : []),
+    ...(role === "admin" ? [{ href: "/users", label: tr("Użytkownicy", "Пользователи"), icon: UsersRound }] : []),
   ].filter((item) => canAccessRoute(item.href))
 
   return (
@@ -93,7 +93,7 @@ export function AppSidebar() {
             className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
           >
             <Settings className="h-4 w-4" />
-            Settings
+            {tr("Ustawienia", "Настройки")}
           </Link>
         )}
         <div className="mt-1">
