@@ -84,6 +84,11 @@ interface EntityStoreValue {
   changeTask: (id: string, input: TaskChangeInput, access?: MatchingAccess) => Task
 
   tasks: Task[]
+  /** Per-user manual list order (userId → listKey → itemId → rank). Presentation only; never changes priority or stage. */
+  manualOrder: Record<string, Record<string, Record<string, number>>>
+  saveManualOrder: (actorId: string, listKey: string, orderedIds: string[]) => void
+  /** Clears one list, every list whose key starts with `listKeyPrefix`, or all lists of the user when omitted. */
+  clearManualOrder: (actorId: string, listKeyPrefix?: string) => void
   cases: EngagementCase[]
   auditEvents: AuditEvent[]
   interactions: (Interaction | Call)[]
@@ -281,6 +286,18 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const [matchDecisions, setMatchDecisions] = useState<MatchDecision[]>([])
   const matchingState = useRef({ cases, patients, identities, matchDecisions })
   matchingState.current = { cases, patients, identities, matchDecisions }
+  const [manualOrder, setManualOrder] = useState<Record<string, Record<string, Record<string, number>>>>({})
+  const saveManualOrder = useCallback((actorId: string, listKey: string, orderedIds: string[]) => {
+    setManualOrder(prev => ({ ...prev, [actorId]: { ...prev[actorId], [listKey]: { ...prev[actorId]?.[listKey], ...Object.fromEntries(orderedIds.map((id, index) => [id, index])) } } }))
+  }, [])
+  const clearManualOrder = useCallback((actorId: string, listKeyPrefix?: string) => {
+    setManualOrder(prev => {
+      const { [actorId]: userLists, ...rest } = prev
+      if (!userLists || listKeyPrefix === undefined) return rest
+      const remaining = Object.fromEntries(Object.entries(userLists).filter(([key]) => !key.startsWith(listKeyPrefix)))
+      return Object.keys(remaining).length ? { ...rest, [actorId]: remaining } : rest
+    })
+  }, [])
   const [comments, setComments] = useState<Comment[]>(COMMENTS ?? [])
   const [readAt, setReadAt] = useState<Record<string, string>>({})
   const [conversationControls, setConversationControlsState] = useState<ConversationControl[]>([])
@@ -1210,6 +1227,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       tasks,
+      manualOrder,
+      saveManualOrder,
+      clearManualOrder,
       cases,
       auditEvents,
       interactions,
@@ -1301,6 +1321,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       sendTreatmentPlanTask,
       sendBroadcast,
       linkDuplicateCase,
+      manualOrder,
+      saveManualOrder,
+      clearManualOrder,
     ],
   )
 

@@ -35,3 +35,28 @@ test('mobile shell exposes navigation, search and call controls', () => {
   assert.match(topbar, /setMobileNavigationOpen\(true\)/)
   assert.match(sidebar, /mobile \? "flex h-full w-full"/)
 })
+
+test('case workspace keeps context visible and offers stage-aware actions', () => {
+  const drawer = fs.readFileSync('components/crm/engagement-case-drawer.tsx', 'utf8')
+  const conversation = fs.readFileSync('components/crm/conversation-thread.tsx', 'utf8')
+  const tasks = fs.readFileSync('components/crm/task-actions.tsx', 'utf8')
+  const booking = fs.readFileSync('components/crm/appointment-slot-picker.tsx', 'utf8')
+  assert.match(drawer, /Komentarze zespołu/)
+  assert.match(drawer, /Profil i dane kontaktowe/)
+  assert.match(conversation, /data-message-composer/)
+  assert.match(tasks, /stageRule\?\.suggestedTasks/)
+  assert.match(tasks, /"custom"/)
+  assert.match(booking, /selectedClinicId/)
+  assert.match(booking, /selectedProcedureId/)
+  assert.match(booking, /selectedDoctorId/)
+})
+
+test('manual ordering stays presentational and filtered boards cannot move cards', () => {
+  const ordering = harness().load('lib/crm/manual-order.ts')
+  const items = [{ id: 'urgent', fallback: 0 }, { id: 'ranked-b', fallback: 1 }, { id: 'ranked-a', fallback: 2 }]
+  assert.deepEqual(Array.from(ordering.sortWithManualOrder(items, { 'ranked-a': 0, 'ranked-b': 1 }, item => item.id, (a, b) => a.fallback - b.fallback), item => item.id), ['urgent', 'ranked-a', 'ranked-b'])
+  const board = fs.readFileSync('components/crm/kanban-board.tsx', 'utf8')
+  const columns = fs.readFileSync('components/crm/sortable-columns.tsx', 'utf8')
+  assert.match(board, /disabled=\{!canMoveCase \|\| reorderDisabled\}/)
+  assert.match(columns, /if \(reorderDisabled\) return/)
+})

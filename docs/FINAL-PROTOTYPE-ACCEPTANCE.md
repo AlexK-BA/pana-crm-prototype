@@ -59,3 +59,5 @@ The prototype release candidate passes when:
 - SMS clinic defaults are inserted only by an explicit action; context changes cannot overwrite a human draft.
 - A local Patient grouping remains `unlinked` until the Medical CRM relationship is actually resolved. Case drawer, Patient Link and Patient 360 use the same resolver.
 - Task audit renders operational before/after values and localized action names instead of raw serialized Task objects.
+- Engagement Case is an operator workspace: profile details are globally accessible, desktop comments remain persistent, quick call/message actions provide feedback, booking captures clinic/service/doctor/date, and new Tasks are proposed from the current workflow stage.
+- Manual ordering is a per-user presentation layer in Schedule, Task Calendar, Waitlist and CRM Board. It never changes priority, due date or stage and cannot bypass the workflow transition dialog.

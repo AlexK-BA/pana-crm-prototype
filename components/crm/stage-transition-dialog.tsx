@@ -53,12 +53,17 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
   const activeTasks = useMemo(() => tasks.filter(task => task.caseId === pending.caseId && isActive(task)), [tasks, pending.caseId])
   const canAssign = hasPermission("task:assign")
   const automatic = rule?.automaticTask
-  const needsExplicitDate = Boolean(!rule?.terminal && !advanced.skipAutomatic && (advanced.taskType || (automatic && automatic.duePolicy !== "sla")))
+  const availableTaskTypes = useMemo(() => {
+    const types = [automatic?.type, ...(rule?.suggestedTasks ?? []), "custom"].filter(Boolean) as TaskType[]
+    return [...new Set(types)].filter(type => type !== "send_treatment_plan" || hasPermission("patient:view_medical"))
+  }, [automatic?.type, rule?.suggestedTasks, hasPermission])
+  const selectedTaskType = (advanced.taskType || (!automatic ? availableTaskTypes[0] : "")) as TaskType | ""
+  const needsExplicitDate = Boolean(!rule?.terminal && !advanced.skipAutomatic && (selectedTaskType || (automatic && automatic.duePolicy !== "sla")))
   const reasonRequired = Boolean(rule?.requiresReason || activeDecision === "cancel" || advanced.override || advanced.skipAutomatic)
-  const nextType = (advanced.taskType || automatic?.type) as TaskType | undefined
+  const nextType = (selectedTaskType || automatic?.type) as TaskType | undefined
   const nextTitle = nextType ? taskTypeLabel(nextType, language) : automatic?.title
-  const customTitleInvalid = advanced.taskType === "custom" && !advanced.title.trim()
-  const customDescriptionInvalid = advanced.taskType === "custom" && !advanced.description.trim()
+  const customTitleInvalid = selectedTaskType === "custom" && !advanced.title.trim()
+  const customDescriptionInvalid = selectedTaskType === "custom" && !advanced.description.trim()
   const customTaskInvalid = customTitleInvalid || customDescriptionInvalid
   const blocked = (reasonRequired && !reason.trim()) || (needsExplicitDate && !due) || customTaskInvalid
 
@@ -69,7 +74,7 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
         reason: reason.trim(), override: advanced.override || advanced.skipAutomatic, skipAutomatic: advanced.skipAutomatic, allowPast: advanced.allowPast,
         taskTitle: advanced.title.trim() || undefined, taskDescription: advanced.description.trim() || undefined,
         activeTaskDecision: activeDecision, dueAt: due || undefined,
-        taskType: advanced.taskType ? advanced.taskType as TaskType : undefined, ownerId: advanced.ownerId || undefined,
+        taskType: selectedTaskType || undefined, ownerId: advanced.ownerId || undefined,
       })
       onClose()
     } catch (caught) { setError(caught instanceof Error ? caught.message : tr("Przejście zablokowane.", "Переход заблокирован.")) }
@@ -87,7 +92,20 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
       ) : (
         <section className="space-y-1 rounded-md border bg-muted/40 p-3 text-sm" aria-label={tr("Następne działanie", "Следующее действие")}>
           <p className="text-xs text-muted-foreground">{tr("Następne działanie", "Следующее действие")}</p>
-          <p className="font-medium">{advanced.skipAutomatic ? tr("Brak — pominięte przez administratora", "Нет — пропущено администратором") : nextTitle ?? tr("Brak automatycznego zadania", "Нет автоматической задачи")}</p>
+          {!advanced.skipAutomatic && <label className="block font-medium">
+            <span className="sr-only">{tr("Wybierz następne zadanie", "Выберите следующую задачу")}</span>
+            <select
+              aria-label={tr("Wybierz następne zadanie", "Выберите следующую задачу")}
+              className="mt-1 w-full rounded border bg-background p-2 text-sm"
+              value={selectedTaskType}
+              onChange={event => setAdvanced({ ...advanced, taskType: event.target.value, title: "", description: "" })}
+            >
+              {automatic && <option value="">{automatic.title} · {tr("zalecane", "рекомендуется")}</option>}
+              {!automatic && <option value="" disabled>{tr("Wybierz zadanie", "Выберите задачу")}</option>}
+              {availableTaskTypes.filter(type => type !== automatic?.type).map(type => <option key={type} value={type}>{taskTypeLabel(type, language)}</option>)}
+            </select>
+          </label>}
+          {advanced.skipAutomatic && <p className="font-medium">{tr("Brak — pominięte przez administratora", "Нет — пропущено администратором")}</p>}
           {automatic && !advanced.skipAutomatic && <p className="text-xs text-muted-foreground">
             {tr("Priorytet", "Приоритет")} {automatic.priority} · {automatic.duePolicy === "sla" ? `${tr("termin za", "срок через")} ${formatDueIn(automatic.dueInMinutes, tr)}` : tr("termin ustawia pracownik", "срок задаёт сотрудник")}
             {automatic.requiresCall || advanced.taskType === "call" ? ` · ${tr("wymaga połączenia", "требует звонка")}` : ""}
@@ -95,6 +113,10 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
           {needsExplicitDate && <label className="mt-2 block text-xs font-medium">{tr("Termin zadania *", "Срок задачи *")}
             <Input type="datetime-local" value={due} onChange={event => setDue(event.target.value)} className="mt-1" />
           </label>}
+          {selectedTaskType === "custom" && <div className="mt-2 space-y-2">
+            <label className="block text-xs font-medium">{tr("Nazwa własnego zadania *", "Название своей задачи *")}<Input value={advanced.title} aria-invalid={customTitleInvalid} onChange={event => setAdvanced({ ...advanced, title: event.target.value })} className="mt-1" /></label>
+            <label className="block text-xs font-medium">{tr("Komentarz / opis *", "Комментарий / описание *")}<Textarea value={advanced.description} aria-invalid={customDescriptionInvalid} onChange={event => setAdvanced({ ...advanced, description: event.target.value })} className="mt-1 min-h-16" /></label>
+          </div>}
         </section>
       )}
 
@@ -120,29 +142,21 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
           <summary className="cursor-pointer text-xs font-medium">{tr("Szczegóły techniczne i override (administrator / TL)", "Технические детали и override (админ / TL)")}</summary>
           <div className="mt-3 space-y-3">
             <p className="text-xs text-muted-foreground">{tr("Reguła", "Правило")}: {automatic?.id ?? tr("brak", "нет")} · {tr("Automatyzacja zewnętrzna", "Внешняя автоматизация")}: {rule?.automationWorkflowKey ?? tr("niepodłączona (prototyp)", "не подключена (прототип)")}</p>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={advanced.override} onChange={event => setAdvanced({ ...advanced, override: event.target.checked, taskType: "" })} />{tr("Ręczny override zadania (powód wymagany)", "Ручной override задачи (причина обязательна)")}</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={advanced.override} onChange={event => setAdvanced({ ...advanced, override: event.target.checked })} />{tr("Pozwól wybrać zadanie spoza reguł etapu (powód wymagany)", "Разрешить задачу вне правил этапа (нужна причина)")}</label>
             {!rule?.terminal && <label className="flex items-center gap-2"><input type="checkbox" checked={advanced.skipAutomatic} onChange={event => setAdvanced({ ...advanced, skipAutomatic: event.target.checked })} />{tr("Pomiń automatyczne zadanie (powód wymagany)", "Пропустить автоматическую задачу (причина обязательна)")}</label>}
             {!rule?.terminal && <>
-              <label className="block text-xs">{tr("Typ zadania", "Тип задачи")}
+              {advanced.override && <label className="block text-xs">{tr("Zadanie spoza reguł etapu", "Задача вне правил этапа")}
                 <select className="mt-1 w-full rounded border bg-background p-2 text-sm" value={advanced.taskType} onChange={event => setAdvanced({ ...advanced, taskType: event.target.value })}>
                   <option value="">{tr("Automatyczny", "Автоматический")}</option>
-                  {(advanced.override ? TASK_TYPES : rule?.suggestedTasks ?? []).filter(type => type !== "send_treatment_plan" || hasPermission("patient:view_medical")).map(type => <option key={type} value={type}>{taskTypeLabel(type, language)}</option>)}
+                  {TASK_TYPES.filter(type => type !== "send_treatment_plan" || hasPermission("patient:view_medical")).map(type => <option key={type} value={type}>{taskTypeLabel(type, language)}</option>)}
                 </select>
-              </label>
+              </label>}
               <label className="block text-xs">{tr("Właściciel zadania", "Владелец задачи")}
                 <select className="mt-1 w-full rounded border bg-background p-2 text-sm" value={advanced.ownerId} onChange={event => setAdvanced({ ...advanced, ownerId: event.target.value })}>
                   <option value="">{tr("Bieżący użytkownik", "Текущий пользователь")}</option>
                   {users.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
                 </select>
               </label>
-              {advanced.taskType === "custom" && <>
-                <label className="block text-xs">{tr("Tytuł zadania *", "Название задачи *")}<Input value={advanced.title} aria-invalid={customTitleInvalid} onChange={event => setAdvanced({ ...advanced, title: event.target.value })} className="mt-1" />
-                  {customTitleInvalid && <span role="status" className="mt-1 block text-xs text-destructive">{tr("Zadanie indywidualne wymaga tytułu.", "Для индивидуальной задачи нужно название.")}</span>}
-                </label>
-                <label className="block text-xs">{tr("Opis zadania *", "Описание задачи *")}<Textarea value={advanced.description} aria-invalid={customDescriptionInvalid} onChange={event => setAdvanced({ ...advanced, description: event.target.value })} className="mt-1" />
-                  {customDescriptionInvalid && <span role="status" className="mt-1 block text-xs text-destructive">{tr("Zadanie indywidualne wymaga opisu.", "Для индивидуальной задачи нужно описание.")}</span>}
-                </label>
-              </>}
               <label className="flex items-center gap-2"><input type="checkbox" checked={advanced.allowPast} onChange={event => setAdvanced({ ...advanced, allowPast: event.target.checked })} />{tr("Dopuszczam termin w przeszłości", "Допускаю срок в прошлом")}</label>
             </>}
           </div>

@@ -16,6 +16,11 @@ import { ROLE_PROFILES } from "@/lib/crm/roles"
 import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { formatRelative, formatDateTime } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
+import { useLanguage } from "@/lib/crm/language-context"
+import { hasManualOrder, sortWithManualOrder } from "@/lib/crm/manual-order"
+import { SortableList } from "./sortable-list"
+
+const WAITLIST_KEY = "waitlist"
 
 export function WaitlistView() {
   const [query, setQuery] = useState("")
@@ -23,13 +28,15 @@ export function WaitlistView() {
   const [doctor, setDoctor] = useState<string>("all")
   const [service, setService] = useState<string>("all")
   const [assignee, setAssignee] = useState<string>("all")
-  const { cases, moveCase } = useScopedEntityStore()
+  const { cases, moveCase, manualOrder, saveManualOrder, clearManualOrder } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
+  const { tr } = useLanguage()
   const actorId = INITIAL_USERS.find((o) => o.name === ROLE_PROFILES[role].user.name)?.id ?? "system"
+  const reorderDisabled = query !== "" || clinic !== "all" || doctor !== "all" || service !== "all" || assignee !== "all"
 
   const waitlisted = useMemo(() => {
-    return cases
+    const filtered = cases
       .filter((c) => c.status === "waiting")
       .filter((c) => clinic === "all" || c.clinicId === clinic)
       .filter((c) => doctor === "all" || c.doctorId === doctor)
@@ -42,8 +49,8 @@ export function WaitlistView() {
         const name = patient ? `${patient.firstName} ${patient.lastName}` : ""
         return name.toLowerCase().includes(q) || getIdentity(c.contactIdentityId)?.value.toLowerCase().includes(q)
       })
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-  }, [cases, query, clinic, doctor, service, assignee])
+    return sortWithManualOrder(filtered, manualOrder[WAITLIST_KEY], (item) => item.id, (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  }, [cases, query, clinic, doctor, service, assignee, manualOrder])
 
   return (
     <div className="flex h-full flex-col">
@@ -114,7 +121,12 @@ export function WaitlistView() {
           </SelectContent>
         </Select>
 
-        <span className="ml-auto text-xs text-muted-foreground">{waitlisted.length} na liście oczekujących</span>
+        {hasManualOrder(manualOrder, WAITLIST_KEY) && (
+          <Button variant="outline" size="sm" className="ml-auto h-8" onClick={() => clearManualOrder(WAITLIST_KEY)}>
+            {tr("Przywróć kolejność automatyczną", "Вернуть автоматический порядок")}
+          </Button>
+        )}
+        <span className={cn("text-xs text-muted-foreground", !hasManualOrder(manualOrder, WAITLIST_KEY) && "ml-auto")}>{waitlisted.length} na liście oczekujących</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -123,8 +135,15 @@ export function WaitlistView() {
             Lista oczekujących jest pusta.
           </div>
         ) : (
-          <div className="space-y-2">
-            {waitlisted.map((c) => {
+          <SortableList
+            listId="waitlist"
+            ids={waitlisted.map((item) => item.id)}
+            disabled={reorderDisabled}
+            handleLabel={tr("Zmień kolejność pacjenta na liście", "Изменить порядок пациента в списке")}
+            onReorder={(ids) => saveManualOrder(WAITLIST_KEY, ids)}
+            renderItem={(id, handle) => {
+              const c = waitlisted.find((item) => item.id === id)
+              if (!c) return null
               const patient = getPatient(c.patientId)
               const identity = getIdentity(c.contactIdentityId)
               const clinic = getClinic(c.clinicId)
@@ -134,10 +153,8 @@ export function WaitlistView() {
               const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? "Nierozpoznany kontakt"
 
               return (
-                <div
-                  key={c.id}
-                  className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm"
-                >
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+                  {handle}
                   <button onClick={() => openCase(c.id)} className="min-w-0 flex-1 text-left">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium text-foreground hover:underline">{name}</p>
@@ -168,8 +185,8 @@ export function WaitlistView() {
                   </Button>
                 </div>
               )
-            })}
-          </div>
+            }}
+          />
         )}
       </div>
     </div>

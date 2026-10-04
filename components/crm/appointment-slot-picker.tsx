@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react"
-import { DOCTORS, getClinic, getDoctor, getProcedure } from "@/lib/crm/catalog"
+import { CLINICS, DOCTORS, PROCEDURES, getClinic, getDoctor, getProcedure } from "@/lib/crm/catalog"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useLanguage } from "@/lib/crm/language-context"
 import type { ClinicId } from "@/lib/crm/entities"
@@ -60,10 +60,15 @@ export function AppointmentBookingDialog({
 }) {
   const { bookAppointment } = useScopedEntityStore()
   const { tr, locale } = useLanguage()
+  const [selectedClinicId, setSelectedClinicId] = useState<ClinicId | "">(clinicId ?? "")
+  const [selectedProcedureId, setSelectedProcedureId] = useState(procedureId ?? "")
+  const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId ?? "")
   const [now] = useState(() => Date.now())
   const today = useMemo(() => { const base = new Date(now); return new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate())) }, [now])
   const lastDay = useMemo(() => new Date(today.getTime() + HORIZON_DAYS * DAY_MS), [today])
-  const pool = useMemo(() => doctorPool(clinicId, procedureId, doctorId), [clinicId, procedureId, doctorId])
+  const availableProcedures = PROCEDURES.filter(item => !selectedClinicId || item.clinicId === selectedClinicId)
+  const availableDoctors = DOCTORS.filter(item => (!selectedClinicId || item.clinicId === selectedClinicId) && (!selectedProcedureId || item.procedureIds.includes(selectedProcedureId)))
+  const pool = useMemo(() => selectedClinicId && selectedProcedureId && selectedDoctorId ? doctorPool(selectedClinicId, selectedProcedureId, selectedDoctorId) : [], [selectedClinicId, selectedProcedureId, selectedDoctorId])
 
   const isAvailable = (day: Date) => day > today && day <= lastDay && slotsForDay(day, pool).length > 0
   const firstAvailable = useMemo(() => {
@@ -80,8 +85,8 @@ export function AppointmentBookingDialog({
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState("")
 
-  const clinic = getClinic(clinicId)
-  const procedure = getProcedure(procedureId)
+  const clinic = getClinic(selectedClinicId || undefined)
+  const procedure = getProcedure(selectedProcedureId || undefined)
   // Slot times are authored as clinic wall-clock time and rendered without conversion.
   const dateLabel = (date: Date) => date.toLocaleDateString(locale, { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })
   const timeLabel = (slot: Slot) => new Date(slot.startsAt).toLocaleTimeString(locale, { timeZone: "UTC", hour: "2-digit", minute: "2-digit" })
@@ -99,7 +104,7 @@ export function AppointmentBookingDialog({
 
   function close(next: boolean) {
     onOpenChange(next)
-    if (!next) { setSelected(null); setSelectedDay(null); setConfirmed(false); setError("") }
+    if (!next) { setSelected(null); setSelectedDay(null); setConfirmed(false); setError(""); setSelectedClinicId(clinicId ?? ""); setSelectedProcedureId(procedureId ?? ""); setSelectedDoctorId(doctorId ?? "") }
   }
 
   function pickDay(day: Date) {
@@ -110,6 +115,7 @@ export function AppointmentBookingDialog({
   function confirm() {
     if (!selected) return
     try {
+      if (!selectedClinicId || !selectedProcedureId || !selectedDoctorId) throw new Error(tr("Wybierz klinikę, usługę i lekarza.", "Выберите клинику, услугу и врача."))
       bookAppointment({ caseId, taskId, patientId, label: fullLabel(selected), actorId })
       setError(""); setConfirmed(true); onBooked?.()
     } catch (caught) { setError(caught instanceof Error ? caught.message : tr("Nie udało się zapisać.", "Не удалось сохранить.")) }
@@ -134,10 +140,24 @@ export function AppointmentBookingDialog({
                 "Сохранено в CRM (время клиники). Связанная задача закрыта (если не требует звонка), подтверждение добавлено в переписку по делу как эмуляция. Визит НЕ отправлен в Medical CRM, сообщение не доставлено через внешний канал.")}
             </p>
           </div>
+        ) : !selectedClinicId || !selectedProcedureId || !selectedDoctorId ? (
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="space-y-1 text-xs"><span>{tr("Klinika", "Клиника")}</span><select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedClinicId} onChange={event=>{const value=event.target.value as ClinicId;setSelectedClinicId(value);setSelectedProcedureId("");setSelectedDoctorId("");setSelectedDay(null);setSelected(null)}}><option value="">{tr("Wybierz", "Выберите")}</option>{CLINICS.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <label className="space-y-1 text-xs"><span>{tr("Usługa", "Услуга")}</span><select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedProcedureId} disabled={!selectedClinicId} onChange={event=>{setSelectedProcedureId(event.target.value);setSelectedDoctorId("");setSelectedDay(null);setSelected(null)}}><option value="">{tr("Wybierz", "Выберите")}</option>{availableProcedures.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <label className="space-y-1 text-xs"><span>{tr("Lekarz", "Врач")}</span><select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedDoctorId} disabled={!selectedProcedureId} onChange={event=>{setSelectedDoctorId(event.target.value);setSelectedDay(null);setSelected(null)}}><option value="">{tr("Wybierz", "Выберите")}</option>{availableDoctors.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            </div>
+            <p className="text-xs text-muted-foreground">{tr("Najpierw wybierz klinikę, usługę i lekarza. Następnie pokażemy dostępne dni i godziny.", "Сначала выберите клинику, услугу и врача. Затем будут показаны доступные дни и время.")}</p>
+          </div>
         ) : !firstAvailable ? (
           <p role="status" className="text-sm text-muted-foreground">{tr("Brak lekarzy dla tej kliniki — nie można zaproponować terminów.", "Нет врачей для этой клиники — слоты предложить нельзя.")}</p>
         ) : (
           <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="space-y-1 text-xs"><span>{tr("Klinika", "Клиника")}</span><select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedClinicId} onChange={event=>{const value=event.target.value as ClinicId;setSelectedClinicId(value);setSelectedProcedureId("");setSelectedDoctorId("");setSelectedDay(null);setSelected(null)}}><option value="">{tr("Wybierz", "Выберите")}</option>{CLINICS.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <label className="space-y-1 text-xs"><span>{tr("Usługa", "Услуга")}</span><select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedProcedureId} disabled={!selectedClinicId} onChange={event=>{setSelectedProcedureId(event.target.value);setSelectedDoctorId("");setSelectedDay(null);setSelected(null)}}><option value="">{tr("Wybierz", "Выберите")}</option>{availableProcedures.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <label className="space-y-1 text-xs"><span>{tr("Lekarz", "Врач")}</span><select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedDoctorId} disabled={!selectedProcedureId} onChange={event=>{setSelectedDoctorId(event.target.value);setSelectedDay(null);setSelected(null)}}><option value="">{tr("Wybierz", "Выберите")}</option>{availableDoctors.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            </div>
             <div className="rounded-md border p-3">
               <div className="mb-2 flex items-center justify-between">
                 <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={!canGoBack} onClick={() => shiftMonth(-1)} aria-label={tr("Poprzedni miesiąc", "Предыдущий месяц")}><ChevronLeft className="h-4 w-4" /></Button>
@@ -185,7 +205,7 @@ export function AppointmentBookingDialog({
         <DialogFooter>
           {confirmed ? <Button onClick={() => close(false)}>{tr("Zamknij", "Закрыть")}</Button> : <>
             <Button variant="ghost" onClick={() => close(false)}>{tr("Anuluj", "Отмена")}</Button>
-            <Button disabled={!selected} onClick={confirm}>{tr("Zapisz wizytę", "Записать визит")}</Button>
+            <Button disabled={!selected || !selectedClinicId || !selectedProcedureId || !selectedDoctorId} onClick={confirm}>{tr("Zapisz wizytę", "Записать визит")}</Button>
           </>}
         </DialogFooter>
       </DialogContent>

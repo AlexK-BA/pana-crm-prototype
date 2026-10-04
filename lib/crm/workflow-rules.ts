@@ -62,16 +62,16 @@ const STAGE_TYPES: Record<string, TaskType> = {
   "patients.appt_scheduled": "appointment_confirmation", "patients.new_patient": "message", "patients.returning": "qualification", "patients.in_treatment": "treatment_plan_review", "patients.control": "appointment_booking",
 }
 const SUGGESTED: Record<string, TaskType[]> = {
-  "leads.new": ["qualification", "message"], "leads.qualification": ["appointment_booking", "call", "message"], "leads.waiting": ["waitlist_contact", "appointment_booking"],
-  "leads.call_later": ["call", "message", "sms", "email"], "leads.failed": ["call", "message", "email"], "leads.converted": ["appointment_booking"],
-  "deals.scheduled": ["sms", "email"], "deals.post_visit": ["post_visit_follow_up", "send_treatment_plan"], "deals.recall": ["appointment_booking"], "deals.care": ["patient_care_handoff"], "deals.no_show": ["call"], "deals.completed": ["patient_care_handoff", "appointment_booking"],
-  "patients.appt_scheduled": ["sms"], "patients.new_patient": ["treatment_plan_review", "message"], "patients.returning": ["appointment_booking"], "patients.in_treatment": ["send_treatment_plan"], "patients.control": ["appointment_booking"], "patients.complete": ["post_visit_follow_up", "appointment_booking"],
+  "leads.new": ["qualification", "message", "sms", "email"], "leads.qualification": ["appointment_booking", "call", "message", "sms", "email"], "leads.waiting": ["waitlist_contact", "appointment_booking", "call", "message", "sms"],
+  "leads.call_later": ["call", "message", "sms", "email", "appointment_booking"], "leads.failed": ["call", "message", "sms", "email", "appointment_booking"], "leads.converted": ["appointment_booking"],
+  "deals.scheduled": ["appointment_confirmation", "call", "message", "sms", "email"], "deals.post_visit": ["post_visit_follow_up", "call", "message", "send_treatment_plan"], "deals.recall": ["appointment_booking", "call", "message", "sms"], "deals.care": ["patient_care_handoff", "call", "message", "treatment_plan_review"], "deals.no_show": ["appointment_booking", "message", "sms"], "deals.completed": ["patient_care_handoff", "appointment_booking"],
+  "patients.appt_scheduled": ["appointment_confirmation", "call", "message", "sms", "email"], "patients.new_patient": ["treatment_plan_review", "call", "message", "sms", "send_treatment_plan"], "patients.returning": ["appointment_booking", "call", "message", "treatment_plan_review"], "patients.in_treatment": ["treatment_plan_review", "send_treatment_plan", "appointment_booking", "call", "message"], "patients.control": ["appointment_booking", "call", "message", "sms"], "patients.complete": ["post_visit_follow_up", "appointment_booking"],
 }
 export const WORKFLOW_STAGE_RULES: WorkflowStageRule[] = BASE_STAGE_RULES.map(rule => {
   const key = `${rule.board}.${rule.status}`
   const manual = ["recall", "returning", "in_treatment", "control"].includes(rule.status)
   return { ...rule, enabled: true, configurability: "clinic-config-required", nextActionMandatory: !rule.terminal,
-    suggestedTasks: SUGGESTED[key] ?? [], automaticTask: rule.automaticTask ? { ...rule.automaticTask,
+    suggestedTasks: rule.terminal ? SUGGESTED[key] ?? [] : [...new Set([...(SUGGESTED[key] ?? []), "custom" as TaskType])], automaticTask: rule.automaticTask ? { ...rule.automaticTask,
       type: STAGE_TYPES[key], requiresCall: STAGE_TYPES[key] === "call" || rule.automaticTask.requiresCall,
       duePolicy: ["scheduled", "appt_scheduled"].includes(rule.status) ? "appointment" : manual ? "clinical" : "sla",
       description: key==="leads.new"?"Pierwszy kontakt: sprawdź Patient Matching, określ klinikę, usługę i język; ustal następny krok.":key==="patients.new_patient"?"Kontakt powitalny: sprawdź dostępny plan leczenia i preferowany kanał bez edycji danych Medical CRM.":rule.automaticTask.title,
