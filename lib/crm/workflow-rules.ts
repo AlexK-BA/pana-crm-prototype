@@ -1,6 +1,7 @@
 import type { CaseBoard, EngagementCase, Task, TaskPriority, TaskType, TaskOutcome } from "./entities"
+import { TASK_TYPE_LABELS } from "./task-type-labels"
 
-export const TASK_TYPE_LABELS: Record<TaskType,string> = {call:"Zadzwoń",message:"Wyślij wiadomość",sms:"Wyślij SMS",email:"Wyślij e-mail",qualification:"Uzupełnij kwalifikację",appointment_confirmation:"Potwierdź wizytę",appointment_booking:"Zarezerwuj wizytę",post_visit_follow_up:"Kontakt po wizycie",waitlist_contact:"Kontakt z listą oczekujących",patient_care_handoff:"Przekaż opiekę",treatment_plan_review:"Sprawdź plan leczenia",send_treatment_plan:"Wyślij plan leczenia",custom:"Zadanie indywidualne"}
+export { TASK_TYPE_LABELS } from "./task-type-labels"
 
 export interface AutomaticTaskRule {
   id: string

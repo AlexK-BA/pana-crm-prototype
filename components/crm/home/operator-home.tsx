@@ -2,17 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowRight, PlayCircle, SkipForward } from "lucide-react"
+import { ArrowRight, ListTodo, Phone, PlayCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { TaskActions } from "../task-actions"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
-import { ROLE_PROFILES } from "@/lib/crm/roles"
-import { INITIAL_USERS } from "@/lib/crm/user-catalog"
+import { useCall } from "@/lib/crm/call-context"
 import { getQueue, getQueueCounters } from "@/lib/crm/entity-queue"
 import {
   buildQueueItem,
@@ -31,11 +28,10 @@ const ACTION_KINDS: ActionKind[] = ["unassigned_clinic", "reply", "call", "follo
 
 export function OperatorHome() {
   const { openCase } = useCasePanel()
-  const { role } = useRole()
   const { t } = useLanguage()
-  const { tasks, cases, skipTask } = useScopedEntityStore()
-  const meName = ROLE_PROFILES[role].user.name
-  const me = INITIAL_USERS.find((o) => o.name === meName)
+  const { startOutgoingCall } = useCall()
+  const { tasks, cases, currentUser } = useScopedEntityStore()
+  const [actionError, setActionError] = useState("")
   const [tab, setTab] = useState<"mine" | "unassigned" | "team">("mine")
   const [actionFilter, setActionFilter] = useState<ActionKind | "all">("all")
   type TileFilter = "p0" | "p1" | "p2" | "p3" | "overdue" | "unassigned"
@@ -53,7 +49,7 @@ export function OperatorHome() {
   }, [])
 
   const teamQueue = useMemo(() => getQueue(tasks, {}, now), [tasks, now])
-  const mineQueue = useMemo(() => getQueue(tasks, { ownerId: me?.id }, now), [tasks, me?.id, now])
+  const mineQueue = useMemo(() => getQueue(tasks, { ownerId: currentUser.id }, now), [tasks, currentUser.id, now])
   const unassignedQueue = useMemo(() => getQueue(tasks, { unassignedOnly: true }, now), [tasks, now])
   const counters = useMemo(() => getQueueCounters(tasks, now), [tasks, now])
 
@@ -87,8 +83,21 @@ export function OperatorHome() {
     acc[kind] = allVisibleItems.filter((i) => i.actionKind === kind).length
     return acc
   }, {} as Record<ActionKind, number>)
-  const nextTask = mineQueue[0] ?? teamQueue[0]
+  // Never suggest work assigned to another person. If the personal queue is
+  // empty, the first unassigned item is the only safe fallback.
+  const nextTask = mineQueue[0] ?? unassignedQueue[0]
   const nextItem = nextTask ? buildQueueItem(nextTask, now, cases) : undefined
+
+  function startNextAction() {
+    if (!nextItem) return
+    setActionError("")
+    try {
+      if (nextItem.task.requiresCall) startOutgoingCall({ caseId: nextItem.case.id, taskId: nextItem.task.id })
+      else openCase(nextItem.case.id)
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Nie udało się rozpocząć działania.")
+    }
+  }
 
   const counterTiles: { label: string; value: number; tone: string; key: TileFilter }[] = [
     { label: t("tile_p0"), value: counters.p0, tone: "text-red-700", key: "p0" },
@@ -100,7 +109,7 @@ export function OperatorHome() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6"><a href="/schedule" className="text-sm underline">Pełna kolejka zadań, historia i kontrola: Brak następnego działania</a>
+    <div className="mx-auto max-w-6xl space-y-6">
       {nextItem && (
         <section className="rounded-lg border border-primary/30 bg-primary/[0.03] p-5">
           <div className="flex items-center justify-between">
@@ -122,22 +131,24 @@ export function OperatorHome() {
                 {nextItem.task.dueAt && <> · {formatRelative(nextItem.task.dueAt)}</>}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {!nextItem.task.requiresCall && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => openCase(nextItem.case.id)}
-                >
-                  <SkipForward className="h-3.5 w-3.5" /> {t("skip_reason")}
-                </Button>
-              )}
-              <Button size="sm" className="gap-1.5" onClick={() => openCase(nextItem.case.id)}>
-                <PlayCircle className="h-3.5 w-3.5" /> {t("open_start")}
+            <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+              <Button size="sm" className="gap-1.5" onClick={startNextAction}>
+                {nextItem.task.requiresCall ? <Phone className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                {nextItem.task.requiresCall ? t("call") : t("open_start")}
               </Button>
+              <Link href="/schedule" className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline">
+                <ListTodo className="h-3.5 w-3.5" /> {t("full_task_queue")}
+              </Link>
             </div>
           </div>
+          {actionError && <p role="alert" className="mt-3 text-xs text-destructive">{actionError}</p>}
+        </section>
+      )}
+
+      {!nextItem && (
+        <section className="flex flex-col gap-3 rounded-lg border border-dashed border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="font-medium">{t("personal_queue_clear")}</p><p className="text-sm text-muted-foreground">{t("personal_queue_clear_hint")}</p></div>
+          <Link href="/schedule"><Button variant="outline" className="gap-1.5"><ListTodo className="h-4 w-4" />{t("full_task_queue")}</Button></Link>
         </section>
       )}
 

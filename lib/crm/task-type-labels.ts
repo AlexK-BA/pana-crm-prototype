@@ -17,6 +17,11 @@ const LABELS: Record<TaskType, Record<Language, string>> = {
   custom: { pl: "Zadanie indywidualne", ru: "Индивидуальная задача" },
 }
 
+/** Canonical Polish business labels used for persisted prototype task titles. */
+export const TASK_TYPE_LABELS = Object.fromEntries(
+  Object.entries(LABELS).map(([type, labels]) => [type, labels.pl]),
+) as Record<TaskType, string>
+
 /** UI label for a task type in the current UI language. Task titles stored on records are data and stay untouched. */
 export function taskTypeLabel(type: TaskType, language: Language) {
   return LABELS[type][language]

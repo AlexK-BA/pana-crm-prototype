@@ -62,8 +62,9 @@ const INITIAL_SOURCES = [
 
 export function SettingsView() {
   const { role, setRole } = useRole()
-  const { t } = useLanguage()
+  const { t, tr } = useLanguage()
   const { users } = useUserDirectory()
+  const [section, setSection] = useState<"operations" | "access" | "communications" | "ai">("operations")
 
   const [botEnabled, setBotEnabled] = useState(true)
   const [botName, setBotName] = useState("PaNa Assistant")
@@ -114,9 +115,20 @@ export function SettingsView() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <AiComplianceCenter /><section className="space-y-2 rounded border p-4"><h2 className="font-semibold">Workflow / SLA — prototype defaults</h2><p className="text-sm text-muted-foreground">Wartości kalendarne do potwierdzenia przez Daniela. Brak kalendarza pracy / świąt. Clinical / Appointment wymaga jawnego terminu; konfiguracja backend w przyszłości.</p><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr><th>Board / etap</th><th>Automatyczna task</th><th>SLA / polityka</th><th>Sugerowane</th></tr></thead><tbody>{WORKFLOW_STAGE_RULES.map(rule=><tr key={`${rule.board}/${rule.status}`} className="border-t"><td className="p-2">{rule.board}/{rule.status}{rule.terminal?" · terminal":""}</td><td>{rule.automaticTask?.title??"Jawny wybór / bez automatyzacji"}</td><td>{rule.automaticTask?.duePolicy==="sla"?`${rule.automaticTask.dueInMinutes} min`:rule.automaticTask?.duePolicy??"manual"}</td><td>{rule.suggestedTasks?.join(", ")}</td></tr>)}</tbody></table></div></section>
-      <section className="rounded-lg border border-border bg-card p-4">
+    <div className="mx-auto max-w-5xl space-y-6">
+      <header className="space-y-1"><h2 className="text-lg font-semibold">{tr("Ustawienia systemu", "Настройки системы")}</h2><p className="text-sm text-muted-foreground">{tr("Wybierz obszar. Pokazujemy tylko ustawienia potrzebne do bieżącego zadania administratora.", "Выберите раздел. Мы показываем только настройки, необходимые для текущей задачи администратора.")}</p></header>
+      <nav className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label={tr("Obszary ustawień", "Разделы настроек")}>
+        {([
+          ["operations", tr("Procesy i kliniki", "Процессы и клиники"), tr("Workflow, SLA, etapy i katalogi", "Воронки, SLA, этапы и каталоги")],
+          ["access", tr("Użytkownicy i dostęp", "Пользователи и доступ"), tr("Role, zespół i zarządzanie kontami", "Роли, команда и управление учётными записями")],
+          ["communications", tr("Komunikacja", "Коммуникации"), tr("SMS, kanały i zachowanie bota", "SMS, каналы и поведение бота")],
+          ["ai", tr("AI i baza wiedzy", "AI и база знаний"), tr("Źródła, testy i zgodność", "Источники, тестирование и соответствие")],
+        ] as const).map(([id, label, description]) => <button key={id} type="button" onClick={() => setSection(id)} className={cn("rounded-lg border p-3 text-left transition-colors", section === id ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border bg-card hover:bg-muted/40")} aria-pressed={section === id}><span className="block text-sm font-medium">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></button>)}
+      </nav>
+
+      <div className={section === "ai" ? "contents" : "hidden"}><AiComplianceCenter /></div>
+      <section className={cn("space-y-2 rounded border p-4", section !== "operations" && "hidden")}><h2 className="font-semibold">Workflow / SLA — prototype defaults</h2><p className="text-sm text-muted-foreground">Wartości kalendarne do potwierdzenia przez Daniela. Brak kalendarza pracy / świąt. Clinical / Appointment wymaga jawnego terminu; konfiguracja backend w przyszłości.</p><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr><th>Board / etap</th><th>Automatyczna task</th><th>SLA / polityka</th><th>Sugerowane</th></tr></thead><tbody>{WORKFLOW_STAGE_RULES.map(rule=><tr key={`${rule.board}/${rule.status}`} className="border-t"><td className="p-2">{rule.board}/{rule.status}{rule.terminal?" · terminal":""}</td><td>{rule.automaticTask?.title??"Jawny wybór / bez automatyzacji"}</td><td>{rule.automaticTask?.duePolicy==="sla"?`${rule.automaticTask.dueInMinutes} min`:rule.automaticTask?.duePolicy??"manual"}</td><td>{rule.suggestedTasks?.join(", ")}</td></tr>)}</tbody></table></div></section>
+      <section className={cn("rounded-lg border border-border bg-card p-4", section !== "access" && "hidden")}>
         <h2 className="mb-1 text-sm font-semibold text-foreground">{t("settings_role_title")}</h2>
         <p className="mb-3 text-xs text-muted-foreground">{t("settings_role_desc")}</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -151,9 +163,9 @@ export function SettingsView() {
         </div>
       </section>
 
-      <SmsProviderSettings />
+      <div className={section === "communications" ? "contents" : "hidden"}><SmsProviderSettings /></div>
 
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section className={cn("rounded-lg border border-border bg-card p-4", section !== "access" && "hidden")}>
         <h2 className="mb-3 text-sm font-semibold text-foreground">{t("settings_team_title")}</h2>
         <div className="space-y-2">
           {users.slice(0, 5).map((user) => (
@@ -172,7 +184,7 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section className={cn("rounded-lg border border-border bg-card p-4", section !== "operations" && "hidden")}>
         <h2 className="mb-3 text-sm font-semibold text-foreground">{t("settings_clinics_title")}</h2>
         <div className="space-y-4">
           {CLINICS.map((clinic) => {
@@ -216,7 +228,7 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section className={cn("rounded-lg border border-border bg-card p-4", section !== "operations" && "hidden")}>
         <h2 className="mb-3 text-sm font-semibold text-foreground">{t("settings_boards_title")}</h2>
         <div className="space-y-4">
           {Object.entries(BOARD_LABEL_KEYS).map(([boardId, labelKey]) => (
@@ -238,7 +250,7 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section className={cn("rounded-lg border border-border bg-card p-4", section !== "communications" && "hidden")}>
         <div className="mb-1 flex items-center gap-2">
           <Bot className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold text-foreground">{t("settings_bot_title")}</h2>
@@ -308,7 +320,7 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section className={cn("rounded-lg border border-border bg-card p-4", section !== "ai" && "hidden")}>
         <div className="mb-1 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">{t("settings_kb_title")}</h2>
           <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={startAdd}>

@@ -42,6 +42,8 @@ Expected baseline: all commands succeed and the production dependency audit has 
 | REG-14 | Appointment | Select a clinic/provider/date/available slot and confirm; test unavailable/past slot and cancellation. | UI shows a real date-based availability selection. Confirmation text exactly matches effects on appointment, task, audit and patient communication. No silent task completion or invented confirmation message. |
 | REG-15 | User lifecycle | Create, deactivate/reactivate, reset password, revoke sessions and change access. Try self-deactivation and removal of the protected admin bundle. | Users are never deleted; protected operations are rejected before mutation; successful operations use confirmations and typed audit events. |
 | REG-16 | Audit | Perform stage, task, call, SMS, AI, matching, access and manual admin actions. | Actor, time, entity, previous/new value, reason and correlation are available where applicable; rerendering creates no duplicate event. |
+| REG-17 | Operator assistance | Give the operator personal, unassigned and other-user tasks with different priorities. | The suggested next action is personal first, then unassigned; another user's assigned task is not proposed. A call-required action starts the call directly; no misleading skip control is shown. |
+| REG-18 | Settings complexity | Open Settings and switch among all four areas. | Only controls related to the selected administrator task are visible; state is retained while switching; unauthorized roles cannot access the route. |
 
 ## Language and content separation
 
@@ -72,4 +74,3 @@ Run once with Polish UI and once with Russian UI.
 | Result | Pass / Fail / Blocked |
 | Evidence | Screenshot/video/log reference |
 | Defect | Link and severity |
-
