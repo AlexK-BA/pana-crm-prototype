@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Search, Bell, Plus, PhoneIncoming, Loader2, Languages } from "lucide-react"
+import { Search, Bell, Plus, PhoneIncoming, Loader2, Languages, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -29,6 +29,8 @@ import { formatRelative } from "@/lib/crm/format"
 import type { ContactChannel, ClinicId } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
 import { useAuthorization } from "@/lib/crm/authorization-context"
+import { AppSidebar } from "@/components/crm/app-sidebar"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
 const DEMO_INCOMING_CALLS = [
   { caseId: "case-1004", taskId: "task-02", label: "Nierozpoznany numer (Scenario 2/17)", unknown: true },
@@ -50,6 +52,7 @@ const CHANNEL_LABEL: Record<ContactChannel, string> = {
 }
 
 export function AppTopbar({ title, subtitle }: { title: string; subtitle?: string }) {
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
   const [showKbd] = useState(true)
   const { simulateIncomingCall, routeIncomingCall } = useCall()
   const { tasks, cases, createDraftCase } = useScopedEntityStore()
@@ -130,9 +133,18 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 md:px-6">
-      <div className="flex-1 leading-tight">
-        <h1 className="text-base font-semibold text-foreground">{title}</h1>
-        {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+      <Button variant="ghost" size="icon" className="shrink-0 md:hidden" onClick={() => setMobileNavigationOpen(true)} aria-label={tr("Otwórz menu", "Открыть меню")}>
+        <Menu className="h-5 w-5" />
+      </Button>
+      <Sheet open={mobileNavigationOpen} onOpenChange={setMobileNavigationOpen}>
+        <SheetContent side="left" className="w-[min(19rem,88vw)] p-0">
+          <SheetHeader className="sr-only"><SheetTitle>{tr("Nawigacja", "Навигация")}</SheetTitle></SheetHeader>
+          <AppSidebar mobile onNavigate={() => setMobileNavigationOpen(false)} />
+        </SheetContent>
+      </Sheet>
+      <div className="min-w-0 flex-1 leading-tight">
+        <h1 className="truncate text-base font-semibold text-foreground">{title}</h1>
+        {subtitle ? <p className="hidden truncate text-xs text-muted-foreground sm:block">{subtitle}</p> : null}
       </div>
 
       <button
@@ -147,6 +159,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           </kbd>
         )}
       </button>
+      <Button variant="ghost" size="icon" className="shrink-0 lg:hidden" onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))} aria-label={t("search_placeholder")}>
+        <Search className="h-4 w-4" />
+      </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -174,9 +189,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
       {canHandleCalls && <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="outline" size="sm" className="hidden gap-1.5 sm:flex">
+            <Button variant="outline" size="sm" className="gap-1.5 px-2 sm:px-3">
               <PhoneIncoming className="h-3.5 w-3.5" />
-              {t("simulate_call")}
+              <span className="hidden sm:inline">{t("simulate_call")}</span>
             </Button>
           }
         />
@@ -350,9 +365,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
         </DialogContent>
       </Dialog>
 
-      {canCreateCase && <Button size="sm" className="gap-1.5" onClick={() => setNewCaseOpen(true)}>
+      {canCreateCase && <Button size="sm" className="shrink-0 gap-1.5 px-2 sm:px-3" onClick={() => setNewCaseOpen(true)} aria-label={tr("Nowa sprawa", "Новая заявка")}>
         <Plus className="h-4 w-4" />
-        {tr("Nowa sprawa", "Новая заявка")}
+        <span className="hidden sm:inline">{tr("Nowa sprawa", "Новая заявка")}</span>
       </Button>}
     </header>
   )

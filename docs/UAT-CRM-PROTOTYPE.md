@@ -599,3 +599,16 @@ Status: browser execution pending.
 9. Regress unread counts, channel/thread status, search, filters, SMS and phone workflows.
 
 Expected: bot and operator cannot send concurrently through the guarded EntityStore contract; ownership is visible and auditable. Real bot/provider enforcement remains a backend integration requirement.
+
+## UAT-28 — Final production stabilization
+
+Run against the deployment built from the exact tested `main` commit.
+
+- [ ] At 390 px the menu button opens every route allowed for the active role; selecting a route closes the menu. Role switcher remains available in the menu.
+- [ ] At 390 px search and incoming-call simulation remain reachable from the top bar without horizontal page overflow.
+- [ ] Enter a custom SMS body and send it. The exact entered body appears in history. Changing case/patient context never replaces a human draft with the clinic default.
+- [ ] Use “Wstaw domyślny tekst kliniki” with an empty composer. The configured text is inserted only after this explicit action and never overwrites non-empty text.
+- [ ] Open Elvira Talkachova / another local-only contact. Drawer header, Patient Link panel and Patient 360 all report the contact as unlinked; no screen infers a Medical CRM link merely from local `patientId`.
+- [ ] Approve a real matching candidate, then reopen all three views. They show the same linked/conflict/sync state.
+- [ ] Reprioritize, reassign and reschedule a Task as Team Leader with a reason. Audit shows readable action, before/after values, actor, reason and timestamp; no raw Task JSON is visible.
+- [ ] Regress call-required wrap-up, Patient Matching, SMS failure/retry, terminal-stage guard and role routes.

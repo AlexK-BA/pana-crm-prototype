@@ -36,6 +36,7 @@ import { PatientConversationWorkspace } from "@/components/crm/patient-conversat
 import { AppointmentBookingDialog } from "@/components/crm/appointment-slot-picker"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 import { useUserDirectory } from "@/lib/crm/user-directory"
+import { patientLinkLabel, resolvePatientLinkState } from "@/lib/crm/patient-link-state"
 
 export function EngagementCaseDrawer() {
   const { activeCaseId, closeCase } = useCasePanel()
@@ -70,11 +71,12 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const canViewCommunication = hasPermission("communication:view")
   const canEditPatient = hasPermission("patient:edit_local")
   const canWorkTasks = hasPermission("task:work")
-  const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, retrySms, saveCaseContactProfile } = useScopedEntityStore()
+  const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, matchDecisions, retrySms, saveCaseContactProfile } = useScopedEntityStore()
   const { startOutgoingCall } = useCall()
-  const { t, tr } = useLanguage()
+  const { t, tr, language } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId)!
   const patient = patients.find((item) => item.id === engagementCase.patientId)
+  const patientLinkState = resolvePatientLinkState(engagementCase, patient, matchDecisions.filter((item) => item.caseId === caseId).at(-1))
   const identity = identities.find((item) => item.id === engagementCase.contactIdentityId)
   const clinic = getClinic(engagementCase.clinicId)
   const procedure = getProcedure(engagementCase.serviceInterest)
@@ -190,7 +192,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
           <Badge variant="outline">{engagementCase.board === "leads" ? t("board_lead") : engagementCase.board === "deals" ? t("board_deal") : t("board_patient_care")}</Badge>
           {procedure && <Badge variant="secondary">{procedure.name}</Badge>}
           {doctor && <Badge variant="secondary">{doctor.name}</Badge>}
-          {patient && <Badge variant="outline">{patient.integrationState}</Badge>}
+          <Badge variant="outline">{patientLinkLabel(patientLinkState, language)}</Badge>
           {patient && <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
             {tr("Szczegóły", "Подробнее")} <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", detailsOpen && "rotate-180")} />
           </Button>}
@@ -311,7 +313,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
               <div className="rounded-lg border border-border p-4">
                 <h3 className="mb-2 text-sm font-semibold">{tr("Źródło i synchronizacja", "Источник и синхронизация")}</h3>
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <Badge variant="outline">{patient.integrationState}</Badge>
+                  <Badge variant="outline">{patientLinkLabel(patientLinkState, language)}</Badge>
                   {hasPermission("patient:view_medical") && patient.externalPatientId && <Badge variant="secondary">Medical CRM ID: {patient.externalPatientId}</Badge>}
                   {patient.lastSyncAt && <span className="text-muted-foreground">{tr("Ostatnia synchronizacja", "Последняя синхронизация")}: {formatDateTime(patient.lastSyncAt)}</span>}
                 </div>

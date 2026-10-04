@@ -159,10 +159,9 @@ export function ConversationThread({
     const context = `${channel}/${targetCaseId ?? "patient"}/${targetPatientId ?? "contact"}`
     if (context === composerContext.current) return
     composerContext.current = context
-    if (channel === "phone") setDraft(defaultSmsText)
     setChosenTaskId(taskId)
     setSendError("")
-  }, [channel, targetCaseId, targetPatientId, defaultSmsText, taskId])
+  }, [channel, targetCaseId, targetPatientId, taskId])
   const canSendMessage = operatorCanReply && hasPermission("communication:send") && (!threadChannel || Boolean(threadIdentityId && identities.some(item => item.id === threadIdentityId)))
   const canSendCustomSms = hasPermission("sms:send_custom")
 
@@ -354,6 +353,9 @@ export function ConversationThread({
           ) : (
             <span className="text-destructive">Brak numeru telefonu. Uzupełnij profil pacjenta przed wysłaniem SMS.</span>
           )}
+          {defaultSmsText && <button type="button" className="ml-2 font-medium text-primary underline-offset-2 hover:underline" onClick={() => setDraft((current) => current.trim() ? current : defaultSmsText)}>
+            Wstaw domyślny tekst kliniki
+          </button>}
         </div>
       )}
 

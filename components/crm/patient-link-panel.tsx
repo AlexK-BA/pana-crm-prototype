@@ -10,13 +10,15 @@ import { useAuthorization } from "@/lib/crm/authorization-context"
 import { maskMatchingIdentifier } from "@/lib/crm/patient-matching-service"
 import { getClinic } from "@/lib/crm/catalog"
 import { formatDateTime } from "@/lib/crm/format"
+import { patientLinkLabel, resolvePatientLinkState } from "@/lib/crm/patient-link-state"
+import { useLanguage } from "@/lib/crm/language-context"
 
-const labels = { auto_link: "Auto-linked", suggested_match: "Suggested match", ambiguous: "Ambiguous", conflict: "Conflict", no_match: "No match / Unlinked", approved: "Linked", rejected: "Unlinked · odrzucono" }
 
 /** A decision panel over canonical EntityStore references, not another patient profile. */
 export function PatientLinkPanel({ caseId }: { caseId: string }) {
   const { cases, patients, identities, matchDecisions, currentUser, matchCaseToPatient, approvePatientMatch, rejectPatientMatch } = useScopedEntityStore()
   const { hasPermission } = useAuthorization()
+  const { language } = useLanguage()
   const [error, setError] = useState("")
   const [confirmation, setConfirmation] = useState<{ decisionId: string; patientId?: string } | null>(null)
   const [reason, setReason] = useState("")
@@ -25,7 +27,9 @@ export function PatientLinkPanel({ caseId }: { caseId: string }) {
   const decision = matchDecisions.filter(item => item.caseId === caseId).at(-1)
   const canReview = hasPermission("patient:match_approve") && hasPermission("patient:view_basic")
   const unresolved = decision && ["pending", "conflict"].includes(decision.status)
-  const state = patient && decision?.decision !== "conflict" ? decision?.status === "auto_linked" ? "Auto-linked" : "Linked" : decision ? labels[decision.decision] : "No match / Unlinked"
+  // A local Patient record is not proof of a Medical CRM link. The canonical
+  // integration state remains authoritative until matching is approved.
+  const state = patientLinkLabel(resolvePatientLinkState(target, patient, decision), language)
   function runSearch() {
     try { setError(""); matchCaseToPatient(caseId, currentUser.id) }
     catch (error) { setError(error instanceof Error ? error.message : "Wyszukiwanie nie powiodło się.") }
