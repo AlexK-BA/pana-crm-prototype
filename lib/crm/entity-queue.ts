@@ -33,19 +33,19 @@ export function isActive(task: Task) {
 }
 
 /**
- * §6 sort rule: priority first, then overdue severity, then SLA/due time,
- * then queue age (createdAt). Never sort by "modified" alone.
+ * §6 sort rule: operational bucket first, then business priority, then
+ * SLA/due time and queue age (createdAt). Never sort by "modified" alone.
  */
 export function compareQueueOrder(a: Task, b: Task, nowMs = Date.now()) {
   const overdueA = isOverdue(a, nowMs), overdueB = isOverdue(b, nowMs)
   const bucket = (task: Task, overdue: boolean) => overdue ? task.mandatory || task.workflowRuleId ? 0 : 1 : task.priority === "P0" ? 2 : task.priority === "P1" ? 3 : 4
   const rank = bucket(a, overdueA) - bucket(b, overdueB)
   if (rank) return rank
+  const priority = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
+  if (priority) return priority
   const dueA = a.dueAt ? Date.parse(a.dueAt) : Infinity
   const dueB = b.dueAt ? Date.parse(b.dueAt) : Infinity
   if (dueA !== dueB) return dueA - dueB
-  const priority = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
-  if (priority) return priority
 
   return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
 }
