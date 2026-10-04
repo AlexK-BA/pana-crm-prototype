@@ -65,6 +65,14 @@ test('business priority wins inside the same operational bucket before due time'
  ]
  assert.deepEqual(Array.from(q.getQueue(ts,{},now),item=>item.id),['newer-mandatory-p1','older-mandatory-p4','missed-call-p1','older-new-lead'])
 })
+test('demo task rebasing preserves relative deadlines without mutating seed tasks',()=>{
+ const h=create(),fixtures=h.load('lib/crm/demo-fixtures.ts'),reference=Date.parse(fixtures.DEMO_REFERENCE_AT),sessionNow=Date.parse('2030-05-10T09:15:00.000Z')
+ const seed=[task({id:'overdue',createdAt:new Date(reference-7200000).toISOString(),dueAt:new Date(reference-3600000).toISOString(),slaAt:new Date(reference-1800000).toISOString()}),task({id:'future',createdAt:new Date(reference-1000).toISOString(),dueAt:new Date(reference+604800000).toISOString()})]
+ const before=JSON.stringify(seed),rebased=fixtures.rebaseDemoTasks(seed,sessionNow)
+ assert.equal(JSON.stringify(seed),before);assert.notEqual(rebased[0],seed[0])
+ assert.equal(Date.parse(rebased[0].dueAt)-sessionNow,-3600000);assert.equal(Date.parse(rebased[1].dueAt)-sessionNow,604800000)
+ assert.equal(Date.parse(rebased[0].slaAt)-sessionNow,-1800000);assert.equal(Date.parse(rebased[0].createdAt)-sessionNow,-7200000)
+})
 test('completed/cancelled/failed tasks remain in canonical history and never appear as active',()=>{
  const h=create({tasks:['completed','cancelled','failed'].map((status,index)=>task({id:String(index),status}))}),q=h.load('lib/crm/entity-queue.ts')
  assert.equal(q.getQueue(h.store.tasks).length,0);assert.equal(q.selectTaskCalendar(h.store.tasks).dated.length,3);assert.equal(q.getCaseWorkState(h.store.cases[0],h.store.tasks).missingNextAction,true)

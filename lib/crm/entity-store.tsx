@@ -688,202 +688,627 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     assertMatchingAccess(access, "communication:send", target)
     if (!input.threadKey || !input.reason.trim()) throw new AccessCommandError("Podaj rozmowę i powód zmiany obsługi.")
     if (input.contactIdentityId && !(target?.contactIdentityIds ?? [target?.contactIdentityId]).includes(input.contactIdentityId)
-      && (!target?.patientId || !matchingState.current.identities.some(identity => identity.id === input.cont…11773 tokens truncated…(h.store.tasks,'c1'),h.store.tasks[0])
-})
-test('all stage IDs retain one existing workflow catalog with type, due policy and suggestions',()=>{
- const h=create(),rules=h.load('lib/crm/workflow-rules.ts').WORKFLOW_STAGE_RULES,boards=h.load('lib/crm/boards.ts').BOARD_COLUMNS
- for(const [board,columns] of Object.entries(boards))for(const column of columns)assert.ok(rules.some(rule=>rule.board===board&&rule.status===column.id))
- assert.ok(rules.filter(rule=>!rule.terminal).every(rule=>rule.nextActionMandatory))
-})
-test('stage and starter task commit together; same retained command/double click creates one active task',()=>{
- const h=create(),move=h.store.moveCase,a=access();const touch=JSON.stringify(h.store.cases[0].attribution)
- move('c1','qualification','spoofed',{},a);move('c1','qualification','spoofed',{},a);h.render()
- assert.equal(h.store.cases[0].status,'qualification');assert.equal(h.store.tasks.length,1);assert.equal(h.store.tasks[0].workflowRuleId,'leads.qualification.complete');assert.equal(h.store.tasks[0].source,'workflow');assert.equal(JSON.stringify(h.store.cases[0].attribution),touch)
- const events=h.store.auditEvents;assert.ok(events.every(event=>event.actorId==='usr-test'));assert.equal(new Set(events.map(event=>event.correlationId)).size,1)
-})
-test('invalid transition due / stage / permissions reject atomically',()=>{
- const h=create()
- for(const fn of [()=>h.store.moveCase('c1','waiting','spoofed'),()=>h.store.moveCase('c1','unknown','spoofed',{},access()),()=>h.store.moveCase('c1','call_later','spoofed',{},access()),()=>h.store.moveCase('c1','qualification','spoofed',{dueAt:'invalid'},access()),()=>h.store.moveCase('c1','failed','spoofed',{},access())])rejects(h,fn)
-})
-test('callback explicit type/due creates call-required task; returning to stage reuses active rule task',()=>{
- const h=create(),a=access();h.store.moveCase('c1','call_later','ignored',{taskType:'call',dueAt:future()},a);h.render();assert.equal(h.store.tasks[0].requiresCall,true)
- h.store.moveCase('c1','qualification','ignored',{},a);h.render();h.store.moveCase('c1','call_later','ignored',{taskType:'call',dueAt:future()},a);h.render();assert.equal(h.store.tasks.filter(task=>task.workflowRuleId==='leads.call_later.call').length,1)
-})
-test('terminal stage creates no task and requires explicit resolution of active tasks',()=>{
- const h=create({tasks:[task({requiresCall:true})]});rejects(h,()=>h.store.moveCase('c1','closed','ignored',{reason:'Closure'},access()))
- rejects(h,()=>h.store.moveCase('c1','closed','ignored',{reason:'Closure',activeTaskDecision:'cancel'},access('operator')))
- h.store.moveCase('c1','closed','ignored',{reason:'Confirmed cancellation',activeTaskDecision:'cancel'},access());h.render();assert.equal(h.store.tasks.length,1);assert.equal(h.store.tasks[0].status,'cancelled');assert.equal(h.store.cases[0].status,'closed')
-})
-test('manual skip override requires permission/reason and exposes missing-next-action control state',()=>{
- const h=create();for(const a of [access('operator'),access()])rejects(h,()=>h.store.moveCase('c1','qualification','ignored',{skipAutomatic:true},a))
- h.store.moveCase('c1','qualification','ignored',{skipAutomatic:true,override:true,reason:'Approved exception'},access());h.render();assert.equal(h.store.tasks.length,0)
- const q=h.load('lib/crm/entity-queue.ts');assert.equal(q.getCaseWorkState(h.store.cases[0],h.store.tasks).missingNextAction,true);assert.equal(q.selectTaskAnalytics(h.store.tasks,h.store.auditEvents).manualOverrideCount,1)
-})
-test('Appointment/clinical stages reject invented dates; explicit manual date is stored',()=>{
- const cs=cases();cs[0].board='patients';cs[0].status='new_patient';const h=create({cases:cs})
- for(const stage of ['appt_scheduled','returning','in_treatment','control'])rejects(h,()=>h.store.moveCase('c1',stage,'ignored',{},access()))
- h.store.moveCase('c1','appt_scheduled','ignored',{dueAt:future()},access());h.render();assert.equal(h.store.tasks[0].type,'appointment_confirmation')
-})
-test('effective ranking puts overdue mandatory then other overdue ahead of future P0/P1',()=>{
- const h=create(),q=h.load('lib/crm/entity-queue.ts'),now=Date.now()
- const ts=[task({id:'futureP0',priority:'P0'}),task({id:'late',priority:'P4',dueAt:new Date(now-1000).toISOString()}),task({id:'mandatory',priority:'P4',mandatory:true,dueAt:new Date(now-500).toISOString()}),task({id:'undated',dueAt:undefined})]
- assert.deepEqual(Array.from(q.getQueue(ts),task=>task.id),['mandatory','late','futureP0','undated']);assert.equal(q.getCaseWorkState(cases()[0],ts).overdueTaskCount,2)
-})
-test('business priority wins inside the same operational bucket before due time',()=>{
- const h=create(),q=h.load('lib/crm/entity-queue.ts'),now=Date.now()
- const ts=[
-  task({id:'older-new-lead',priority:'P3',dueAt:new Date(now-7200000).toISOString(),createdAt:'2026-01-01'}),
-  task({id:'missed-call-p1',priority:'P1',requiresCall:true,dueAt:new Date(now-3600000).toISOString(),createdAt:'2026-01-02'}),
-  task({id:'older-mandatory-p4',priority:'P4',mandatory:true,dueAt:new Date(now-10800000).toISOString(),createdAt:'2026-01-01'}),
-  task({id:'newer-mandatory-p1',priority:'P1',mandatory:true,dueAt:new Date(now-1800000).toISOString(),createdAt:'2026-01-02'}),
- ]
- assert.deepEqual(Array.from(q.getQueue(ts,{},now),item=>item.id),['newer-mandatory-p1','older-mandatory-p4','missed-call-p1','older-new-lead'])
-})
-test('demo task rebasing preserves relative deadlines without mutating seed tasks',()=>{
- const h=create(),fixtures=h.load('lib/crm/demo-fixtures.ts'),reference=Date.parse(fixtures.DEMO_REFERENCE_AT),sessionNow=Date.parse('2030-05-10T09:15:00.000Z')
- const seed=[task({id:'overdue',createdAt:new Date(reference-7200000).toISOString(),dueAt:new Date(reference-3600000).toISOString(),slaAt:new Date(reference-1800000).toISOString()}),task({id:'future',createdAt:new Date(reference-1000).toISOString(),dueAt:new Date(reference+604800000).toISOString()})]
- const before=JSON.stringify(seed),rebased=fixtures.rebaseDemoTasks(seed,sessionNow)
- assert.equal(JSON.stringify(seed),before);assert.notEqual(rebased[0],seed[0])
- assert.equal(Date.parse(rebased[0].dueAt)-sessionNow,-3600000);assert.equal(Date.parse(rebased[1].dueAt)-sessionNow,604800000)
- assert.equal(Date.parse(rebased[0].slaAt)-sessionNow,-1800000);assert.equal(Date.parse(rebased[0].createdAt)-sessionNow,-7200000)
-})
-test('completed/cancelled/failed tasks remain in canonical history and never appear as active',()=>{
- const h=create({tasks:['completed','cancelled','failed'].map((status,index)=>task({id:String(index),status}))}),q=h.load('lib/crm/entity-queue.ts')
- assert.equal(q.getQueue(h.store.tasks).length,0);assert.equal(q.selectTaskCalendar(h.store.tasks).dated.length,3);assert.equal(q.getCaseWorkState(h.store.cases[0],h.store.tasks).missingNextAction,true)
-})
-test('custom requires title/description/date/type; inherits Patient from Case',()=>{
- const h=create();for(const patch of [{title:''},{description:''},{dueAt:'invalid'},{dueAt:''},{type:'not-real'},{patientId:'p2',description:''}])rejects(h,()=>h.store.createPatientTask(input(patch),access()))
- const created=h.store.createPatientTask(input({patientId:'p2'}),access());h.render();assert.equal(created.patientId,'p1');assert.equal(created.createdBy,'usr-test');assert.equal(created.originalDueAt,created.dueAt)
-})
-test('past dates require explicit consent, including reschedule',()=>{
- const h=create({tasks:[task()]}),dueAt=new Date(Date.now()-3600000).toISOString();rejects(h,()=>h.store.createPatientTask(input({dueAt}),access()))
- const made=h.store.createPatientTask(input({dueAt,allowPast:true}),access());h.render();assert.equal(made.dueAt,dueAt)
- rejects(h,()=>change(h,'reschedule',{dueAt}));change(h,'reschedule',{dueAt},{allowPast:true});h.render();assert.equal(h.store.tasks[0].dueAt,dueAt)
-})
-test('reschedule preserves original due, increments count, changes queue/calendar and never stage',()=>{
- const original=new Date(Date.now()+1000).toISOString(),h=create({tasks:[task({dueAt:original}),task({id:'t2',dueAt:new Date(Date.now()+2000).toISOString()})]}),q=h.load('lib/crm/entity-queue.ts')
- assert.equal(q.getNextTaskForCase(h.store.tasks,'c1').id,'t1');change(h,'reschedule',{dueAt:future()});h.render();change(h,'reschedule',{dueAt:future()});h.render()
- assert.equal(h.store.tasks[0].originalDueAt,original);assert.equal(h.store.tasks[0].rescheduleCount,2);assert.equal(q.getNextTaskForCase(h.store.tasks,'c1').id,'t2');assert.equal(h.store.cases[0].status,'new');assert.equal(q.selectTaskCalendar(h.store.tasks).dated[0].id,'t1')
-})
-test('overdue Calendar projection retains actual original date instead of moving to today',()=>{
- const due='2020-01-01T10:00:00Z',h=create({tasks:[task({dueAt:due})]}),q=h.load('lib/crm/entity-queue.ts');const projection=q.selectTaskCalendar(h.store.tasks)
- assert.equal(projection.overdue[0].dueAt,due);assert.equal(projection.dated[0].dueAt,due)
-})
-test('replacement links new/old and retains cancelled history',()=>{
- const h=create({tasks:[task()]});change(h,'replace',{}, {replacement:input({title:'Replacement'})});h.render()
- assert.equal(h.store.tasks[0].status,'cancelled');assert.equal(h.store.tasks[1].previousTaskId,'t1');assert.equal(h.store.tasks[0].replacementTaskId,h.store.tasks[1].id);assert.equal(h.store.tasks[1].patientId,'p1')
-})
-test('replacement / edit cannot move task to a different case or destroy call constraints',()=>{
- const h=create({tasks:[task({requiresCall:true,type:'call'})]});rejects(h,()=>change(h,'replace',{}, {replacement:input({caseId:'c2'})}));rejects(h,()=>change(h,'edit',{type:'custom'}));rejects(h,()=>h.store.changeTask('t1',{caseId:'c2',action:'edit',reason:'No',patch:{title:'Injected'}},access()))
-})
-test('all lifecycle commands require active context/permission before state or audit',()=>{
- const h=create({tasks:[task()]})
- for(const action of ['edit','reschedule','reassign','reprioritize','replace','cancel','complete','reopen'])rejects(h,()=>h.store.changeTask('t1',{caseId:'c1',action,reason:'Denied',patch:{dueAt:future()}},undefined))
- for(const fn of [()=>h.store.completeTask('t1','done'),()=>h.store.rescheduleTask('t1',future(),'No'),()=>h.store.reopenTask('t1'),()=>h.store.skipTask('t1','No'),()=>h.store.assignTask('t1','other','spoofed'),()=>h.store.setPriority('t1','P0','spoofed'),()=>h.store.changeTask('missing',{caseId:'c1',action:'complete',reason:'No'},access()),()=>h.store.changeTask('t1',{caseId:'c1',action:'complete',reason:'No'},{...access(),active:false})])rejects(h,fn)
-})
-test('Operator cannot reassign/reprioritize/foreign work; manager cannot mutate foreign clinic',()=>{
- const h=create({tasks:[task({ownerId:'other'}),task({id:'foreign',caseId:'c2',patientId:'p2'})]})
- for(const action of ['reassign','reprioritize','edit'])rejects(h,()=>h.store.changeTask('t1',{caseId:'c1',action,reason:'No',patch:{ownerId:'usr-test',priority:'P0'}},access('operator')))
- rejects(h,()=>h.store.changeTask('foreign',{caseId:'c2',action:'cancel',reason:'No'},access('clinic_manager')))
-})
-test('reassign/reprioritize validate owner/priority, with canonical actor metadata',()=>{
- const h=create({tasks:[task()]});rejects(h,()=>change(h,'reassign',{ownerId:'unknown'}));rejects(h,()=>change(h,'reprioritize',{priority:'P9'}))
- change(h,'reassign',{ownerId:'other'});h.render();change(h,'reprioritize',{priority:'P0'});h.render();assert.equal(h.store.tasks[0].ownerId,'other');assert.equal(h.store.tasks[0].priority,'P0')
- const event=h.store.auditEvents.at(-1);for(const field of ['taskId','caseId','patientId','clinicId','actorId','actorRole','before','after','reason','correlationId','at'])assert.ok(event[field]);assert.equal(event.actorId,'usr-test')
-})
-test('closed task cannot be edited silently; explicit reopen preserves reschedule history',()=>{
- const h=create({tasks:[task({status:'completed',completedAt:'2026-01-01',rescheduleCount:3,originalDueAt:'2025-01-01'})]});rejects(h,()=>change(h,'edit',{title:'No'}));change(h,'reopen');h.render();assert.equal(h.store.tasks[0].status,'planned');assert.equal(h.store.tasks[0].rescheduleCount,3);assert.equal(h.store.tasks[0].originalDueAt,'2025-01-01')
-})
-test('send treatment plan snapshots Medical CRM ID/version and does not complete by creation',()=>{
- const ps=structuredClone(patients);ps[0].treatmentPlan={id:'plan',version:7,status:'presented',items:[],date:'2026-01-01'};const h=create({patients:ps});const created=h.store.sendTreatmentPlanTask('p1','c1','spoofed',access());h.render()
- assert.equal(created.type,'send_treatment_plan');assert.equal(created.treatmentPlanId,'plan');assert.equal(created.treatmentPlanVersion,7);assert.equal(created.status,'planned')
- rejects(h,()=>h.store.completePatientTask(created.id,access()));h.store.changeTask(created.id,{caseId:'c1',action:'complete',reason:'Emulated dispatch acknowledged',outcome:'sent'},access());h.render();assert.equal(h.store.tasks[0].outcome,'sent');assert.equal(h.store.tasks[0].treatmentPlanVersion,7)
-})
-test('missing plan / medical permission rejects without fictional plan/task',()=>{
- const h=create();rejects(h,()=>h.store.sendTreatmentPlanTask('p1','c1','ignored',access()));rejects(h,()=>h.store.createPatientTask(input({type:'send_treatment_plan',channel:'email'}),access('operator')))
-})
-test('plan failed result requires next action atomically or explicit cancellation reason',()=>{
- const ps=structuredClone(patients);ps[0].treatmentPlan={id:'plan',version:1,status:'presented',items:[],date:'2026-01-01'};const h=create({patients:ps});const created=h.store.sendTreatmentPlanTask('p1','c1','ignored',access());h.render()
- rejects(h,()=>h.store.changeTask(created.id,{caseId:'c1',action:'complete',reason:'Failure',outcome:'failed'},access()))
- h.store.changeTask(created.id,{caseId:'c1',action:'complete',reason:'Provider emulator failure; next contact',outcome:'failed',nextTask:input()},access());h.render();assert.equal(h.store.tasks[0].status,'failed');assert.equal(h.store.tasks.length,2)
-})
-test('requiresCall manual complete/reschedule is rejected even for Admin; cancel/replace require supervisor reason',()=>{
- const h=create({tasks:[task({requiresCall:true,type:'call'})]});for(const action of ['complete','reschedule'])rejects(h,()=>change(h,action,{dueAt:future()}));rejects(h,()=>h.store.changeTask('t1',{caseId:'c1',action:'cancel',reason:'No'},access('operator')))
- change(h,'cancel');h.render();assert.equal(h.store.tasks[0].status,'cancelled')
-})
-test('real call wrap-up retry preserves Task ID/original due and increments reschedule counter',()=>{
- const due=future(),h=create({tasks:[task({requiresCall:true,ownerId:'usr-test',dueAt:due})]});h.scoped('operator');h.callRender();h.call.startOutgoingCall({caseId:'c1',taskId:'t1'});h.callRender();h.call.hangUp();h.callRender()
- assert.equal(h.call.submitWrapUp('no_answer',{rescheduleAt:future()}),true);h.render();assert.equal(h.store.tasks[0].id,'t1');assert.equal(h.store.tasks[0].status,'planned');assert.equal(h.store.tasks[0].originalDueAt,due);assert.equal(h.store.tasks[0].rescheduleCount,1)
-})
-test('Marketing receives neither task records nor Patient PII; retained command uses live role',()=>{
- const h=create({tasks:[task()]}),scoped=h.scoped('admin');h.scoped('marketing');rejects(h,()=>scoped.changeTask('t1',{caseId:'c1',action:'cancel',reason:'Denied'}));const m=h.scoped('marketing');assert.equal(m.tasks.length,0);assert.equal(m.patients.length,0)
-})
-test('analytics preserves replacement/cancellation/reschedule/manual/workflow and actor totals',()=>{
- const h=create({tasks:[task()]});change(h,'reschedule',{dueAt:future()});h.render();change(h,'replace',{}, {replacement:input()});h.render();const q=h.load('lib/crm/entity-queue.ts'),analytics=q.selectTaskAnalytics(h.store.tasks,h.store.auditEvents)
- assert.equal(analytics.rescheduleCount,1);assert.equal(analytics.replacementCount,1);assert.equal(analytics.cancellationCount,1);assert.equal(analytics.manualCreated,1);assert.equal(analytics.byActor['usr-test'],3)
-})
+      && (!target?.patientId || !matchingState.current.identities.some(identity => identity.id === input.contactIdentityId && identity.patientId === target.patientId))) {
+      throw new AccessCommandError("Kontakt nie należy do tej sprawy lub pacjenta.")
+    }
+    const before = conversationControlRef.current.find(item => item.threadKey === input.threadKey)
+    const role = (access as MatchingAccess & { actorRole?: import("./roles").RoleId }).actorRole
+    if (before?.mode === "operator_active" && before.ownerId && before.ownerId !== access!.actorId && !["admin", "team_leader"].includes(role ?? "")) {
+      throw new AccessCommandError("Rozmowę prowadzi inny operator.")
+    }
+    if (input.mode === "bot_active" && input.channel !== "sms") {
+      const policy = resolveAiConversationPolicy(aiPolicyRef.current, target?.clinicId, input.channel)
+      if (!isAiEnabledForConversation(before, policy)) throw new AccessCommandError("AI jest wyłączone dla tej rozmowy lub kanału.")
+    }
+    const after: ConversationControl = {
+      threadKey: input.threadKey, caseId: input.caseId, patientId: input.patientId ?? target?.patientId,
+      contactIdentityId: input.contactIdentityId, channel: input.channel, mode: input.mode,
+      ownerId: input.mode === "operator_active" || input.mode === "bot_paused" ? access!.actorId : undefined,
+      botId: input.mode === "bot_active" ? input.botId ?? before?.botId ?? "bot-pana" : before?.botId,
+      aiEnabledOverride: before?.aiEnabledOverride,
+      aiDisclosureShownAt: before?.aiDisclosureShownAt,
+      updatedAt: new Date().toISOString(), updatedBy: access!.actorId,
+    }
+    setConversationControls(prev => [...prev.filter(item => item.threadKey !== input.threadKey), after])
+    if (["operator_active", "bot_paused", "closed"].includes(input.mode)) {
+      const cancelledAt = new Date().toISOString()
+      const pending = botActivationRef.current.filter(item => item.threadKey === input.threadKey && item.status === "pending")
+      setBotActivationSchedules(prev => prev.map(item => item.threadKey === input.threadKey && item.status === "pending"
+        ? { ...item, status: "cancelled", cancelledAt, cancelledBy: access!.actorId, cancellationReason: input.reason.trim() }
+        : item))
+      for (const schedule of pending) addAudit({ type: "ai_activation_cancelled", action: "cancelled", caseId: input.caseId,
+        patientId: after.patientId, actorId: access!.actorId, before: schedule.dueAt, after: input.mode, reason: input.reason.trim(),
+        correlationId: schedule.id, summary: "Anulowano oczekującą aktywację AI" })
+    }
+    addAudit({ type: "conversation_handoff", action: input.mode, caseId: input.caseId, patientId: after.patientId,
+      actorId: access!.actorId, actorRole: role, before: before?.mode ?? "unmanaged", after: input.mode,
+      reason: input.reason.trim(), correlationId: `conversation:${input.threadKey}:${Date.now()}`,
+      summary: `Obsługa rozmowy: ${before?.mode ?? "unmanaged"} → ${input.mode}` })
+    return after
+  }, [addAudit])
 
-test('invalid calendar dates and inactive/out-of-clinic assignees reject before mutations',()=>{
- const h=create({tasks:[task()]});for(const dueAt of ['2027-02-30T12:00','2027-01-01T25:00','tomorrow'])rejects(h,()=>h.store.createPatientTask(input({dueAt}),access()))
- const scoped={...access(),assignableUserScopes:{other:['pana-comfort']}};rejects(h,()=>h.store.changeTask('t1',{caseId:'c1',action:'reassign',reason:'Denied',patch:{ownerId:'other'}},scoped))
-})
-test('patient-care handoff remains pending until its receiving owner accepts',()=>{
- const cs=cases();cs[0].board='deals';cs[0].status='post_visit';const h=create({cases:cs});h.store.moveCase('c1','care','ignored',{ownerId:'other'},access());h.render();assert.equal(h.store.tasks[0].handoffState,'pending')
- const id=h.store.tasks[0].id;rejects(h,()=>h.store.changeTask(id,{caseId:'c1',action:'complete',reason:'Sender cannot accept'},access()))
- h.store.changeTask(id,{caseId:'c1',action:'complete',reason:'Receiving user accepts'},{...access('patient_care'),actorId:'other'});h.render();assert.equal(h.store.tasks[0].handoffState,'accepted')
-})
-test('booking emulator cannot silently complete a call-required task or mutate a foreign task',()=>{
- const h=create({tasks:[task({requiresCall:true}),task({id:'foreign',caseId:'c2',patientId:'p2'})]});rejects(h,()=>h.store.bookAppointment({caseId:'c1',taskId:'foreign',label:'Synthetic slot',actorId:'spoof'},access()))
- h.store.bookAppointment({caseId:'c1',taskId:'t1',label:'Synthetic slot',actorId:'spoof'},access());h.render();assert.equal(h.store.tasks[0].status,'ready');assert.equal(h.store.tasks[0].outcome,undefined)
-})
-test('explicit plan cancellation with failure reason records outcome without inventing a retry',()=>{
- const ps=structuredClone(patients);ps[0].treatmentPlan={id:'plan',version:1,status:'presented',items:[],date:'2026-01-01'};const h=create({patients:ps});const task=h.store.sendTreatmentPlanTask('p1','c1','ignored',access());h.render()
- h.store.changeTask(task.id,{caseId:'c1',action:'cancel',reason:'No usable address; explicitly closed',outcome:'no_valid_channel'},access());h.render();assert.equal(h.store.tasks[0].outcome,'no_valid_channel');assert.equal(h.store.tasks[0].status,'cancelled');assert.equal(h.store.tasks.length,1)
-})
+  const setConversationAiEnabled = useCallback((input: { threadKey: string; caseId: string; patientId?: string; contactIdentityId?: string; channel: ContactChannel; enabled: boolean; reason: string }, access?: MatchingAccess) => {
+    const target = matchingState.current.cases.find(item => item.id === input.caseId)
+    assertMatchingAccess(access, "ai:manage", target)
+    if (!input.reason.trim()) throw new AccessCommandError("Podaj powód zmiany ustawienia AI.")
+    const before = conversationControlRef.current.find(item => item.threadKey === input.threadKey)
+    const now = new Date().toISOString()
+    const after: ConversationControl = {
+      threadKey: input.threadKey,
+      caseId: input.caseId,
+      patientId: input.patientId ?? target?.patientId,
+      contactIdentityId: input.contactIdentityId,
+      channel: input.channel,
+      mode: input.enabled ? "bot_active" : "bot_paused",
+      ownerId: input.enabled ? undefined : access!.actorId,
+      botId: before?.botId ?? "bot-pana",
+      aiEnabledOverride: input.enabled,
+      aiDisclosureShownAt: before?.aiDisclosureShownAt,
+      updatedAt: now,
+      updatedBy: access!.actorId,
+    }
+    setConversationControls(prev => [...prev.filter(item => item.threadKey !== input.threadKey), after])
+    if (!input.enabled) {
+      const pending = botActivationRef.current.filter(item => item.threadKey === input.threadKey && item.status === "pending")
+      setBotActivationSchedules(prev => prev.map(item => item.threadKey === input.threadKey && item.status === "pending"
+        ? { ...item, status: "cancelled", cancelledAt: now, cancelledBy: access!.actorId, cancellationReason: input.reason.trim() }
+        : item))
+      for (const schedule of pending) addAudit({ type: "ai_activation_cancelled", action: "disabled", caseId: input.caseId,
+        patientId: after.patientId, actorId: access!.actorId, before: schedule.dueAt, after: "disabled", reason: input.reason.trim(),
+        correlationId: schedule.id, summary: "Anulowano oczekującą aktywację AI po wyłączeniu AI" })
+    }
+    addAudit({ type: "ai_control_changed", action: input.enabled ? "enabled" : "disabled", caseId: input.caseId,
+      patientId: after.patientId, actorId: access!.actorId, actorRole: (access as MatchingAccess & { actorRole?: import("./roles").RoleId }).actorRole,
+      before: String(before?.aiEnabledOverride ?? "policy"), after: String(input.enabled), reason: input.reason.trim(),
+      correlationId: `ai-control:${input.threadKey}:${Date.now()}`, summary: `AI ${input.enabled ? "włączone" : "wyłączone"} dla rozmowy` })
+    return after
+  }, [addAudit])
 
-test('phone wrap-up never claims a treatment plan was sent',()=>{
- const ps=structuredClone(patients);ps[0].treatmentPlan={id:'plan',version:2,status:'presented',items:[],date:'2026-01-01'};const h=create({patients:ps});const planTask=h.store.sendTreatmentPlanTask('p1','c1','ignored',access());h.render();h.scoped('admin');h.callRender()
- h.call.startOutgoingCall({caseId:'c1',taskId:planTask.id});h.callRender();h.call.hangUp();h.callRender();assert.equal(h.call.submitWrapUp('appointment_scheduled'),true);h.render();assert.equal(h.store.tasks[0].status,'planned');assert.equal(h.store.tasks[0].outcome,undefined)
-})
-test('invalid foreign/closed call task rejects before starting telephone state or audit',()=>{
- const h=create({tasks:[task({status:'completed'}),task({id:'foreign',caseId:'c2'})]});h.scoped('operator');h.callRender();const before=snapshot(h)
- assert.throws(()=>h.call.startOutgoingCall({caseId:'c1',taskId:'foreign'}));assert.throws(()=>h.call.startOutgoingCall({caseId:'c1',taskId:'t1'}));h.callRender();assert.equal(h.call.phase,'idle');assert.equal(snapshot(h),before)
-})
-test('legacy assign/priority/reopen APIs cannot substitute a default reason',()=>{
- const h=create({tasks:[task(),task({id:'done',status:'completed'})]}),a=access();for(const fn of [()=>h.store.assignTask('t1','other','spoofed',a),()=>h.store.setPriority('t1','P0','spoofed',a),()=>h.store.reopenTask('done',a)])rejects(h,fn)
-})
+  const updateAiConversationPolicy = useCallback((id: string, patch: Partial<Omit<AiConversationPolicy, "id" | "version" | "updatedAt" | "updatedBy">>, reason: string, access?: MatchingAccess) => {
+    assertMatchingAccess(access, "ai:manage")
+    assertMatchingAccess(access, "configuration:manage")
+    if (!reason.trim()) throw new AccessCommandError("Podaj powód zmiany polityki AI.")
+    const before = aiPolicyRef.current.find(item => item.id === id)
+    if (!before) throw new AccessCommandError("Nie znaleziono polityki AI.")
+    if (before.clinicId && !access!.globalScope && !access!.clinicIds.includes(before.clinicId)) throw new AccessCommandError("Polityka AI jest poza zakresem kliniki.")
+    const after: AiConversationPolicy = { ...before, ...patch, id: before.id, version: before.version + 1,
+      updatedAt: new Date().toISOString(), updatedBy: access!.actorId }
+    validateAiPolicy(after)
+    setAiConversationPolicies(prev => prev.map(item => item.id === id ? after : item))
+    addAudit({ type: "ai_policy_changed", action: "updated", actorId: access!.actorId,
+      actorRole: (access as MatchingAccess & { actorRole?: import("./roles").RoleId }).actorRole, clinicId: after.clinicId,
+      before: `v${before.version}`, after: `v${after.version}`, reason: reason.trim(), correlationId: `ai-policy:${id}:${after.version}`,
+      summary: `Zmieniono politykę AI ${after.name}: v${before.version} → v${after.version}` })
+    return after
+  }, [addAudit])
 
-test('suggested plan task retains workflow origin, snapshot and selected receiving owner',()=>{
- const ps=structuredClone(patients);ps[0].treatmentPlan={id:'plan',version:3,status:'presented',items:[],date:'2026-01-01'};const cs=cases();cs[0].board='patients';cs[0].status='new_patient';const h=create({patients:ps,cases:cs})
- h.store.moveCase('c1','in_treatment','ignored',{taskType:'send_treatment_plan',dueAt:future(),ownerId:'other'},access());h.render();assert.equal(h.store.tasks[0].source,'workflow');assert.equal(h.store.tasks[0].workflowRuleId,'patients.in_treatment.send_treatment_plan');assert.equal(h.store.tasks[0].treatmentPlanVersion,3);assert.equal(h.store.tasks[0].ownerId,'other')
-})
-test('plan command cannot read a Patient outside its medical clinic scope through a visible case',()=>{
- const ps=structuredClone(patients);ps[1].treatmentPlan={id:'foreign-plan',version:1,status:'presented',items:[],date:'2026-01-01'};const cs=cases();cs[0].patientId='p2';const h=create({patients:ps,cases:cs})
- rejects(h,()=>h.store.createPatientTask(input({type:'send_treatment_plan',channel:'email'}),access('clinic_manager')))
-})
+  const activateDueBot = useCallback((threadKey: string, access?: MatchingAccess) => {
+    const schedule = botActivationRef.current.find(item => item.threadKey === threadKey && item.status === "pending")
+    if (!schedule || Date.parse(schedule.dueAt) > Date.now()) return undefined
+    const target = matchingState.current.cases.find(item => item.id === schedule.caseId)
+    assertMatchingAccess(access, "communication:send", target)
+    const control = conversationControlRef.current.find(item => item.threadKey === threadKey)
+    const policy = aiPolicyRef.current.find(item => item.id === schedule.policyId && item.version === schedule.policyVersion)
+      ?? aiPolicyRef.current.find(item => item.id === schedule.policyId)
+    if (!isAiEnabledForConversation(control, policy) || ["operator_active", "bot_paused", "closed"].includes(control?.mode ?? "")) {
+      const now = new Date().toISOString()
+      setBotActivationSchedules(prev => prev.map(item => item.id === schedule.id ? { ...item, status: "cancelled", cancelledAt: now, cancelledBy: access!.actorId, cancellationReason: "AI niedostępne lub rozmowę przejął operator" } : item))
+      return undefined
+    }
+    const now = new Date().toISOString()
+    const after: ConversationControl = {
+      threadKey, caseId: schedule.caseId, patientId: schedule.patientId ?? target?.patientId,
+      contactIdentityId: control?.contactIdentityId, channel: control?.channel ?? "website", mode: "bot_active",
+      botId: control?.botId ?? "bot-pana", aiEnabledOverride: control?.aiEnabledOverride,
+      aiDisclosureShownAt: control?.aiDisclosureShownAt, updatedAt: now, updatedBy: "system",
+    }
+    setConversationControls(prev => [...prev.filter(item => item.threadKey !== threadKey), after])
+    setBotActivationSchedules(prev => prev.map(item => item.id === schedule.id ? { ...item, status: "activated", activatedAt: now } : item))
+    addAudit({ type: "ai_activation_started", action: "activated", caseId: schedule.caseId, patientId: schedule.patientId,
+      actorId: "system", before: "pending", after: "bot_active", correlationId: schedule.id, summary: "Aktywowano AI po upływie skonfigurowanego czasu" })
+    return after
+  }, [addAudit])
 
-test('supervisor alternate custom stage task requires override reason and description atomically',()=>{
- const h=create(),opts={override:true,taskType:'custom',taskTitle:'Clinical coordination',taskDescription:'Coordinate the agreed operational handoff',dueAt:future(),reason:'Approved alternative'}
- rejects(h,()=>h.store.moveCase('c1','qualification','ignored',opts,access('operator')));rejects(h,()=>h.store.moveCase('c1','qualification','ignored',{...opts,taskDescription:''},access()))
- h.store.moveCase('c1','qualification','ignored',opts,access());h.render();assert.equal(h.store.cases[0].status,'qualification');assert.equal(h.store.tasks[0].title,'Clinical coordination');assert.equal(h.store.tasks[0].type,'custom');assert.equal(h.store.tasks[0].source,'workflow');assert.equal(h.store.auditEvents[0].action,'override')
-})
+  const sendMessage = useCallback(
+    (input: { caseId: string; patientId?: string; text: string; type: InteractionType; channel?: ContactChannel; direction: InteractionDirection; authorId?: string; senderKind?: InteractionSenderKind; contactIdentityId?: string; threadKey?: string; aiTrace?: AiResponseTrace }, access?: MatchingAccess) => {
+      if (access && input.direction === "outgoing") assertMatchingAccess(access, "communication:send", matchingState.current.cases.find(item => item.id === input.caseId))
+      const control = input.threadKey ? conversationControls.find(item => item.threadKey === input.threadKey) : undefined
+      const senderKind = input.senderKind ?? interactionSenderKind(input)
+      if (senderKind === "bot") {
+        if (!input.aiTrace) throw new AccessCommandError("Odpowiedź bota wymaga audytowalnego AI trace.")
+        validateAiResponseTrace(input.aiTrace)
+      } else if (input.aiTrace) throw new AccessCommandError("AI trace można przypisać wyłącznie odpowiedzi bota.")
+      if (input.direction === "outgoing" && control?.mode === "closed") throw new AccessCommandError("Rozmowa jest zamknięta.")
+      if (input.direction === "outgoing" && senderKind === "bot" && control?.mode !== "bot_active") throw new AccessCommandError("Bot nie jest aktywnym właścicielem rozmowy.")
+      if (input.direction === "outgoing" && senderKind !== "bot" && control && (control.mode !== "operator_active" || control.ownerId !== access?.actorId)) {
+        throw new AccessCommandError(control.mode === "operator_active" ? "Rozmowę prowadzi inny operator." : "Najpierw przejmij rozmowę od bota.")
+      }
+      if (input.contactIdentityId) {
+        const target = matchingState.current.cases.find(item => item.id === input.caseId)
+        const identity = matchingState.current.identities.find(item => item.id === input.contactIdentityId)
+        if (!target || !identity || (!(target.contactIdentityIds ?? [target.contactIdentityId]).includes(identity.id) && (!target.patientId || identity.patientId !== target.patientId)) || (input.channel && identity.channel !== input.channel)) throw new AccessCommandError("Kontakt nie należy do kanału tej sprawy.")
+      }
+      const matched = input.direction === "incoming" ? matchCaseToPatient(input.caseId, access?.actorId ?? "system", access, "incoming_message") : undefined
+      const interaction: Interaction = {
+        id: nextInteractionId(),
+        caseId: input.caseId,
+        patientId: input.direction === "incoming" ? matched?.patientId ?? matchingState.current.cases.find(item => item.id === input.caseId)?.patientId : input.patientId,
+        contactIdentityId: input.contactIdentityId,
+        type: input.type,
+        channel: input.channel,
+        direction: input.direction,
+        at: new Date().toISOString(),
+        authorId: input.authorId,
+        senderKind,
+        text: input.text,
+        aiTrace: input.aiTrace,
+      }
+      setInteractions((prev) => [...prev, interaction])
+      if (input.direction === "incoming" && input.threadKey && input.channel) {
+        const target = matchingState.current.cases.find(item => item.id === input.caseId)
+        const currentControl = conversationControlRef.current.find(item => item.threadKey === input.threadKey)
+        const policy = resolveAiConversationPolicy(aiPolicyRef.current, target?.clinicId, input.channel)
+        if (policy && isAiEnabledForConversation(currentControl, policy) && !["operator_active", "bot_paused", "closed"].includes(currentControl?.mode ?? "")) {
+          const schedule = makeBotActivationSchedule({ id: nextBotActivationId(), threadKey: input.threadKey, caseId: input.caseId,
+            patientId: interaction.patientId, triggerInteractionId: interaction.id, policy, scheduledAt: interaction.at })
+          const replaced = botActivationRef.current.filter(item => item.threadKey === input.threadKey && item.status === "pending")
+          setBotActivationSchedules(prev => [...prev.map(item => item.threadKey === input.threadKey && item.status === "pending"
+            ? { ...item, status: "cancelled" as const, cancelledAt: interaction.at, cancelledBy: "system", cancellationReason: "Nowsza wiadomość przychodząca" }
+            : item), schedule])
+          for (const old of replaced) addAudit({ type: "ai_activation_cancelled", action: "rescheduled", caseId: input.caseId,
+            patientId: interaction.patientId, actorId: "system", before: old.dueAt, after: schedule.dueAt,
+            correlationId: old.id, summary: "Zastąpiono timer AI po nowszej wiadomości pacjenta" })
+          addAudit({ type: "ai_activation_scheduled", action: "scheduled", caseId: input.caseId, patientId: interaction.patientId,
+            actorId: "system", after: schedule.dueAt, correlationId: schedule.id, summary: `Zaplanowano aktywację AI za ${policy.activationDelaySeconds}s` })
+        }
+      }
+      if (input.direction === "outgoing" && input.threadKey && senderKind !== "bot") {
+        const now = new Date().toISOString()
+        const pending = botActivationRef.current.filter(item => item.threadKey === input.threadKey && item.status === "pending")
+        setBotActivationSchedules(prev => prev.map(item => item.threadKey === input.threadKey && item.status === "pending"
+          ? { ...item, status: "cancelled", cancelledAt: now, cancelledBy: access?.actorId ?? input.authorId ?? "system", cancellationReason: "Odpowiedział operator" }
+          : item))
+        for (const schedule of pending) addAudit({ type: "ai_activation_cancelled", action: "operator_answered", caseId: input.caseId,
+          patientId: interaction.patientId, actorId: access?.actorId ?? input.authorId ?? "system", before: schedule.dueAt, after: "operator_answered",
+          correlationId: schedule.id, summary: "Anulowano aktywację AI: odpowiedział operator" })
+      }
+      if (input.direction === "outgoing" && senderKind === "bot" && input.threadKey) {
+        setConversationControls(prev => prev.map(item => item.threadKey === input.threadKey
+          ? { ...item, aiDisclosureShownAt: item.aiDisclosureShownAt ?? interaction.at, updatedAt: interaction.at }
+          : item))
+        addAudit({ type: "ai_response_recorded", action: "answered", caseId: input.caseId, patientId: interaction.patientId,
+          actorId: input.authorId ?? "bot", before: input.aiTrace!.policyId, after: input.aiTrace!.runId,
+          correlationId: interaction.id, summary: `Zapisano odpowiedź AI z ${input.aiTrace!.citations.length} źródłami Bazy Wiedzy` })
+      }
+      if (input.direction === "outgoing") {
+        setReadAt((prev) => ({ ...prev, [input.caseId]: interaction.at }))
+      }
+      return interaction
+    },
+    [addAudit, matchCaseToPatient],
+  )
 
-test('editing a custom call-required task preserves its type and mandatory wrap-up',()=>{
- const h=create({tasks:[task({type:'custom',requiresCall:true})]});change(h,'edit',{title:'Updated call purpose',description:'Updated description',type:'custom'});h.render();assert.equal(h.store.tasks[0].requiresCall,true);rejects(h,()=>change(h,'complete'))
-})
-test('first scheduling of an undated historical task establishes immutable original deadline',()=>{
- const h=create({tasks:[task({dueAt:undefined})]}),dueAt=future();change(h,'reschedule',{dueAt});h.render();assert.equal(h.store.tasks[0].originalDueAt,dueAt)
- change(h,'reschedule',{dueAt:future()});h.render();assert.equal(h.store.tasks[0].originalDueAt,dueAt)
-})
+  const sendSms = useCallback(
+    (input: SmsSendInput) => {
+      if (input.retryOfId) {
+        const original = interactions.find((item) => item.id === input.retryOfId)
+        if (!original || !isSmsMessage(original) || original.direction !== "outgoing" || original.deliveryStatus !== "failed"
+          || original.caseId !== input.caseId || original.patientId !== input.patientId || original.taskId !== input.taskId
+          || original.recipient !== emulatedSmsAdapter.normalizeRecipient(input.recipient) || original.text !== input.text.trim()) {
+          throw new Error("Nieprawidłowe powiązanie ponowienia SMS.")
+        }
+      }
+      const targetCase = input.caseId ? cases.find((item) => item.id === input.caseId) : undefined
+      const patientId = input.patientId ?? targetCase?.patientId
+      const patient = patients.find((item) => item.id === patientId)
+      if (input.caseId && !targetCase) throw new Error("Nie znaleziono sprawy.")
+      if (targetCase?.patientId && input.patientId && targetCase.patientId !== input.patientId) throw new Error("Pacjent nie należy do sprawy.")
+      if (!targetCase && !patient) throw new Error("Wybierz pacjenta lub sprawę.")
+      if (patient && !patient.contactable) throw new Error("Kontakt z pacjentem jest niedozwolony.")
+      const task = input.taskId ? tasks.find((item) => item.id === input.taskId) : undefined
+      if (input.taskId && (!task || task.caseId !== input.caseId)) throw new Error("Zadanie nie należy do sprawy.")
+      const recipient = emulatedSmsAdapter.normalizeRecipient(input.recipient)
+      if (!recipient || !input.text.trim() || !input.authorId) throw new Error("Sprawdź numer, tekst i nadawcę SMS.")
+      const clinicId = targetCase?.clinicId ?? input.clinicId ?? patient?.primaryClinicId
+      const provider = selectSmsProvider(smsProviderConfigurations, clinicId)
+      const id = nextInteractionId()
+      const message: SmsMessage = {
+        id, caseId: input.caseId, patientId, taskId: input.taskId, clinicId,
+        type: "sms", channel: "phone", direction: "outgoing", at: new Date().toISOString(),
+        authorId: input.authorId, text: input.text.trim(), recipient,
+        sender: provider?.senderValue ?? "", providerType: provider?.providerType ?? "emulator",
+        providerConfigurationId: provider?.id ?? "missing-provider", deliveryStatus: "queued",
+        partsCount: calculateSmsParts(input.text.trim()), retryOfId: input.retryOfId,
+      }
+      setInteractions((prev) => [...prev, message])
+      if (input.caseId) setReadAt((prev) => ({ ...prev, [input.caseId!]: message.at }))
+      addAudit({ caseId: message.caseId, patientId, type: "sms_send", actorId: input.authorId,
+        correlationId: id, summary: `SMS dodany do kolejki · ${provider?.name ?? "brak konfiguracji"}` })
+      if (input.retryOfId) addAudit({ caseId: message.caseId, patientId, type: "sms_retry", actorId: input.authorId,
+        correlationId: id, before: input.retryOfId, after: id, summary: `Ponowiono SMS ${input.retryOfId} jako ${id}` })
+      const request = new AbortController()
+      smsRequests.current.add(request)
+      void emulatedSmsAdapter.send(message, provider, { simulateError: input.simulateError ?? false, signal: request.signal }, (event) => {
+        setInteractions((prev) => prev.map((item) => item.id === id ? { ...item, ...event } : item))
+        if (event.deliveryStatus === "failed") addAudit({ caseId: message.caseId, patientId, type: "sms_failed",
+          actorId: input.authorId, correlationId: id, summary: `Błąd SMS ${id}: ${event.errorMessage}` })
+      }).finally(() => smsRequests.current.delete(request))
+      // Sending never completes, cancels or hides a Task.
+      return message
+    },
+    [addAudit, cases, patients, tasks, interactions, smsProviderConfigurations],
+  )
 
-test('clinic manager cannot mutate unassigned-clinic work outside its scoped case view',()=>{
- const cs=cases();cs[0].clinicId=undefined;const h=create({cases:cs,tasks:[task()]})
- rejects(h,()=>h.store.changeTask('t1',{caseId:'c1',action:'cancel',reason:'Not in clinic scope'},access('clinic_manager')))
- rejects(h,()=>h.store.moveCase('c1','qualification','ignored',{},access('clinic_manager')))
- rejects(h,()=>h.store.createPatientTask(input(),access('clinic_manager')))
-})
+  const retrySms = useCallback((id: string, authorId: string, simulateError = false) => {
+    const original = interactions.find((item) => item.id === id)
+    if (!original || !isSmsMessage(original) || original.direction !== "outgoing" || original.deliveryStatus !== "failed") {
+      throw new Error("Ponowić można wyłącznie nieudany wychodzący SMS.")
+    }
+    return sendSms({ caseId: original.caseId, patientId: original.patientId, taskId: original.taskId,
+      clinicId: original.clinicId, recipient: original.recipient, text: original.text ?? "", authorId, retryOfId: id, simulateError })
+  }, [interactions, sendSms])
 
-test('missed-call callback enforces access and canonical patient and deduplicates retained commands',()=>{
- const h=create();rejects(h,()=>h.store.ensureMissedCallTask('c1','p1'));rejects(h,()=>h.store.ensureMissedCallTask('c1','p1',access('marketing')));rejects(h,()=>h.store.ensureMissedCallTask('missing',undefined,access()));rejects(h,()=>h.store.ensureMissedCallTask('c1','p2',access()));
- const command=h.store.ensureMissedCallTask;const first=command('c1','p1',access());const second=command('c1','p1',access());h.render();assert.equal(first.id,second.id);assert.equal(h.store.tasks.length,1);assert.equal(h.store.tasks[0].patientId,'p1');assert.equal(h.store.auditEvents[0].actorId,'usr-test')
-})
+  const updateSmsProviderConfiguration = useCallback((id: string, patch: Partial<SmsProviderConfiguration>, actorId: string) => {
+    const previous = smsProviderConfigurations.find((item) => item.id === id)
+    if (!previous) return
+    // Explicit allowlist: frontend mutations cannot add credentials or arbitrary secret fields.
+    const next: SmsProviderConfiguration = { ...previous,
+      name: patch.name ?? previous.name, providerType: patch.providerType ?? previous.providerType,
+      enabled: patch.enabled ?? previous.enabled, senderValue: patch.senderValue ?? previous.senderValue,
+      defaultMessageText: patch.defaultMessageText ?? previous.defaultMessageText, mode: "emulation" }
+    if (JSON.stringify(previous) === JSON.stringify(next)) return
+    setSmsProviderConfigurations((prev) => prev.map((item) => item.id === id ? next : item))
+    addAudit({ type: "sms_provider_config", actorId, correlationId: id, summary: `Zapisano konfigurację SMS · ${next.name}` })
+    if (next.providerType !== previous.providerType || next.enabled !== previous.enabled) {
+      addAudit({ type: "sms_provider_change", actorId, correlationId: id,
+        before: `${previous.providerType}/${previous.enabled}`, after: `${next.providerType}/${next.enabled}`,
+        summary: `Zmieniono aktywnego dostawcę SMS · ${next.name}` })
+    }
+  }, [addAudit, smsProviderConfigurations])
+
+  const testSmsProviderConfiguration = useCallback((id: string, actorId: string) => {
+    const config = smsProviderConfigurations.find((item) => item.id === id)
+    if (!config) return
+    const result = emulatedSmsAdapter.test(config)
+    setSmsProviderConfigurations((prev) => prev.map((item) => item.id === id
+      ? { ...item, lastTestAt: new Date().toISOString(), lastTestStatus: result.status } : item))
+    addAudit({ type: "sms_provider_test", actorId, correlationId: id,
+      summary: `Test emulatora SMS · ${config.name} · ${result.status}${result.error ? ` · ${result.error}` : ""}` })
+  }, [addAudit, smsProviderConfigurations])
+
+  const markRead = useCallback((caseId: string) => {
+    setReadAt((prev) => ({ ...prev, [caseId]: new Date().toISOString() }))
+  }, [])
+
+  const bookAppointment = useCallback(
+    (input: { caseId: string; taskId?: string; patientId?: string; label: string; actorId: string }, access?:MatchingAccess) => {
+      const target=matchingState.current.cases.find(item=>item.id===input.caseId)
+      assertMatchingAccess(access,"case:edit",target)
+      if(!target || !access.hasPermission("communication:send"))throw new AccessCommandError("Brak dostępnej sprawy / komunikacji.")
+      assertTaskClinicScope(target,access)
+      input={...input,patientId:target.patientId,actorId:access.actorId}
+      if (input.taskId) {
+        const task=requireTask(input.taskId,access)
+        if(task.caseId!==input.caseId)throw new AccessCommandError("Task innej sprawy.")
+        // Booking is not a call disposition. Call-required work stays open until wrap-up.
+        if(!task.requiresCall && taskType(task)!=="send_treatment_plan" && taskType(task)!=="patient_care_handoff")changeTask(task.id,{caseId:task.caseId,action:"complete",outcome:"appointment_scheduled",reason:"Wizyta wybrana w istniejącej emulacji"},access)
+      }
+      addAudit({
+        caseId: input.caseId,
+        type: "status_change",
+        actorId: input.actorId,
+        summary: `Wizyta zaplanowana · ${input.label}`,
+      })
+      sendMessage({
+        caseId: input.caseId,
+        patientId: input.patientId,
+        text: `Wizyta zaplanowana: ${input.label}. Do zobaczenia!`,
+        type: "chat",
+        direction: "outgoing",
+        authorId: input.actorId,
+      })
+    },
+    [addAudit, patchTask, sendMessage],
+  )
+
+  const createDraftCase = useCallback((input: PatientMatchInput & { channel: ContactChannel; value?: string; text: string; requestedPatientId?: string }, access?: MatchingAccess) => {
+    assertMatchingAccess(access, "case:edit", { clinicId: input.clinicId } as EngagementCase)
+    if (input.requestedPatientId) {
+      const requested = matchingState.current.patients.find(item => item.id === input.requestedPatientId)
+      assertMatchingAccess(access, "patient:edit_local", undefined, requested)
+      if (!requested) throw new AccessCommandError("Nie znaleziono pacjenta do oceny kontaktu.")
+    }
+    const n = nextDraftSeq()
+    const displayName = [input.firstName?.trim(), input.lastName?.trim()].filter(Boolean).join(" ") || undefined
+    const profile: PatientMatchInput = { externalPatientId: input.externalPatientId?.trim(), pesel: input.pesel?.trim(), phone: input.phone?.trim(), email: input.email?.trim(), clinicId: input.clinicId,
+      firstName: input.firstName?.trim(), lastName: input.lastName?.trim() }
+    const assessment = assessPatientMatch(profile, matchingState.current.patients, matchingState.current.identities, { casePatientId: input.requestedPatientId, contactValues: input.value ? [{ channel: input.channel, value: input.value }] : [] })
+    const candidate = assessment.decision === "auto_link" ? matchingState.current.patients.find(item => item.id === assessment.candidates[0]?.candidatePatientId) : undefined
+    const safePatient = candidate && patientWithinMatchingScope(candidate, access) ? candidate : undefined
+    const newIdentities: ContactIdentity[] = []
+    const contactIds: string[] = []
+    for (const channel of ["phone", "email"] as const) {
+      const value = input[channel]?.trim()
+      if (!value) continue
+      const normalized = channel === "phone" ? normalizeMatchingPhone(value) : normalizeMatchingEmail(value)
+      const reusable = safePatient && normalized ? matchingState.current.identities.find(item => item.patientId === safePatient.id && item.channel === channel && normalizedIdentityValue(item) === normalized) : undefined
+      if (reusable) contactIds.push(reusable.id)
+      else { const identity: ContactIdentity = { id: `ci-live-${n}-${channel}`, channel, value, isPrimary: contactIds.length === 0, verified: false, displayName }; newIdentities.push(identity); contactIds.push(identity.id) }
+    }
+    if (!contactIds.length) {
+      const value = input.value?.trim() || input.externalPatientId?.trim() || displayName || `contact-${n}`
+      const reusable = safePatient ? matchingState.current.identities.find(item => item.patientId === safePatient.id && item.channel === input.channel && normalizedIdentityValue(item) === normalizedIdentityValue({ channel: input.channel, value })) : undefined
+      if (reusable) contactIds.push(reusable.id)
+      else { const identity: ContactIdentity = { id: `ci-live-${n}-contact`, channel: input.channel, value, isPrimary: true, verified: false, displayName }; newIdentities.push(identity); contactIds.push(identity.id) }
+    }
+    const caseId = `case-live-${n}`
+    const now = new Date().toISOString()
+    const draft: EngagementCase = { id: caseId, contactIdentityId: contactIds[0], contactIdentityIds: contactIds,
+      contactProfile: profile, requestedPatientId: input.requestedPatientId, board: "leads", status: "new", clinicId: input.clinicId,
+      responsibleTeamId: "system", createdAt: now,
+      attribution: { firstTouch: { type: "first_touch", source: "Czat", channel: input.channel, language: "pl", clinicIntentId: input.clinicId ?? "pana-medica", at: now, sourceRecordId: contactIds[0] },
+        caseCreationTouch: { type: "case_creation", source: "Czat", channel: input.channel, language: "pl", clinicIntentId: input.clinicId ?? "pana-medica", at: now, sourceRecordId: contactIds[0] } } }
+    const nextIdentities = [...matchingState.current.identities, ...newIdentities]
+    matchingState.current.identities = nextIdentities; setIdentities(nextIdentities)
+    const nextCases = [...matchingState.current.cases, draft]
+    matchingState.current.cases = nextCases; setCases(nextCases)
+    const result = matchCaseToPatient(caseId, access.actorId, access, "incoming_message")
+    const patientId = matchingState.current.cases.find(item => item.id === caseId)?.patientId
+    setInteractions(prev => [...prev, { id: nextInteractionId(), caseId, patientId, type: input.channel === "phone" ? "note" : "chat", channel: input.channel, direction: "incoming", at: now, text: input.text }])
+    const starter=buildAutomaticTask(getWorkflowStageRule("leads","new")!.automaticTask!,draft,new Date(now))
+    starter.id=nextTaskId();starter.status="ready";starter.patientId=patientId;starter.requiresCall=input.channel==="phone";starter.type=starter.requiresCall?"call":"message";starter.createdBy=access.actorId;starter.updatedBy=access.actorId
+    setTasks(prev=>[...prev,starter]);taskAudit("workflow_task_created",undefined,starter,access,"Nowa sprawa / pierwszy kontakt",result.decisionId)
+
+    return { caseId, matched: result.matched }
+  }, [matchCaseToPatient])
+
+  const assignClinicToCase = useCallback(
+    (caseId: string, clinicId: ClinicId, actorId: string) => {
+      setCases((prev) => prev.map((c) => (c.id === caseId ? { ...c, clinicId } : c)))
+      addAudit({ caseId, type: "link", actorId, summary: "Sprawa przypisana do kliniki", after: clinicId })
+    },
+    [addAudit],
+  )
+
+  const requirePatient = (patientId: string, permission: Parameters<MatchingAccess["hasPermission"]>[0], access?: MatchingAccess) => {
+    const patient = matchingState.current.patients.find(item => item.id === patientId)
+    assertMatchingAccess(access, permission, undefined, patient)
+    if (!patient || !access.hasPermission("patient:view_basic")) throw new AccessCommandError("Pacjent nie istnieje lub nie masz dostępu do profilu.")
+    return patient
+  }
+  const createPatientCase = useCallback((input: PatientCaseInput, access?: MatchingAccess) => {
+    const patient = requirePatient(input.patientId, "case:edit", access)
+    assertMatchingAccess(access, "case:edit", { clinicId: input.clinicId } as EngagementCase, patient)
+    if (!CLINICS.some(item => item.id === input.clinicId)) throw new AccessCommandError("Wybierz istniejącą klinikę.")
+    const identity = matchingState.current.identities.find(item => item.id === input.contactIdentityId)
+    if (!identity || identity.patientId !== patient.id || identity.channel !== input.channel) throw new AccessCommandError("Wybierz kontakt należący do tego pacjenta i zgodny z kanałem.")
+    if (input.serviceInterest && getProcedure(input.serviceInterest)?.clinicId !== input.clinicId) throw new AccessCommandError("Usługa nie należy do wybranej kliniki.")
+    const initial = { leads: "new", deals: "scheduled", patients: "new_patient" }[input.board]
+    const initialRule = initial ? getWorkflowStageRule(input.board, initial) : undefined
+    const rule = initialRule?.enabled ? initialRule.automaticTask : undefined
+    if (!rule) throw new AccessCommandError("Brak początkowej reguły workflow dla tej lejka.")
+    const initialDue = rule.duePolicy !== "sla" ? validateDue(input.initialTaskDueAt) : undefined
+    const now = new Date().toISOString()
+    const id = `case-live-${nextDraftSeq()}`
+    const touch: EngagementCase["attribution"]["caseCreationTouch"] = { type: "case_creation", source: "Patient 360", channel: input.channel, language: patient.preferredLanguage, clinicIntentId: input.clinicId, serviceIntent: input.serviceInterest, at: now, sourceRecordId: id }
+    const original = matchingState.current.cases.filter(item => item.patientId === patient.id).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))[0]?.attribution.firstTouch
+    const engagementCase: EngagementCase = { id, patientId: patient.id, contactIdentityId: identity.id, contactIdentityIds: [identity.id], clinicId: input.clinicId, serviceInterest: input.serviceInterest,
+      board: input.board, status: initial, responsibleTeamId: access.actorId, createdAt: now, attribution: { firstTouch: original ?? { ...touch, type: "first_touch" }, caseCreationTouch: touch } }
+    const generated = buildAutomaticTask(rule, engagementCase, new Date(now)); generated.id = nextTaskId(); generated.createdBy=access.actorId; generated.updatedBy=access.actorId; generated.ownerId=access.actorId
+    if(initialDue){generated.dueAt=initialDue;generated.originalDueAt=initialDue}
+    matchingState.current.cases = [...matchingState.current.cases, engagementCase]; setCases(matchingState.current.cases)
+    setTasks(prev => [...prev, generated])
+    addAudit({ type: "case_created", caseId: id, patientId: patient.id, actorId: access.actorId, summary: "Utworzono kolejny Engagement Case z Patient 360", before: "no_case", after: id, correlationId: id })
+    taskAudit("workflow_task_created",undefined,generated,access,"Nowa sprawa Patient 360",id)
+    return engagementCase
+  }, [addAudit])
+  const createPatientTask = useCallback((input:PatientTaskInput,access?:MatchingAccess)=>{const task=prepareTask(input,access);setTasks(prev=>[...prev,task]);taskAudit("task_created",undefined,task,access!,"Ręcznie utworzono zadanie");return task},[addAudit])
+  const completePatientTask = useCallback((id:string,access?:MatchingAccess)=>{const task=requireTask(id,access);changeTask(id,{caseId:task.caseId,action:"complete",reason:"Realizacja w Patient 360",outcome:"done"},access)},[changeTask])
+  const addPatientContact = useCallback((input: PatientContactInput, access?: MatchingAccess) => {
+    const patient = requirePatient(input.patientId, "patient:edit_local", access)
+    const target = input.caseId ? matchingState.current.cases.find(item => item.id === input.caseId) : undefined
+    assertMatchingAccess(access, "patient:edit_local", target, patient)
+    if (input.caseId && (!target || target.patientId !== patient.id)) throw new AccessCommandError("Sprawa nie należy do tego pacjenta.")
+    if (!["phone", "email", "instagram", "facebook", "whatsapp", "telegram", "tiktok", "viber", "website", "personal_account"].includes(input.channel)) throw new AccessCommandError("Nieznany kanał.")
+    if (typeof input.value !== "string") throw new AccessCommandError("Podaj identyfikator kontaktu.")
+    const normalized = normalizedIdentityValue({ channel: input.channel, value: input.value })
+    if (!normalized) throw new AccessCommandError("Podaj poprawny telefon, e-mail lub handle.")
+    const same = matchingState.current.identities.filter(item => item.channel === input.channel && normalizedIdentityValue(item) === normalized)
+    if (same.some(item => item.patientId && item.patientId !== patient.id)) {
+      if (!access.hasPermission("case:edit")) throw new AccessCommandError("Konflikt kontaktu. Zleć ocenę w Patient Matching osobie uprawnionej do pracy ze sprawą.")
+      const draft = createDraftCase({ channel: input.channel, value: normalized, phone: input.channel === "phone" ? normalized : undefined, email: input.channel === "email" ? normalized : undefined,
+        requestedPatientId: patient.id, externalPatientId: patient.externalPatientId, firstName: patient.firstName, lastName: patient.lastName, clinicId: target?.clinicId ?? patient.primaryClinicId, text: "Kontakt lokalny wymaga oceny Patient Matching; nie przeniesiono istniejącej identity." }, access)
+      addAudit({ type: "patient_match_conflict", patientId: patient.id, caseId: draft.caseId, actorId: access.actorId, summary: "Konflikt lokalnego kontaktu przekazano do Patient Matching", correlationId: matchingState.current.matchDecisions.filter(item => item.caseId === draft.caseId).at(-1)?.id ?? draft.caseId })
+      return { conflictCaseId: draft.caseId }
+    }
+    const reused = same.find(item => item.patientId === patient.id)
+    const identity: ContactIdentity = reused ?? { id: `ci-local-${nextDraftSeq()}`, patientId: patient.id, channel: input.channel, value: normalized, displayName: input.displayName?.trim() || undefined, verified: false, isPrimary: !matchingState.current.identities.some(item => item.patientId === patient.id && item.channel === input.channel) }
+    if (!reused) { matchingState.current.identities = [...matchingState.current.identities, identity]; setIdentities(matchingState.current.identities) }
+    if (target) { matchingState.current.cases = matchingState.current.cases.map(item => item.id === target.id ? { ...item, contactIdentityIds: [...new Set([...(item.contactIdentityIds ?? [item.contactIdentityId]), identity.id])] } : item); setCases(matchingState.current.cases) }
+    addAudit({ type: reused ? "contact_identity_reused" : "contact_identity_linked", caseId: target?.id, patientId: patient.id, actorId: access.actorId, summary: reused ? "Użyto istniejącej identity pacjenta" : "Dodano niezweryfikowany lokalny kontakt pacjenta", before: reused ? identity.id : "no_contact", after: identity.id, correlationId: `contact:${nextAuditId()}` })
+    return { identityId: identity.id }
+  }, [addAudit, createDraftCase])
+  const updatePatientLocal = useCallback((id: string, input: { localTags: string[]; localNote: string }, access?: MatchingAccess) => {
+    const patient = requirePatient(id, "patient:edit_local", access)
+    assertMatchingAccess(access, "patient:edit_local", undefined, patient)
+    if (!Array.isArray(input.localTags) || input.localTags.some(tag => typeof tag !== "string") || typeof input.localNote !== "string") throw new AccessCommandError("Nieprawidłowe pola lokalne.")
+    const patch = { localTags: [...new Set(input.localTags.map(tag => tag.trim()).filter(Boolean))].slice(0, 20), localNote: input.localNote.trim().slice(0, 2000) }
+    matchingState.current.patients = matchingState.current.patients.map(item => item.id === id ? { ...item, ...patch } : item); setPatients(matchingState.current.patients)
+    addAudit({ type: "patient_local_updated", patientId: id, actorId: access.actorId, summary: "Zapisano lokalne tagi i notatkę operacyjną", before: "local_annotations", after: "local_annotations_updated", correlationId: `patient-local:${nextAuditId()}` })
+  }, [addAudit])
+  const addCaseComment = useCallback((id: string, text: string, access?: MatchingAccess) => {
+    const target = matchingState.current.cases.find(item => item.id === id)
+    assertMatchingAccess(access, "case:edit", target)
+    if (!target || typeof text !== "string" || !text.trim() || !access.hasPermission("patient:view_basic")) throw new AccessCommandError("Wybierz sprawę i wpisz komentarz.")
+    const comment: Comment = { id: `comment-${nextAuditId()}`, caseId: id, authorId: access.actorId, at: new Date().toISOString(), text: text.trim().slice(0, 4000) }
+    setComments(prev => [...prev, comment])
+    addAudit({ type: "comment_added", caseId: id, patientId: target.patientId, actorId: access.actorId, summary: "Dodano komentarz pracownika", after: comment.id, correlationId: comment.id })
+    return comment
+  }, [addAudit])
+
+  const syncPatientWithMedicalCrm = useCallback(
+    (patientId: string, _actorId: string, access?: MatchingAccess) => {
+      requirePatient(patientId, "patient:view_medical", access)
+      assertMatchingAccess(access, "patient:edit_local")
+      const actorId = access.actorId
+      setPatients((prev) => prev.map((p) => (p.id === patientId ? { ...p, integrationState: "linked", lastSyncAt: iso(0), conflicts: undefined } : p)))
+      addAudit({ patientId, type: "sync", actorId, summary: "Pacjent zsynchronizowany z Medical CRM (dopasowanie po numerze/e-mailu)" })
+    },
+    [addAudit],
+  )
+
+  const sendTreatmentPlanTask = useCallback((patientId:string,caseId:string,_actorId:string,access?:MatchingAccess)=>{
+    requirePatient(patientId,"patient:view_medical",access)
+    if(matchingState.current.cases.find(item=>item.id===caseId)?.patientId!==patientId)throw new AccessCommandError("Sprawa nie należy do pacjenta.")
+    return createPatientTask({caseId,title:"Wyślij aktualny plan leczenia",description:"Wybierz poprawny kanał i zarejestruj wynik wysyłki wersji planu z Medical CRM.",type:"send_treatment_plan",channel:"email",dueAt:new Date(Date.now()+4*3600000).toISOString(),priority:"P2"},access)
+  },[createPatientTask])
+
+  const sendBroadcast = useCallback(
+    (input: { name: string; message: string; audienceLabel: string; clinicId?: ClinicId; recipientCount: number; createdBy: string }) => {
+      const broadcast: Broadcast = { id: nextBroadcastId(), channel: "sms", status: "sent", sentAt: iso(0), ...input }
+      setBroadcasts((prev) => [broadcast, ...prev])
+      addAudit({ type: "task_change", actorId: input.createdBy, summary: `Wysłano kampanię SMS „${input.name}" do ${input.recipientCount} kontaktów` })
+      return broadcast
+    },
+    [addAudit],
+  )
+
+  /**
+   * Links two cases as duplicates of the same contact (e.g. flagged during a
+   * call wrap-up). Cross-references both sides' linkedCaseIds so either card
+   * shows a "duplicate of" pointer, and closes out the current case's open
+   * tasks so the queue doesn't keep surfacing a case the team already
+   * consolidated elsewhere.
+   */
+  const linkDuplicateCase = useCallback(
+    (caseId: string, duplicateOfCaseId: string, actorId: string) => {
+      setCases((prev) =>
+        prev.map((c) => {
+          if (c.id === caseId) return { ...c, linkedCaseIds: [...new Set([...(c.linkedCaseIds ?? []), duplicateOfCaseId])] }
+          if (c.id === duplicateOfCaseId) return { ...c, linkedCaseIds: [...new Set([...(c.linkedCaseIds ?? []), caseId])] }
+          return c
+        }),
+      )
+      addAudit({
+        caseId,
+        type: "link",
+        actorId,
+        summary: `Sprawa oznaczona jako duplikat sprawy ${duplicateOfCaseId}`,
+        after: duplicateOfCaseId,
+      })
+      addAudit({
+        caseId: duplicateOfCaseId,
+        type: "link",
+        actorId,
+        summary: `Wskazano duplikat: sprawa ${caseId}`,
+        after: caseId,
+      })
+    },
+    [addAudit],
+  )
+
+  const value = useMemo(
+    () => ({
+      tasks,
+      cases,
+      auditEvents,
+      interactions,
+      patients,
+      identities,
+      broadcasts,
+      smsProviderConfigurations,
+      matchDecisions,
+      comments,
+      conversationControls,
+      aiConversationPolicies,
+      botActivationSchedules,
+      changeTask, createPatientCase, createPatientTask, completePatientTask, addPatientContact, updatePatientLocal, addCaseComment,
+      readAt,
+      recordAudit: addAudit,
+      completeTask,
+      reopenTask,
+      skipTask,
+      rescheduleTask,
+      ensureMissedCallTask,
+      assignTask,
+      setPriority,
+      moveCase,
+      logCall,
+      sendMessage,
+      setConversationMode,
+      setConversationAiEnabled,
+      updateAiConversationPolicy,
+      activateDueBot,
+      sendSms,
+      retrySms,
+      updateSmsProviderConfiguration,
+      testSmsProviderConfiguration,
+      markRead,
+      bookAppointment,
+      createDraftCase,
+      assignClinicToCase,
+      syncPatientWithMedicalCrm,
+      matchCaseToPatient,
+      approvePatientMatch,
+      rejectPatientMatch,
+      saveCaseContactProfile,
+      sendTreatmentPlanTask,
+      sendBroadcast,
+      linkDuplicateCase,
+    }),
+    [
+      tasks,
+      cases,
+      auditEvents,
+      interactions,
+      patients,
+      identities,
+      broadcasts,
+      smsProviderConfigurations,
+      matchDecisions,
+      comments,
+      conversationControls,
+      aiConversationPolicies,
+      botActivationSchedules,
+      changeTask, createPatientCase, createPatientTask, completePatientTask, addPatientContact, updatePatientLocal, addCaseComment,
+      readAt,
+      completeTask,
+      reopenTask,
+      skipTask,
+      rescheduleTask,
+      ensureMissedCallTask,
+      assignTask,
+      setPriority,
+      moveCase,
+      logCall,
+      sendMessage,
+      setConversationMode,
+      setConversationAiEnabled,
+      updateAiConversationPolicy,
+      activateDueBot,
+      sendSms,
+      retrySms,
+      updateSmsProviderConfiguration,
+      testSmsProviderConfiguration,
+      markRead,
+      createDraftCase,
+      assignClinicToCase,
+      syncPatientWithMedicalCrm,
+      matchCaseToPatient,
+      approvePatientMatch,
+      rejectPatientMatch,
+      saveCaseContactProfile,
+      sendTreatmentPlanTask,
+      sendBroadcast,
+      linkDuplicateCase,
+    ],
+  )
+
+  return <EntityStoreContext.Provider value={value}>{children}</EntityStoreContext.Provider>
+}
+
+export function useEntityStore() {
+  const ctx = useContext(EntityStoreContext)
+  if (!ctx) throw new Error("useEntityStore must be used within EntityStoreProvider")
+  return ctx
+}
