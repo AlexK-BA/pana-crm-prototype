@@ -89,9 +89,12 @@ One shared getNextTaskForCase/compareQueueOrder policy ranks active tasks:
 2. other overdue;
 3. future P0;
 4. future P1;
-5. closest dueAt;
-6. no dueAt;
-7. remaining priority/creation age tie-breakers.
+5. remaining future/undated work;
+6. within each operational bucket: P0 → P1 → P2 → P3 → P4;
+7. within the same priority: closest dueAt, then creation age.
+
+This prevents an older overdue P3 new-lead task from hiding a P1 missed-call
+callback. The mandatory/workflow bucket still remains above other overdue work.
 
 getCaseWorkState exposes effectiveNextTask, activeTaskCount, overdueTaskCount, previousCompletedTask and missingNextAction. A nonterminal Case without active work stays visible, carries “Brak następnego działania”, and appears in the Schedule control queue. It is never hidden or automatically moved to another stage due to priority.
 
