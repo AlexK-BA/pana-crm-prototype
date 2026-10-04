@@ -1,15 +1,17 @@
-export function formatRelative(iso: string) {
+export function formatRelative(iso: string, language: "pl" | "ru" = "pl") {
   const diffMs = new Date(iso).getTime() - Date.now()
   const diffMin = Math.round(diffMs / 60000)
   const abs = Math.abs(diffMin)
 
   const past = diffMin <= 0
+  const ru = language === "ru"
 
   let label: string
-  if (abs < 60) label = `${Math.max(abs, 1)} min`
-  else if (abs < 60 * 24) label = `${Math.round(abs / 60)} godz.`
-  else label = `${Math.round(abs / (60 * 24))} dni`
+  if (abs < 60) label = `${Math.max(abs, 1)} ${ru ? "мин" : "min"}`
+  else if (abs < 60 * 24) label = `${Math.round(abs / 60)} ${ru ? "ч" : "godz."}`
+  else label = `${Math.round(abs / (60 * 24))} ${ru ? "дн." : "dni"}`
 
+  if (ru) return past ? `${label} назад` : `через ${label}`
   return past ? `${label} temu` : `za ${label}`
 }
 

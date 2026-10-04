@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react"
 import type { DragEvent } from "react"
-import { Phone, MessageSquare, StickyNote, Share2, Clock } from "lucide-react"
+import { Phone, MessageSquare, StickyNote, Share2, Clock, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import type { EngagementCase, Task } from "@/lib/crm/entities"
 import { useUserDirectory } from "@/lib/crm/user-directory"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getClinic, getClinicTone, getProcedure, getDoctor } from "@/lib/crm/catalog"
-import { getOperator, PRIORITY_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
+import { PRIORITY_TONE } from "@/lib/crm/entity-selectors"
+import { priorityText } from "@/lib/crm/display-labels"
 import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { getCaseWorkState, getNextTaskForCase } from "@/lib/crm/entity-queue"
@@ -60,7 +61,7 @@ export function EntityCaseCard({
   onClick?: () => void
 }) {
   const store=useScopedEntityStore()
-  const { tr } = useLanguage()
+  const { tr, language } = useLanguage()
   const {users}=useUserDirectory()
   const patient = store.patients.find(item=>item.id===engagementCase.patientId)
   const identity = store.identities.find(item=>item.id===engagementCase.contactIdentityId)
@@ -75,8 +76,7 @@ export function EntityCaseCard({
   const overdue = useIsOverdue(openTask?.dueAt)
   const ChannelIcon = CHANNEL_ICON[identity?.channel ?? ""] ?? StickyNote
 
-  const name = patient ? `${patient.firstName} ${patient.lastName}` : "Nierozpoznany kontakt"
-  const initials = patient ? `${patient.firstName[0]}${patient.lastName[0]}` : "NK"
+  const name = patient ? `${patient.firstName} ${patient.lastName}` : tr("Nierozpoznany kontakt", "Неопознанный контакт")
 
   return (
     <button
@@ -92,7 +92,7 @@ export function EntityCaseCard({
           {openTask && (
             <span
               className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white", PRIORITY_TONE[openTask.priority])}
-              title={priorityLabel(openTask.priority)}
+              title={priorityText(openTask.priority, language)}
             >
               {openTask.priority}
             </span>
@@ -100,7 +100,7 @@ export function EntityCaseCard({
         </div>
 
         <div className="space-y-0.5 text-xs">
-          <p className="truncate text-muted-foreground">{tr("Ostatnio", "Последнее действие")}: {work.previousCompletedTask?.title ?? tr("brak wykonanych działań", "нет выполненных действий")}</p>
+          {work.previousCompletedTask && <p className="truncate text-muted-foreground">{tr("Ostatnio", "Последнее действие")}: {work.previousCompletedTask.title}</p>}
           {openTask?.currentWorkerId && <p className="truncate text-sky-700">{tr("Aktualnie pracuje", "Сейчас работает")}: {users.find(user=>user.id===openTask.currentWorkerId)?.name ?? tr("inny konsultant", "другой сотрудник")}</p>}
           {work.activeTaskCount > 1 && <p className="text-muted-foreground">{tr("Pozostałe aktywne zadania", "Другие активные задачи")}: {work.activeTaskCount - 1}</p>}
         </div>
@@ -112,10 +112,10 @@ export function EntityCaseCard({
             </span>
           ) : (
             <span className={cn("mr-1 inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium", tone.chip)}>
-              Klinika nieprzypisana
+              {tr("Klinika nieprzypisana", "Клиника не назначена")}
             </span>
           )}
-          {procedure?.name ?? "Brak usługi"}
+          {procedure?.name ?? tr("Brak usługi", "Без услуги")}
           {doctor ? ` · ${doctor.name}` : ""}
         </p>
 
@@ -128,11 +128,14 @@ export function EntityCaseCard({
 
         {openTask && (
           <div className="flex items-center gap-1.5 rounded bg-muted/40 px-2 py-1.5 text-xs text-foreground">
-            <Clock className={cn("h-3 w-3 shrink-0", overdue && "text-red-600")} suppressHydrationWarning />
+            {overdue
+              ? <AlertCircle className="h-3 w-3 shrink-0 text-red-600" aria-hidden="true" suppressHydrationWarning />
+              : <Clock className="h-3 w-3 shrink-0" aria-hidden="true" suppressHydrationWarning />}
             <span className="min-w-0 truncate"><span className="text-muted-foreground">{tr("Dalej", "Далее")}:</span> {openTask.title}</span>
             {openTask.dueAt && (
               <span className={cn("shrink-0", overdue ? "font-medium text-red-600" : "text-muted-foreground")} suppressHydrationWarning>
-                {formatRelative(openTask.dueAt)}
+                {overdue && <span className="sr-only">{tr("Po terminie: ", "Просрочено: ")}</span>}
+                {formatRelative(openTask.dueAt, language)}
               </span>
             )}
           </div>
@@ -143,17 +146,13 @@ export function EntityCaseCard({
             <Avatar className="size-5">
               <AvatarFallback className="text-[10px]">{owner ? owner.initials : "—"}</AvatarFallback>
             </Avatar>
-            <span className="truncate text-xs text-muted-foreground">{owner?.name ?? "Nieprzypisane"}</span>
+            <span className="truncate text-xs text-muted-foreground">{owner?.name ?? tr("Nieprzypisane", "Не назначено")}</span>
           </div>
-          {patient && (
-            <Badge variant="outline" className="text-[10px]">
-              {patient.integrationState === "linked"
-                ? "Powiązano"
-                : patient.integrationState === "conflict"
-                  ? "Konflikt"
-                  : patient.integrationState === "sync_failed"
-                    ? "Błąd synchronizacji"
-                    : "Oczekuje"}
+          {patient && (patient.integrationState === "conflict" || patient.integrationState === "sync_failed") && (
+            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-[10px] text-amber-800">
+              {patient.integrationState === "conflict"
+                ? tr("Konflikt danych", "Конфликт данных")
+                : tr("Błąd synchronizacji", "Ошибка синхронизации")}
             </Badge>
           )}
         </div>

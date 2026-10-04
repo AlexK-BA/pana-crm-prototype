@@ -32,6 +32,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { ConversationThread } from "@/components/crm/conversation-thread"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
+import { useLanguage } from "@/lib/crm/language-context"
+import { channelText } from "@/lib/crm/display-labels"
 import { getPatient, getIdentity } from "@/lib/crm/entity-data"
 import { getClinic, getClinicTone, CLINICS } from "@/lib/crm/catalog"
 import { useCasePanel } from "@/lib/crm/panel-context"
@@ -58,6 +60,7 @@ const CHANNEL_ICON: Record<ContactChannel, typeof Phone> = {
 const SIMULATE_CHANNELS: ContactChannel[] = ["instagram", "facebook", "whatsapp", "telegram", "tiktok", "website"]
 
 export default function InboxPage() {
+  const { tr, language } = useLanguage()
   const [query, setQuery] = useState("")
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [clinicFilter, setClinicFilter] = useState<string>("all")
@@ -176,17 +179,20 @@ export default function InboxPage() {
                 variant={unreadOnly ? "default" : "outline"}
                 size="sm"
                 className="h-7 gap-1.5 text-xs"
+                aria-pressed={unreadOnly}
                 onClick={() => setUnreadOnly((v) => !v)}
               >
                 <CheckCheck className="h-3 w-3" />
-                Nieprzeczytane
+                {tr("Nieprzeczytane", "Непрочитанные")}
               </Button>
               <Select value={clinicFilter} onValueChange={(value) => setClinicFilter(value ?? "all")}>
-                <SelectTrigger className="h-7 flex-1 text-xs">
-                  <SelectValue placeholder="Klinika" />
+                <SelectTrigger className="h-7 flex-1 text-xs" aria-label={tr("Filtr kliniki", "Фильтр по клинике")}>
+                  <SelectValue>
+                    {clinicFilter === "all" ? tr("Wszystkie kliniki", "Все клиники") : CLINICS.find((c) => c.id === clinicFilter)?.name}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Wszystkie kliniki</SelectItem>
+                  <SelectItem value="all">{tr("Wszystkie kliniki", "Все клиники")}</SelectItem>
                   {CLINICS.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
@@ -320,12 +326,12 @@ export default function InboxPage() {
                 <label className="text-xs font-medium text-foreground">Kanał</label>
                 <Select value={simChannel} onValueChange={(v) => setSimChannel(v as ContactChannel)}>
                   <SelectTrigger className="h-9 text-sm">
-                    <SelectValue />
+                    <SelectValue>{channelText(simChannel, language)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {SIMULATE_CHANNELS.map((ch) => (
                       <SelectItem key={ch} value={ch}>
-                        {ch}
+                        {channelText(ch, language)}
                       </SelectItem>
                     ))}
                   </SelectContent>
