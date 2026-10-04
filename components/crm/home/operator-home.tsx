@@ -14,12 +14,10 @@ import { getQueue, getQueueCounters } from "@/lib/crm/entity-queue"
 import {
   buildQueueItem,
   PRIORITY_TONE,
-  PRIORITY_TEXT_TONE,
-  priorityLabel,
-  ACTION_KIND_LABEL,
   type ActionKind,
   type QueueItem,
 } from "@/lib/crm/entity-selectors"
+import { actionKindText, priorityText } from "@/lib/crm/display-labels"
 import { getClinicTone } from "@/lib/crm/catalog"
 import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
@@ -28,7 +26,7 @@ const ACTION_KINDS: ActionKind[] = ["unassigned_clinic", "reply", "call", "follo
 
 export function OperatorHome() {
   const { openCase } = useCasePanel()
-  const { t } = useLanguage()
+  const { t, tr, language } = useLanguage()
   const { startOutgoingCall } = useCall()
   const { tasks, cases, currentUser } = useScopedEntityStore()
   const [actionError, setActionError] = useState("")
@@ -51,9 +49,8 @@ export function OperatorHome() {
   const teamQueue = useMemo(() => getQueue(tasks, {}, now), [tasks, now])
   const mineQueue = useMemo(() => getQueue(tasks, { ownerId: currentUser.id }, now), [tasks, currentUser.id, now])
   const unassignedQueue = useMemo(() => getQueue(tasks, { unassignedOnly: true }, now), [tasks, now])
-  const counters = useMemo(() => getQueueCounters(tasks, now), [tasks, now])
-
   const visibleTasks = tab === "mine" ? mineQueue : tab === "unassigned" ? unassignedQueue : teamQueue
+  const counters = useMemo(() => getQueueCounters(visibleTasks, now), [visibleTasks, now])
   const allVisibleItems = visibleTasks.map((t) => buildQueueItem(t, now, cases)).filter((i): i is QueueItem => !!i)
   const actionFiltered = actionFilter === "all" ? allVisibleItems : allVisibleItems.filter((i) => i.actionKind === actionFilter)
   const visibleItems = !tileFilter
@@ -76,7 +73,6 @@ export function OperatorHome() {
       })
 
   function handleTileClick(key: TileFilter) {
-    setTab("team")
     setTileFilter((prev) => (prev === key ? null : key))
   }
   const actionCounts = ACTION_KINDS.reduce<Record<ActionKind, number>>((acc, kind) => {
@@ -95,7 +91,7 @@ export function OperatorHome() {
       if (nextItem.task.requiresCall) startOutgoingCall({ caseId: nextItem.case.id, taskId: nextItem.task.id })
       else openCase(nextItem.case.id)
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Nie udało się rozpocząć działania.")
+      setActionError(error instanceof Error ? error.message : tr("Nie udało się rozpocząć działania.", "Не удалось начать действие."))
     }
   }
 
@@ -124,16 +120,16 @@ export function OperatorHome() {
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground" suppressHydrationWarning>
                 {t("last_action")}: {nextItem.lastAction ?? "—"}
-                {nextItem.lastActionAt && <> · {formatRelative(nextItem.lastActionAt)}</>}
+                {nextItem.lastActionAt && <> · {formatRelative(nextItem.lastActionAt, language)}</>}
               </p>
               <p className="text-xs font-medium text-foreground" suppressHydrationWarning>
                 {t("next_step")}: {nextItem.task.title}
-                {nextItem.task.dueAt && <> · {formatRelative(nextItem.task.dueAt)}</>}
+                {nextItem.task.dueAt && <> · {formatRelative(nextItem.task.dueAt, language)}</>}
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
-              <Button size="sm" className="gap-1.5" onClick={startNextAction}>
-                {nextItem.task.requiresCall ? <Phone className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
+              <Button size="lg" className="gap-2 px-5" onClick={startNextAction}>
+                {nextItem.task.requiresCall ? <Phone className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
                 {nextItem.task.requiresCall ? t("call") : t("open_start")}
               </Button>
               <Link href="/schedule" className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline">
@@ -152,11 +148,19 @@ export function OperatorHome() {
         </section>
       )}
 
+      <p className="text-[11px] font-medium text-muted-foreground">
+        {tab === "mine"
+          ? tr("Liczniki dla Twojej kolejki — kliknij, aby przefiltrować listę", "Счётчики вашей очереди — нажмите, чтобы отфильтровать список")
+          : tab === "unassigned"
+            ? tr("Liczniki dla zadań nieprzypisanych — kliknij, aby przefiltrować listę", "Счётчики неназначенных задач — нажмите, чтобы отфильтровать список")
+            : tr("Liczniki dla całego zespołu — kliknij, aby przefiltrować listę", "Счётчики по всей команде — нажмите, чтобы отфильтровать список")}
+      </p>
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         {counterTiles.map((c) => (
           <button
             key={c.label}
             type="button"
+            aria-pressed={tileFilter === c.key}
             onClick={() => handleTileClick(c.key)}
             className={cn(
               "rounded-lg border bg-card p-3 text-left transition-colors hover:bg-secondary/40",
@@ -198,6 +202,8 @@ export function OperatorHome() {
         <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2.5">
           <span className="text-[11px] font-medium text-muted-foreground">{t("action_required")}:</span>
           <button
+            type="button"
+            aria-pressed={actionFilter === "all"}
             onClick={() => setActionFilter("all")}
             className={cn(
               "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
@@ -209,6 +215,8 @@ export function OperatorHome() {
           {ACTION_KINDS.map((kind) => (
             <button
               key={kind}
+              type="button"
+              aria-pressed={actionFilter === kind}
               onClick={() => setActionFilter(kind)}
               className={cn(
                 "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
@@ -217,7 +225,7 @@ export function OperatorHome() {
                   : "border-border text-muted-foreground hover:bg-secondary",
               )}
             >
-              {ACTION_KIND_LABEL[kind]} ({actionCounts[kind]})
+              {actionKindText(kind, language)} ({actionCounts[kind]})
             </button>
           ))}
         </div>
@@ -235,18 +243,20 @@ export function OperatorHome() {
 }
 
 export function PriorityBadge({ item }: { item: QueueItem }) {
+  const { language } = useLanguage()
   return (
     <Badge className={cn("gap-1 border-0 text-white", PRIORITY_TONE[item.task.priority])}>
-      {item.task.priority} · {priorityLabel(item.task.priority)}
+      {item.task.priority} · {priorityText(item.task.priority, language)}
     </Badge>
   )
 }
 
 export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void }) {
   const tone = getClinicTone(item.case.clinicId)
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   return (
     <button
+      type="button"
       onClick={onOpen}
       className={cn("flex w-full items-stretch gap-0 text-left transition-colors hover:bg-secondary/40")}
     >
@@ -254,8 +264,10 @@ export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void
       <span className="flex flex-1 items-center gap-3 px-3 py-3">
         <span
           className={cn("h-2 w-2 shrink-0 rounded-full", PRIORITY_TONE[item.task.priority])}
-          title={`${item.task.priority} · ${priorityLabel(item.task.priority)}`}
-        />
+          title={`${item.task.priority} · ${priorityText(item.task.priority, language)}`}
+        >
+          <span className="sr-only">{item.task.priority}</span>
+        </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">{item.patientName}</p>
           <p className="truncate text-xs text-muted-foreground">
@@ -271,7 +283,7 @@ export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void
           className={cn("w-24 shrink-0 text-right text-xs font-medium", item.overdue ? "text-red-600" : "text-foreground")}
           suppressHydrationWarning
         >
-          {item.task.dueAt ? formatRelative(item.task.dueAt) : "—"}
+          {item.task.dueAt ? formatRelative(item.task.dueAt, language) : "—"}
         </div>
         <div className="hidden w-28 shrink-0 truncate text-right text-xs text-muted-foreground sm:block">
           {item.ownerName}

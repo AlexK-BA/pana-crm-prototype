@@ -113,7 +113,7 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
           <Textarea id="transition-reason" value={reason} onChange={event => setReason(event.target.value)} className="min-h-20" placeholder={tr("Wpisz powód zmiany", "Укажите причину изменения")} />
         </div>
       )}
-      {!reasonRequired && !commentOpen && <button type="button" className="text-left text-xs underline" onClick={() => setCommentOpen(true)}>{tr("Dodaj komentarz do historii", "Добавить комментарий в историю")}</button>}
+      {!reasonRequired && !commentOpen && <Button type="button" variant="outline" size="sm" className="w-full justify-center" onClick={() => setCommentOpen(true)}>{tr("Dodaj komentarz do historii", "Добавить комментарий в историю")}</Button>}
 
       {canAssign && (
         <details className="rounded-md border p-3 text-sm">

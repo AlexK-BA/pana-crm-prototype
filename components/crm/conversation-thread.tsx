@@ -9,6 +9,8 @@
  * aggregated across all of a patient's cases in the Patient Profile.
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react"
+import { useLanguage } from "@/lib/crm/language-context"
+import { potentialChannelText, sendChannelText } from "@/lib/crm/display-labels"
 import { AlertTriangle, Check, CheckCheck, CircleAlert, Clock3, Loader2, Paperclip, Phone, MessageSquare, StickyNote, Send, Smartphone, Smile, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,15 +27,15 @@ import { useUserDirectory } from "@/lib/crm/user-directory"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 import { isBotInteraction } from "@/lib/crm/conversation-control"
 
-const SEND_CHANNELS: { value: ContactChannel; label: string; potential?: boolean }[] = [
-  { value: "website", label: "Czat" },
-  { value: "phone", label: "SMS" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "telegram", label: "Telegram" },
-  { value: "instagram", label: "Instagram" },
-  { value: "facebook", label: "Facebook" },
-  { value: "email", label: "E-mail" },
-  { value: "tiktok", label: "TikTok", potential: true },
+const SEND_CHANNELS: { value: ContactChannel; potential?: boolean }[] = [
+  { value: "website" },
+  { value: "phone" },
+  { value: "whatsapp" },
+  { value: "telegram" },
+  { value: "instagram" },
+  { value: "facebook" },
+  { value: "email" },
+  { value: "tiktok", potential: true },
 ]
 
 const EMOJIS = ["😊", "👍", "🙏", "😀", "😉", "❤️", "👋", "✅", "📅", "🦷", "😁", "🙂", "👌", "🎉", "😢", "🤝", "⏰", "📞", "✨", "💬"]
@@ -121,6 +123,7 @@ export function ConversationThread({
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [attachments, setAttachments] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { tr, language } = useLanguage()
   const [channel, setChannel] = useState<ContactChannel>(threadChannel === "sms" ? "phone" : threadChannel ?? (patientSmsHistory ? "phone" : "website"))
   const [smsCaseId, setSmsCaseId] = useState("")
   const [chosenTaskId, setChosenTaskId] = useState<string | undefined>(taskId)
@@ -403,8 +406,8 @@ export function ConversationThread({
           event.target.value = ""
         }} />
         <Select disabled={patientSmsHistory || Boolean(threadKey)} value={channel} onValueChange={(v) => setChannel(v as ContactChannel)}>
-          <SelectTrigger className="h-9 w-[150px] shrink-0 text-xs" aria-label="Kanał wysyłki">
-            <SelectValue />
+          <SelectTrigger className="h-9 w-[150px] shrink-0 text-xs" aria-label={tr("Kanał wysyłki", "Канал отправки")}>
+            <SelectValue>{sendChannelText(channel, language)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {SEND_CHANNELS.map((c) =>
@@ -414,16 +417,16 @@ export function ConversationThread({
                     render={
                       <span>
                         <SelectItem value={c.value} disabled>
-                          {c.label} · Potencjalny
+                          {sendChannelText(c.value, language)} · {potentialChannelText(language).badge}
                         </SelectItem>
                       </span>
                     }
                   />
-                  <TooltipContent side="right">Integracja nie jest jeszcze podłączona</TooltipContent>
+                  <TooltipContent side="right">{potentialChannelText(language).tooltip}</TooltipContent>
                 </Tooltip>
               ) : (
                 <SelectItem key={c.value} value={c.value}>
-                  {c.label}
+                  {sendChannelText(c.value, language)}
                 </SelectItem>
               ),
             )}
