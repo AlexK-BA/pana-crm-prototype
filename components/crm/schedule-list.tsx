@@ -19,6 +19,7 @@ import { PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { priorityText, taskStatusText } from "@/lib/crm/display-labels"
 import { taskTypeLabel } from "@/lib/crm/task-type-labels"
 import { CreateCaseTask, TaskActions } from "./task-actions"
+import { SortableList } from "./sortable-list"
 import { formatDateTime } from "@/lib/crm/format"
 import { TASK_TYPES } from "@/lib/crm/entity-store"
 
@@ -37,7 +38,14 @@ export function ScheduleList(){
   const eligible=store.tasks.filter(task=>{
     const item=store.cases.find(item=>item.id===task.caseId)
     return item && (hasPermission("task:assign") || !task.ownerId || task.ownerId===store.currentUser.id) && (clinic==="all"||item.clinicId===clinic) && (owner==="all"||owner==="unassigned"&&!task.ownerId||task.ownerId===owner) && (mode!=="mine"||task.ownerId===store.currentUser.id) && (priority==="all"||task.priority===priority) && (status==="all"||effectiveStatus(task,now)===status) && (type==="all"||taskType(task)===type) && (board==="all"||item.board===board) && (stage==="all"||item.status===stage) && (team==="all"||item.responsibleTeamId===team) && (call==="all"||Boolean(task.requiresCall)===(call==="yes")) && (!from||Boolean(task.dueAt&&Date.parse(task.dueAt)>=Date.parse(from))) && (!to||Boolean(task.dueAt&&Date.parse(task.dueAt)<new Date(to+"T23:59:59").getTime()))
-  }).sort((a,b)=>compareQueueOrder(a,b,now))
+  }).sort((a,b)=>{
+    const rankA=store.manualTaskRanks[a.id],rankB=store.manualTaskRanks[b.id]
+    if(rankA!==undefined&&rankB!==undefined)return rankA-rankB
+    if(rankA!==undefined)return 1
+    if(rankB!==undefined)return -1
+    return compareQueueOrder(a,b,now)
+  })
+  const hasManualOrder=Object.keys(store.manualTaskRanks).length>0
   const groups=[{id:"overdue",label:tr("Przeterminowane","Просроченные")},{id:"today",label:tr("Dzisiaj","Сегодня")},{id:"upcoming",label:tr("Nadchodzące","Предстоящие")},{id:"undated",label:tr("Bez terminu","Без срока")},{id:"history",label:tr("Historia (zakończone, anulowane, nieudane)","История (завершённые, отменённые, неудачные)")}]
   const group=(task:typeof store.tasks[number])=>!isActive(task)?"history":isOverdue(task,now)?"overdue":!task.dueAt?"undated":new Date(task.dueAt).toDateString()===new Date(now).toDateString()?"today":"upcoming"
   const missing=store.cases.filter(item=>getCaseWorkState(item,store.tasks,now).missingNextAction)
@@ -65,6 +73,15 @@ export function ScheduleList(){
       <label className="space-y-1 text-xs font-medium text-muted-foreground">{tr("Termin do","Срок до")}<Input type="date" value={to} onChange={event=>setTo(event.target.value)}/></label>
     </div>
     {activeFilters>0&&<div className="flex items-center gap-3 text-sm"><span className="text-muted-foreground">{tr("Aktywne filtry","Активные фильтры")}: {activeFilters} · {tr("wyniki","результатов")}: {eligible.length}</span><Button size="sm" variant="outline" onClick={resetFilters}>{tr("Wyczyść filtry","Сбросить фильтры")}</Button></div>}
+    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+      {activeFilters>0
+        ?<span>{tr("Zmiana kolejności jest wyłączona przy aktywnych filtrach.","Изменение порядка отключено при активных фильтрах.")}</span>
+        :<span>{tr("Przeciągnij uchwyt przy zadaniu, aby zmienić kolejność w grupie. Priorytet pozostaje bez zmian.","Перетащите маркер у задачи, чтобы изменить порядок в группе. Приоритет не меняется.")}</span>}
+      {hasManualOrder&&<>
+        <Badge variant="secondary">{tr("Własna kolejność ma pierwszeństwo przed priorytetem","Ручной порядок важнее приоритета")}</Badge>
+        <Button size="sm" variant="outline" onClick={store.clearManualOrder}>{tr("Przywróć kolejność automatyczną","Вернуть автоматический порядок")}</Button>
+      </>}
+    </div>
     <section className="rounded-lg border border-amber-300 bg-amber-50/60 p-3" aria-labelledby="missing-next-action">
       <h2 id="missing-next-action" className="flex items-center gap-2 text-sm font-semibold text-amber-900"><AlertCircle className="h-4 w-4" aria-hidden="true"/>{tr("Sprawy bez następnego działania","Дела без следующего действия")} · {missing.length}</h2>
       {missing.length>0&&<p className="mt-1 text-xs text-amber-900/80">{tr("Otwórz sprawę i zaplanuj następny krok, żeby pacjent nie wypadł z procesu.","Откройте дело и запланируйте следующий шаг, чтобы пациент не выпал из процесса.")}</p>}
@@ -77,10 +94,12 @@ export function ScheduleList(){
       if(!sectionTasks.length)return null
       return <section key={section.id} aria-labelledby={`group-${section.id}`}>
         <h2 id={`group-${section.id}`} className={cn("mb-2 text-sm font-semibold",section.id==="overdue"&&"text-red-700")}>{section.label} <span className="font-normal text-muted-foreground">· {sectionTasks.length}</span></h2>
-        <div className="space-y-2">{sectionTasks.map(task=>{
+        <SortableList listId={`tasks-${section.id}`} ids={sectionTasks.map(task=>task.id)} disabled={section.id==="history"||activeFilters>0||sectionTasks.length<2} onReorder={store.saveManualOrder} renderItem={(taskId,handle)=>{
+          const task=sectionTasks.find(task=>task.id===taskId)!
           const item=store.cases.find(item=>item.id===task.caseId)!,patient=store.patients.find(patient=>patient.id===item.patientId),overdue=isOverdue(task,now)
           return <article key={task.id} className={cn("space-y-2 rounded-lg border bg-card p-3",overdue&&"border-red-200")}>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {handle}
               <Badge className={cn("border-0 text-white",PRIORITY_TONE[task.priority])}>{task.priority}</Badge>
               <strong className="text-sm">{task.title}</strong>
               <span className={cn("ml-auto flex items-center gap-1 text-xs",overdue?"font-medium text-red-700":"text-muted-foreground")}>
@@ -102,7 +121,7 @@ export function ScheduleList(){
             <div className="flex items-center gap-3"><Button size="sm" variant="outline" onClick={()=>openCase(item.id)}>{tr("Otwórz sprawę","Открыть дело")}</Button>{patient&&<Link className="text-sm underline" href={`/patients/${patient.id}`}>{tr("Profil pacjenta","Профиль пациента")}</Link>}</div>
             <TaskActions task={task}/>
           </article>
-        })}</div>
+        }}/>
       </section>
     })}
   </div>

@@ -74,6 +74,13 @@ export function useScopedEntityStore() {
         candidates: canReview ? item.candidates.filter(candidate => matchingPatientIds.has(candidate.candidatePatientId)) : [],
         candidatePatientId: canReview && item.candidatePatientId && matchingPatientIds.has(item.candidatePatientId) ? item.candidatePatientId : undefined,
         reason: canReview ? item.reason : "Powiązanie pacjenta wymaga bezpiecznej weryfikacji. Sprawa nadal pozostaje dostępna do pracy." })),
+      manualTaskRanks: store.manualTaskOrder[currentUser.id] ?? {},
+      saveManualOrder: (orderedTaskIds: string[]) => {
+        if (currentUser.status !== "active" || !hasPermission("task:view")) throw new AccessCommandError("Brak uprawnień do zmiany kolejności zadań.")
+        const visibleIds = new Set(store.tasks.filter(task => caseIds.has(task.caseId)).map(task => task.id))
+        store.saveManualTaskOrder(currentUser.id, orderedTaskIds.filter(id => visibleIds.has(id)))
+      },
+      clearManualOrder: () => store.clearManualTaskOrder(currentUser.id),
       bookAppointment: (input:Parameters<typeof store.bookAppointment>[0]) => store.bookAppointment(input,matchingAccessRef.current),
       changeTask: (id:string,input:Parameters<typeof store.changeTask>[1]) => store.changeTask(id,input,matchingAccessRef.current),
       completeTask: (id:string,outcome:Parameters<typeof store.completeTask>[1]) => store.completeTask(id,outcome,{access:matchingAccessRef.current}),

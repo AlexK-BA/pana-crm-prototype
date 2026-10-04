@@ -84,6 +84,10 @@ interface EntityStoreValue {
   changeTask: (id: string, input: TaskChangeInput, access?: MatchingAccess) => Task
 
   tasks: Task[]
+  /** Per-user manual queue order (userId → taskId → rank). Presentation only; never changes priority. */
+  manualTaskOrder: Record<string, Record<string, number>>
+  saveManualTaskOrder: (actorId: string, orderedTaskIds: string[]) => void
+  clearManualTaskOrder: (actorId: string) => void
   cases: EngagementCase[]
   auditEvents: AuditEvent[]
   interactions: (Interaction | Call)[]
@@ -281,6 +285,13 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const [matchDecisions, setMatchDecisions] = useState<MatchDecision[]>([])
   const matchingState = useRef({ cases, patients, identities, matchDecisions })
   matchingState.current = { cases, patients, identities, matchDecisions }
+  const [manualTaskOrder, setManualTaskOrder] = useState<Record<string, Record<string, number>>>({})
+  const saveManualTaskOrder = useCallback((actorId: string, orderedTaskIds: string[]) => {
+    setManualTaskOrder(prev => ({ ...prev, [actorId]: { ...prev[actorId], ...Object.fromEntries(orderedTaskIds.map((id, index) => [id, index])) } }))
+  }, [])
+  const clearManualTaskOrder = useCallback((actorId: string) => {
+    setManualTaskOrder(prev => { const { [actorId]: _removed, ...rest } = prev; return rest })
+  }, [])
   const [comments, setComments] = useState<Comment[]>(COMMENTS ?? [])
   const [readAt, setReadAt] = useState<Record<string, string>>({})
   const [conversationControls, setConversationControlsState] = useState<ConversationControl[]>([])
@@ -1210,6 +1221,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       tasks,
+      manualTaskOrder,
+      saveManualTaskOrder,
+      clearManualTaskOrder,
       cases,
       auditEvents,
       interactions,
@@ -1301,6 +1315,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       sendTreatmentPlanTask,
       sendBroadcast,
       linkDuplicateCase,
+      manualTaskOrder,
+      saveManualTaskOrder,
+      clearManualTaskOrder,
     ],
   )
 
