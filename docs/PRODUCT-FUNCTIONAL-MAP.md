@@ -70,6 +70,7 @@ The production system remains an evolution of Dantist: Frappe owns CRM business 
 - Ranking: overdue mandatory → other overdue → future P0/P1 → remaining work; inside each bucket, P0–P4 precedes due time and creation age.
 - Queue, calendar, case card and Patient 360 must show the same Task ID/state.
 - A past due date never hides or silently moves a Task.
+- Fixed SSR-safe seed timestamps are rebased once, after client mount, relative to the demo session. This keeps overdue, current and future examples visible without changing user-created tasks or moving an overdue task to today.
 
 ### Stage transition
 

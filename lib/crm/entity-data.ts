@@ -20,6 +20,7 @@ import type {
   TouchPoint,
 } from "./entities"
 import { INITIAL_USERS } from "./user-catalog"
+import { DEMO_REFERENCE_MS } from "./demo-fixtures"
 
 const HOUR = 1000 * 60 * 60
 // Fixed reference instant (not Date.now()) so every seeded timestamp is
@@ -27,7 +28,7 @@ const HOUR = 1000 * 60 * 60
 // in the browser bundle — otherwise the two evaluations happen at different
 // wall-clock times and every "now"-relative demo timestamp would mismatch
 // between SSR and hydration.
-const now = new Date("2026-09-25T12:00:00.000Z").getTime()
+const now = DEMO_REFERENCE_MS
 export const iso = (offsetHours: number) => new Date(now + offsetHours * HOUR).toISOString()
 
 const [WERONIKA, ILONA, PAVEL, DANIEL, ALEH] = INITIAL_USERS.map((o) => o.id)
