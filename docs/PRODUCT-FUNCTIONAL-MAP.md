@@ -67,7 +67,7 @@ The production system remains an evolution of Dantist: Frappe owns CRM business 
 ### Priority and next action
 
 - Priority belongs to Task; the case inherits effective urgency from its highest-ranked active task.
-- Ranking: overdue mandatory → other overdue → future P0/P1 → remaining due work → undated controls.
+- Ranking: overdue mandatory → other overdue → future P0/P1 → remaining work; inside each bucket, P0–P4 precedes due time and creation age.
 - Queue, calendar, case card and Patient 360 must show the same Task ID/state.
 - A past due date never hides or silently moves a Task.
 
