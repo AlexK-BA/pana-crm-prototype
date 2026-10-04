@@ -99,7 +99,7 @@ const DICTIONARY = {
   patient_id_optional: { pl: "ID pacjenta z Medical CRM (opcjonalnie)", ru: "ID пациента из Medical CRM (опционально)" },
   patient_id_hint: {
     pl: "Podanie ID, telefonu lub e-mailu istniejącego pacjenta natychmiast połączy sprawę z jego profilem.",
-    ru: "Указание ID, телефона или e-mail существующего пациента сра��у привяжет заявку к его профилю.",
+    ru: "Указание ID, телефона или e-mail существующего пациента сразу привяжет заявку к его профилю.",
   },
   first_note: { pl: "Pierwsza notatka / wiadomość", ru: "Первая заметка / сообщение" },
   first_note_placeholder: { pl: "Krótki opis zapytania pacjenta...", ru: "Краткое описание запроса пациента..." },

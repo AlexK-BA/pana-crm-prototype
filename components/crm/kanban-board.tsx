@@ -25,7 +25,7 @@ import type { DictionaryKey } from "@/lib/crm/language-context"
 import { toLocalDateTime } from "./task-actions"
 import { compareCaseWorkOrder, isActive } from "@/lib/crm/entity-queue"
 import { TASK_TYPES } from "@/lib/crm/entity-store"
-import { TASK_TYPE_LABELS, getWorkflowStageRule } from "@/lib/crm/workflow-rules"
+import { getWorkflowStageRule } from "@/lib/crm/workflow-rules"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 
 const BOARDS: { id: CaseBoard; labelKey: DictionaryKey }[] = [

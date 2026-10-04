@@ -9,7 +9,8 @@ import type { TaskType } from "@/lib/crm/entities"
 import { BOARD_COLUMNS } from "@/lib/crm/boards"
 import { TASK_TYPES } from "@/lib/crm/entity-store"
 import { isActive } from "@/lib/crm/entity-queue"
-import { TASK_TYPE_LABELS, getWorkflowStageRule } from "@/lib/crm/workflow-rules"
+import { getWorkflowStageRule } from "@/lib/crm/workflow-rules"
+import { taskTypeLabel } from "@/lib/crm/task-type-labels"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 import { useUserDirectory } from "@/lib/crm/user-directory"
@@ -37,8 +38,9 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
   const { cases, tasks, moveCase, currentUser } = useScopedEntityStore()
   const { hasPermission } = useAuthorization()
   const { users } = useUserDirectory()
-  const { tr, locale } = useLanguage()
+  const { tr, t, locale, language } = useLanguage()
   const [reason, setReason] = useState("")
+  const [commentOpen, setCommentOpen] = useState(false)
   const [due, setDue] = useState("")
   const [activeDecision, setActiveDecision] = useState<"keep" | "cancel">("keep")
   const [advanced, setAdvanced] = useState({ override: false, skipAutomatic: false, allowPast: false, taskType: "", ownerId: "", title: "", description: "" })
@@ -47,21 +49,23 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
   const engagementCase = cases.find(item => item.id === pending.caseId)
   const rule = engagementCase ? getWorkflowStageRule(engagementCase.board, pending.newStatus) : undefined
   const columns = engagementCase ? BOARD_COLUMNS[engagementCase.board] : []
-  const label = (id?: string) => columns.find(item => item.id === id)?.label ?? id ?? ""
+  const label = (id?: string) => { const column = columns.find(item => item.id === id); return column ? t(column.labelKey) : id ?? "" }
   const activeTasks = useMemo(() => tasks.filter(task => task.caseId === pending.caseId && isActive(task)), [tasks, pending.caseId])
   const canAssign = hasPermission("task:assign")
   const automatic = rule?.automaticTask
   const needsExplicitDate = Boolean(automatic && automatic.duePolicy !== "sla" && !rule?.terminal && !advanced.skipAutomatic)
   const reasonRequired = Boolean(rule?.requiresReason || activeDecision === "cancel" || advanced.override || advanced.skipAutomatic)
-  const nextTitle = advanced.taskType ? TASK_TYPE_LABELS[advanced.taskType as TaskType] : automatic?.title
-  const blocked = (reasonRequired && !reason.trim()) || (needsExplicitDate && !due)
+  const nextType = (advanced.taskType || automatic?.type) as TaskType | undefined
+  const nextTitle = nextType ? taskTypeLabel(nextType, language) : automatic?.title
+  const customTaskInvalid = advanced.taskType === "custom" && !advanced.title.trim()
+  const blocked = (reasonRequired && !reason.trim()) || (needsExplicitDate && !due) || customTaskInvalid
 
   function confirm() {
     if (blocked) return
     try {
       moveCase(pending.caseId, pending.newStatus, currentUser.id, {
-        reason, override: advanced.override || advanced.skipAutomatic, skipAutomatic: advanced.skipAutomatic, allowPast: advanced.allowPast,
-        taskTitle: advanced.title || undefined, taskDescription: advanced.description || undefined,
+        reason: reason.trim(), override: advanced.override || advanced.skipAutomatic, skipAutomatic: advanced.skipAutomatic, allowPast: advanced.allowPast,
+        taskTitle: advanced.title.trim() || undefined, taskDescription: advanced.description.trim() || undefined,
         activeTaskDecision: activeDecision, dueAt: due || undefined,
         taskType: advanced.taskType ? advanced.taskType as TaskType : undefined, ownerId: advanced.ownerId || undefined,
       })
@@ -101,13 +105,13 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
         </fieldset>
       )}
 
-      {(reasonRequired || reason) && (
+      {(reasonRequired || commentOpen) && (
         <div className="space-y-1.5">
           <label htmlFor="transition-reason" className="text-sm font-medium">{tr("Powód", "Причина")} {reasonRequired ? "*" : ""}</label>
           <Textarea id="transition-reason" value={reason} onChange={event => setReason(event.target.value)} className="min-h-20" placeholder={tr("Wpisz powód zmiany", "Укажите причину изменения")} />
         </div>
       )}
-      {!reasonRequired && !reason && <button type="button" className="text-left text-xs underline" onClick={() => setReason(" ")}>{tr("Dodaj komentarz do historii", "Добавить комментарий в историю")}</button>}
+      {!reasonRequired && !commentOpen && <button type="button" className="text-left text-xs underline" onClick={() => setCommentOpen(true)}>{tr("Dodaj komentarz do historii", "Добавить комментарий в историю")}</button>}
 
       {canAssign && (
         <details className="rounded-md border p-3 text-sm">
@@ -120,7 +124,7 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
               <label className="block text-xs">{tr("Typ zadania", "Тип задачи")}
                 <select className="mt-1 w-full rounded border bg-background p-2 text-sm" value={advanced.taskType} onChange={event => setAdvanced({ ...advanced, taskType: event.target.value })}>
                   <option value="">{tr("Automatyczny", "Автоматический")}</option>
-                  {(advanced.override ? TASK_TYPES : rule?.suggestedTasks ?? []).filter(type => type !== "send_treatment_plan" || hasPermission("patient:view_medical")).map(type => <option key={type} value={type}>{TASK_TYPE_LABELS[type]}</option>)}
+                  {(advanced.override ? TASK_TYPES : rule?.suggestedTasks ?? []).filter(type => type !== "send_treatment_plan" || hasPermission("patient:view_medical")).map(type => <option key={type} value={type}>{taskTypeLabel(type, language)}</option>)}
                 </select>
               </label>
               <label className="block text-xs">{tr("Właściciel zadania", "Владелец задачи")}
@@ -130,7 +134,9 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
                 </select>
               </label>
               {advanced.taskType === "custom" && <>
-                <label className="block text-xs">{tr("Tytuł zadania", "Название задачи")}<Input value={advanced.title} onChange={event => setAdvanced({ ...advanced, title: event.target.value })} className="mt-1" /></label>
+                <label className="block text-xs">{tr("Tytuł zadania *", "Название задачи *")}<Input value={advanced.title} aria-invalid={customTaskInvalid} onChange={event => setAdvanced({ ...advanced, title: event.target.value })} className="mt-1" />
+                  {customTaskInvalid && <span role="status" className="mt-1 block text-xs text-destructive">{tr("Zadanie indywidualne wymaga tytułu.", "Для индивидуальной задачи нужно название.")}</span>}
+                </label>
                 <label className="block text-xs">{tr("Opis zadania", "Описание задачи")}<Textarea value={advanced.description} onChange={event => setAdvanced({ ...advanced, description: event.target.value })} className="mt-1" /></label>
               </>}
               <label className="flex items-center gap-2"><input type="checkbox" checked={advanced.allowPast} onChange={event => setAdvanced({ ...advanced, allowPast: event.target.checked })} />{tr("Dopuszczam termin w przeszłości", "Допускаю срок в прошлом")}</label>

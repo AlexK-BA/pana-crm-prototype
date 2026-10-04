@@ -14,11 +14,21 @@ const STATUS_LABELS = {
   retired: { pl: "Wycofana", ru: "Снята с публикации" },
 } as const
 
+const READINESS_LABELS: Record<string, { pl: string; ru: string }> = {
+  policy: { pl: "Wersja polityki bota istnieje", ru: "Версия политики бота существует" },
+  https: { pl: "Adres polityki prywatności (HTTPS)", ru: "Адрес политики конфиденциальности (HTTPS)" },
+  placeholders: { pl: "Brak tekstów zastępczych do uzupełnienia", ru: "Нет временных текстов-заглушек" },
+  languages: { pl: "Wersja PL", ru: "Версия PL" },
+  approval: { pl: "Zatwierdzenie DPO (referencja i osoba)", ru: "Одобрение DPO (ссылка и ответственный)" },
+}
+
 /** Read-only compliance overview; patients only ever see a published, DPO-approved configuration. */
 export function AiComplianceCenter() {
   const { hasPermission } = useAuthorization()
   const { tr, language } = useLanguage()
   const [selectedId, setSelectedId] = useState(INITIAL_AI_COMPLIANCE_CONFIGURATIONS[0]?.id)
+  // Notice language is patient-facing content and is chosen independently of the UI language.
+  const [contentLanguage, setContentLanguage] = useState("pl")
   if (!hasPermission("ai:manage")) return null
 
   const config = INITIAL_AI_COMPLIANCE_CONFIGURATIONS.find(item => item.id === selectedId) ?? INITIAL_AI_COMPLIANCE_CONFIGURATIONS[0]
@@ -49,7 +59,7 @@ export function AiComplianceCenter() {
         {readiness.map(item => (
           <li key={item.id} className="flex items-center gap-2 text-sm">
             {item.ok ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden /> : <CircleAlert className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />}
-            <span>{item.label}</span>
+            <span>{READINESS_LABELS[item.id] ? tr(READINESS_LABELS[item.id].pl, READINESS_LABELS[item.id].ru) : item.label}</span>
             <span className="sr-only">{item.ok ? tr("spełnione", "выполнено") : tr("do uzupełnienia", "требует заполнения")}</span>
           </li>
         ))}
@@ -62,7 +72,13 @@ export function AiComplianceCenter() {
       {policy && (
         <details className="rounded-md border p-3">
           <summary className="cursor-pointer text-sm font-medium">{tr("Podgląd wersji roboczej (niewidoczny dla pacjentów)", "Предпросмотр черновика (пациентам не виден)")}</summary>
-          <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs">{previewDraftTransparencyNotice(config, policy, language)}</pre>
+          <label className="mt-3 flex items-center gap-2 text-xs">
+            {tr("Język treści informacji", "Язык текста уведомления")}
+            <select className="rounded border bg-background p-1 text-xs" value={contentLanguage} onChange={event => setContentLanguage(event.target.value)}>
+              {config.locales.map(item => <option key={item.language} value={item.language}>{item.language.toUpperCase()}</option>)}
+            </select>
+          </label>
+          <pre lang={contentLanguage} className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs">{previewDraftTransparencyNotice(config, policy, contentLanguage)}</pre>
         </details>
       )}
     </section>

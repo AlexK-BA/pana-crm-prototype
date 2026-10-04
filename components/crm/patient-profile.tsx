@@ -19,6 +19,7 @@ import { getClinic, getClinicTone, getProcedure, getDoctor } from "@/lib/crm/cat
 import { BOARD_COLUMNS } from "@/lib/crm/boards"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { getSmsStatusLabel, isSmsMessage } from "@/lib/crm/sms-service"
+import { useLanguage } from "@/lib/crm/language-context"
 import { cn } from "@/lib/utils"
 
 const integration: Record<string, string> = { linked: "Powiązano", match_suggested: "Sugerowane dopasowanie", conflict: "Konflikt", sync_pending: "Synchronizacja w toku", sync_failed: "Medical CRM niedostępne / błąd sync", unlinked: "Niepowiązano" }
@@ -35,6 +36,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   return <PatientWorkspace patientId={patientId} />
 }
 function PatientWorkspace({ patientId }: { patientId: string }) {
+  const { t } = useLanguage()
   const store = useScopedEntityStore()
   const view = selectPatient360(patientId, store)
   const patient = view.patient!
@@ -112,7 +114,7 @@ function PatientWorkspace({ patientId }: { patientId: string }) {
           const unread = view.threads.filter(thread => thread.caseId === item.id).reduce((sum, thread) => sum + thread.unread, 0)
           const matching = view.matches.filter(decision => decision.caseId === item.id).at(-1)
           return <article key={item.id} className={cn("space-y-3 rounded-lg border-l-4 bg-card p-4", getClinicTone(item.clinicId).chip)}>
-            <div className="flex flex-wrap justify-between gap-2"><strong>{item.id} · {item.board}</strong><span>{BOARD_COLUMNS[item.board].find(stage => stage.id === item.status)?.label ?? item.status} · {isCaseActive(item) ? "Active" : "Closed"}</span></div>
+            <div className="flex flex-wrap justify-between gap-2"><strong>{item.id} · {item.board}</strong><span>{(() => { const stage = BOARD_COLUMNS[item.board].find(column => column.id === item.status); return stage ? t(stage.labelKey) : item.status })()} · {isCaseActive(item) ? "Active" : "Closed"}</span></div>
             <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{detail("Klinika / usługa", `${getClinic(item.clinicId)?.name ?? "Nieprzypisana"} / ${getProcedure(item.serviceInterest)?.name ?? "Brak"}`)}{detail("Lekarz", getDoctor(item.doctorId)?.name)}{detail("Źródło / kanał", `${item.attribution.caseCreationTouch.source} / ${item.attribution.caseCreationTouch.channel}`)}{detail("Odpowiedzialny", actor(item.responsibleTeamId))}{detail("Utworzono", formatDateTime(item.createdAt))}{detail("Ostatnie działanie", last ? `${last.type} · ${formatDateTime(last.at)}` : undefined)}{detail("Następna czynność / zadanie", next ? `${next.title} · ${next.dueAt ? formatDateTime(next.dueAt) : "Bez terminu"}` : "Nie ustalono")}{detail("Patient Link / unread", `${matching?.decision ?? "Linked"} / ${unread}`)}</dl>
             {caseTasks.some(task => isOverdue(task)) && <Badge variant="destructive">Przeterminowane zadanie</Badge>}
             <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openCase(item.id)}>Otwórz drawer</Button>{hasPermission("communication:view") && <Button size="sm" variant="outline" onClick={() => communication(item.id)}>Komunikacja sprawy</Button>}<Patient360Actions patientId={patientId} caseId={item.id} /></div>
