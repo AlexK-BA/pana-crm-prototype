@@ -55,6 +55,16 @@ test('effective ranking puts overdue mandatory then other overdue ahead of futur
  const ts=[task({id:'futureP0',priority:'P0'}),task({id:'late',priority:'P4',dueAt:new Date(now-1000).toISOString()}),task({id:'mandatory',priority:'P4',mandatory:true,dueAt:new Date(now-500).toISOString()}),task({id:'undated',dueAt:undefined})]
  assert.deepEqual(Array.from(q.getQueue(ts),task=>task.id),['mandatory','late','futureP0','undated']);assert.equal(q.getCaseWorkState(cases()[0],ts).overdueTaskCount,2)
 })
+test('business priority wins inside the same operational bucket before due time',()=>{
+ const h=create(),q=h.load('lib/crm/entity-queue.ts'),now=Date.now()
+ const ts=[
+  task({id:'older-new-lead',priority:'P3',dueAt:new Date(now-7200000).toISOString(),createdAt:'2026-01-01'}),
+  task({id:'missed-call-p1',priority:'P1',requiresCall:true,dueAt:new Date(now-3600000).toISOString(),createdAt:'2026-01-02'}),
+  task({id:'older-mandatory-p4',priority:'P4',mandatory:true,dueAt:new Date(now-10800000).toISOString(),createdAt:'2026-01-01'}),
+  task({id:'newer-mandatory-p1',priority:'P1',mandatory:true,dueAt:new Date(now-1800000).toISOString(),createdAt:'2026-01-02'}),
+ ]
+ assert.deepEqual(Array.from(q.getQueue(ts,{},now),item=>item.id),['newer-mandatory-p1','older-mandatory-p4','missed-call-p1','older-new-lead'])
+})
 test('completed/cancelled/failed tasks remain in canonical history and never appear as active',()=>{
  const h=create({tasks:['completed','cancelled','failed'].map((status,index)=>task({id:String(index),status}))}),q=h.load('lib/crm/entity-queue.ts')
  assert.equal(q.getQueue(h.store.tasks).length,0);assert.equal(q.selectTaskCalendar(h.store.tasks).dated.length,3);assert.equal(q.getCaseWorkState(h.store.cases[0],h.store.tasks).missingNextAction,true)
