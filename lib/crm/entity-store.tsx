@@ -49,6 +49,7 @@ import { TASK_TYPE_LABELS, buildAutomaticTask, getWorkflowStageRule } from "./wo
 import { calculateSmsParts, emulatedSmsAdapter, isSmsMessage, INITIAL_SMS_PROVIDER_CONFIGS, selectSmsProvider } from "./sms-service"
 import { interactionSenderKind } from "./conversation-control"
 import { INITIAL_AI_CONVERSATION_POLICIES, isAiEnabledForConversation, makeBotActivationSchedule, resolveAiConversationPolicy, validateAiPolicy, validateAiResponseTrace } from "./ai-governance"
+import { rebaseDemoTasks } from "./demo-fixtures"
 
 export const TASK_TYPES: TaskType[] = ["call","message","sms","email","qualification","appointment_confirmation","appointment_booking","post_visit_follow_up","waitlist_contact","patient_care_handoff","treatment_plan_review","send_treatment_plan","custom"]
 
@@ -295,6 +296,13 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
     conversationControlRef.current = value
     setConversationControlsState(value)
   }
+
+  // Seed timestamps stay fixed during SSR. Once mounted, replace only the
+  // untouched seed task array with a session-relative copy so Calendar and
+  // Queue always demonstrate overdue, current and future work.
+  useEffect(() => {
+    setTasks(rebaseDemoTasks(TASKS, Date.now()))
+  }, [])
 
   const smsRequests = useRef(new Set<AbortController>())
   useEffect(() => () => {

@@ -75,6 +75,7 @@ Expected:
 
 ## UAT-02 — operator priority queue
 
+0. Reload the prototype. Confirm the seed contains overdue, near-due and future tasks relative to the current session; the current Calendar week must not be empty only because the prototype was built on an earlier date.
 1. On Operator home, verify the `P0`, `P1`, `P2`, `P3`, overdue and unassigned counters.
 2. Click each counter and verify that the visible queue is filtered accordingly.
 3. Select `Zespół`, then switch between action filters.
