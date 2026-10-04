@@ -20,6 +20,7 @@ import { priorityText, taskStatusText } from "@/lib/crm/display-labels"
 import { taskTypeLabel } from "@/lib/crm/task-type-labels"
 import { CreateCaseTask, TaskActions } from "./task-actions"
 import { SortableList } from "./sortable-list"
+import { hasManualOrder, sortWithManualOrder } from "@/lib/crm/manual-order"
 import { formatDateTime } from "@/lib/crm/format"
 import { TASK_TYPES } from "@/lib/crm/entity-store"
 
@@ -35,17 +36,12 @@ export function ScheduleList(){
   const stageLabel=(boardId:keyof typeof BOARD_COLUMNS,statusId:string)=>{const column=BOARD_COLUMNS[boardId].find(col=>col.id===statusId);return column?t(column.labelKey):statusId}
   const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient?`${patient.firstName} ${patient.lastName}`:tr("Nierozpoznany kontakt","Неопознанный контакт")}
   const ownerName=(ownerId?:string)=>users.find(user=>user.id===ownerId)?.name??tr("Brak właściciela","Без ответственного")
-  const eligible=store.tasks.filter(task=>{
+  const taskRanks=store.manualOrder.tasks
+  const eligible=sortWithManualOrder(store.tasks.filter(task=>{
     const item=store.cases.find(item=>item.id===task.caseId)
     return item && (hasPermission("task:assign") || !task.ownerId || task.ownerId===store.currentUser.id) && (clinic==="all"||item.clinicId===clinic) && (owner==="all"||owner==="unassigned"&&!task.ownerId||task.ownerId===owner) && (mode!=="mine"||task.ownerId===store.currentUser.id) && (priority==="all"||task.priority===priority) && (status==="all"||effectiveStatus(task,now)===status) && (type==="all"||taskType(task)===type) && (board==="all"||item.board===board) && (stage==="all"||item.status===stage) && (team==="all"||item.responsibleTeamId===team) && (call==="all"||Boolean(task.requiresCall)===(call==="yes")) && (!from||Boolean(task.dueAt&&Date.parse(task.dueAt)>=Date.parse(from))) && (!to||Boolean(task.dueAt&&Date.parse(task.dueAt)<new Date(to+"T23:59:59").getTime()))
-  }).sort((a,b)=>{
-    const rankA=store.manualTaskRanks[a.id],rankB=store.manualTaskRanks[b.id]
-    if(rankA!==undefined&&rankB!==undefined)return rankA-rankB
-    if(rankA!==undefined)return 1
-    if(rankB!==undefined)return -1
-    return compareQueueOrder(a,b,now)
-  })
-  const hasManualOrder=Object.keys(store.manualTaskRanks).length>0
+  }),taskRanks,task=>task.id,(a,b)=>compareQueueOrder(a,b,now))
+  const hasTaskOrder=hasManualOrder(store.manualOrder,"tasks")
   const groups=[{id:"overdue",label:tr("Przeterminowane","Просроченные")},{id:"today",label:tr("Dzisiaj","Сегодня")},{id:"upcoming",label:tr("Nadchodzące","Предстоящие")},{id:"undated",label:tr("Bez terminu","Без срока")},{id:"history",label:tr("Historia (zakończone, anulowane, nieudane)","История (завершённые, отменённые, неудачные)")}]
   const group=(task:typeof store.tasks[number])=>!isActive(task)?"history":isOverdue(task,now)?"overdue":!task.dueAt?"undated":new Date(task.dueAt).toDateString()===new Date(now).toDateString()?"today":"upcoming"
   const missing=store.cases.filter(item=>getCaseWorkState(item,store.tasks,now).missingNextAction)
@@ -77,9 +73,9 @@ export function ScheduleList(){
       {activeFilters>0
         ?<span>{tr("Zmiana kolejności jest wyłączona przy aktywnych filtrach.","Изменение порядка отключено при активных фильтрах.")}</span>
         :<span>{tr("Przeciągnij uchwyt przy zadaniu, aby zmienić kolejność w grupie. Priorytet pozostaje bez zmian.","Перетащите маркер у задачи, чтобы изменить порядок в группе. Приоритет не меняется.")}</span>}
-      {hasManualOrder&&<>
+      {hasTaskOrder&&<>
         <Badge variant="secondary">{tr("Własna kolejność ma pierwszeństwo przed priorytetem","Ручной порядок важнее приоритета")}</Badge>
-        <Button size="sm" variant="outline" onClick={store.clearManualOrder}>{tr("Przywróć kolejność automatyczną","Вернуть автоматический порядок")}</Button>
+        <Button size="sm" variant="outline" onClick={()=>store.clearManualOrder("tasks")}>{tr("Przywróć kolejność automatyczną","Вернуть автоматический порядок")}</Button>
       </>}
     </div>
     <section className="rounded-lg border border-amber-300 bg-amber-50/60 p-3" aria-labelledby="missing-next-action">
@@ -94,7 +90,7 @@ export function ScheduleList(){
       if(!sectionTasks.length)return null
       return <section key={section.id} aria-labelledby={`group-${section.id}`}>
         <h2 id={`group-${section.id}`} className={cn("mb-2 text-sm font-semibold",section.id==="overdue"&&"text-red-700")}>{section.label} <span className="font-normal text-muted-foreground">· {sectionTasks.length}</span></h2>
-        <SortableList listId={`tasks-${section.id}`} ids={sectionTasks.map(task=>task.id)} disabled={section.id==="history"||activeFilters>0||sectionTasks.length<2} onReorder={store.saveManualOrder} renderItem={(taskId,handle)=>{
+        <SortableList listId={`tasks-${section.id}`} ids={sectionTasks.map(task=>task.id)} disabled={section.id==="history"||activeFilters>0||sectionTasks.length<2} onReorder={ids=>store.saveManualOrder("tasks",ids)} renderItem={(taskId,handle)=>{
           const task=sectionTasks.find(task=>task.id===taskId)!
           const item=store.cases.find(item=>item.id===task.caseId)!,patient=store.patients.find(patient=>patient.id===item.patientId),overdue=isOverdue(task,now)
           return <article key={task.id} className={cn("space-y-2 rounded-lg border bg-card p-3",overdue&&"border-red-200")}>

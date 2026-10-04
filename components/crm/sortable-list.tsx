@@ -13,11 +13,12 @@ interface SortableListProps {
   listId: string
   ids: string[]
   disabled?: boolean
+  handleLabel?: string
   onReorder: (orderedIds: string[]) => void
   renderItem: (id: string, handle: ReactNode) => ReactNode
 }
 
-export function SortableList({ listId, ids, disabled, onReorder, renderItem }: SortableListProps) {
+export function SortableList({ listId, ids, disabled, handleLabel, onReorder, renderItem }: SortableListProps) {
   const { tr } = useLanguage()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -42,13 +43,13 @@ export function SortableList({ listId, ids, disabled, onReorder, renderItem }: S
       ) } }}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2">{ids.map(id => <SortableRow key={id} id={id} disabled={disabled} renderItem={renderItem} />)}</div>
+        <div className="space-y-2">{ids.map(id => <SortableRow key={id} id={id} disabled={disabled} handleLabel={handleLabel} renderItem={renderItem} />)}</div>
       </SortableContext>
     </DndContext>
   )
 }
 
-function SortableRow({ id, disabled, renderItem }: { id: string; disabled?: boolean; renderItem: SortableListProps["renderItem"] }) {
+function SortableRow({ id, disabled, handleLabel, renderItem }: { id: string; disabled?: boolean; handleLabel?: string; renderItem: SortableListProps["renderItem"] }) {
   const { tr } = useLanguage()
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled })
   const style: CSSProperties = { transform: CSS.Translate.toString(transform), transition }
@@ -58,7 +59,7 @@ function SortableRow({ id, disabled, renderItem }: { id: string; disabled?: bool
       ref={setActivatorNodeRef}
       {...attributes}
       {...listeners}
-      aria-label={tr("Zmień kolejność zadania", "Изменить порядок задачи")}
+      aria-label={handleLabel ?? tr("Zmień kolejność zadania", "Изменить порядок задачи")}
       title={tr("Przeciągnij, aby zmienić kolejność (priorytet się nie zmienia)", "Перетащите, чтобы изменить порядок (приоритет не меняется)")}
       className="-ml-1 flex h-6 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
     >

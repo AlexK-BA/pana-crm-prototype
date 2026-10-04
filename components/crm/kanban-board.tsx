@@ -27,12 +27,16 @@ import { compareCaseWorkOrder, isActive } from "@/lib/crm/entity-queue"
 import { TASK_TYPES } from "@/lib/crm/entity-store"
 import { getWorkflowStageRule } from "@/lib/crm/workflow-rules"
 import { useAuthorization } from "@/lib/crm/authorization-context"
+import { hasManualOrder, sortWithManualOrder } from "@/lib/crm/manual-order"
+import { SortableColumn, SortableColumns, SortableItem } from "@/components/crm/sortable-columns"
 
 const BOARDS: { id: CaseBoard; labelKey: DictionaryKey }[] = [
   { id: "leads", labelKey: "board_lead" },
   { id: "deals", labelKey: "board_deal" },
   { id: "patients", labelKey: "board_patient_care" },
 ]
+
+const listKey = (board: CaseBoard, columnId: string) => `cases:${board}:${columnId}`
 
 function formatDueIn(minutes: number) {
   if (minutes < 60) return `${minutes} min`
@@ -47,13 +51,12 @@ export function KanbanBoard() {
   const [doctor, setDoctor] = useState<string>("all")
   const [service, setService] = useState<string>("all")
   const [assignee, setAssignee] = useState<string>("all")
-  const [dragCaseId, setDragCaseId] = useState<string | null>(null)
   const [pendingTransition, setPendingTransition] = useState<PendingStageTransition | null>(null)
-  const { cases, tasks, patients, identities, moveCase, currentUser } = useScopedEntityStore()
+  const { cases, tasks, patients, identities, moveCase, currentUser, manualOrder, saveManualOrder, clearManualOrder } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const { hasPermission } = useAuthorization()
-  const { t } = useLanguage()
+  const { t, tr } = useLanguage()
   const actorId = currentUser.id
   const canMoveCase = hasPermission("case:move")
 
@@ -82,16 +85,18 @@ export function KanbanBoard() {
       if (!map[c.status]) map[c.status] = []
       map[c.status].push(c)
     }
-    for (const columnCases of Object.values(map)) {
-      columnCases.sort((a, b) => compareCaseWorkOrder(a, b, tasks, nowMs))
+    for (const [columnId, columnCases] of Object.entries(map)) {
+      map[columnId] = sortWithManualOrder(columnCases, manualOrder[listKey(board, columnId)], item => item.id, (a, b) => compareCaseWorkOrder(a, b, tasks, nowMs))
     }
     return map
-  }, [board, cases, patients, identities, tasks, columns, query, clinic, doctor, service, assignee])
+  }, [board, cases, patients, identities, tasks, columns, query, clinic, doctor, service, assignee, manualOrder])
 
-  function handleDrop(columnId: string) {
-    const engagementCase = cases.find((item) => item.id === dragCaseId)
-    if (engagementCase && engagementCase.status !== columnId && canMoveCase) setPendingTransition({ caseId: engagementCase.id, newStatus: columnId })
-    setDragCaseId(null)
+  const reorderDisabled = activeFilterCount > 0 || query !== ""
+  const boardHasManualOrder = hasManualOrder(manualOrder, listKey(board, ""))
+  const columnIds = Object.fromEntries(Object.entries(casesByColumn).map(([columnId, items]) => [columnId, items.map(item => item.id)]))
+
+  function handleMove(caseId: string, _from: string, columnId: string) {
+    if (canMoveCase) setPendingTransition({ caseId, newStatus: columnId })
   }
 
   return (
@@ -107,7 +112,17 @@ export function KanbanBoard() {
           </TabsList>
         </Tabs>
 
-        <div className="relative ml-auto w-56">
+        <span className="ml-auto hidden text-xs text-muted-foreground xl:inline">
+          {reorderDisabled
+            ? tr("Zmiana kolejności jest wyłączona przy aktywnych filtrach.", "Изменение порядка отключено при активных фильтрах.")
+            : tr("Przeciągnij uchwyt, aby zmienić kolejność kart. Priorytet i etap się nie zmieniają.", "Перетащите маркер, чтобы изменить порядок карточек. Приоритет и этап не меняются.")}
+        </span>
+        {boardHasManualOrder && (
+          <Button variant="outline" size="sm" className="h-8" onClick={() => clearManualOrder(listKey(board, ""))}>
+            {tr("Przywróć kolejność automatyczną", "Вернуть автоматический порядок")}
+          </Button>
+        )}
+        <div className="relative w-56">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -223,15 +238,27 @@ export function KanbanBoard() {
       </div>
 
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <SortableColumns
+          id={`board-${board}`}
+          columns={columnIds}
+          reorderDisabled={reorderDisabled}
+          onReorder={(columnId, orderedIds) => saveManualOrder(listKey(board, columnId), orderedIds)}
+          onMove={handleMove}
+          renderOverlay={(caseId) => {
+            const engagementCase = cases.find((item) => item.id === caseId)
+            return engagementCase ? <EntityCaseCard engagementCase={engagementCase} tasks={tasks.filter((item) => item.caseId === caseId)} /> : null
+          }}
+        >
         <div className="flex h-full min-w-max gap-3 p-4 md:p-6">
           {columns.map((col) => {
             const colorClass = COLOR_CLASSES[col.color]
             const columnCases = casesByColumn[col.id] ?? []
             return (
-              <div
+              <SortableColumn
                 key={col.id}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => handleDrop(col.id)}
+                columnId={col.id}
+                ids={columnIds[col.id] ?? []}
+                overClassName="ring-2 ring-primary/40"
                 className="flex h-full w-72 shrink-0 flex-col rounded-lg bg-muted/40"
               >
                 <div className={cn("flex items-center justify-between rounded-t-lg px-3 py-2.5", colorClass.header)}>
@@ -243,14 +270,20 @@ export function KanbanBoard() {
                 </div>
                 <div className="flex-1 space-y-2 overflow-y-auto px-2 pb-3 pt-2">
                   {columnCases.map((c) => (
-                    <EntityCaseCard
-                      key={c.id}
-                      engagementCase={c}
-                      tasks={tasks.filter((t) => t.caseId === c.id)}
-                      draggable={canMoveCase}
-                      onDragStart={() => canMoveCase && setDragCaseId(c.id)}
-                      onClick={() => openCase(c.id)}
-                    />
+                    <SortableItem key={c.id} id={c.id} handleLabel={tr("Zmień kolejność karty", "Изменить порядок карточки")}>
+                      {(handle) => (
+                        <div className="flex items-start gap-1">
+                          <div className="pt-2">{handle}</div>
+                          <div className="min-w-0 flex-1">
+                            <EntityCaseCard
+                              engagementCase={c}
+                              tasks={tasks.filter((t) => t.caseId === c.id)}
+                              onClick={() => openCase(c.id)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </SortableItem>
                   ))}
                   {columnCases.length === 0 && (
                     <div className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
@@ -258,10 +291,11 @@ export function KanbanBoard() {
                     </div>
                   )}
                 </div>
-              </div>
+              </SortableColumn>
             )
           })}
         </div>
+        </SortableColumns>
       </div>
 
       <StageTransitionDialog pending={pendingTransition} onClose={() => setPendingTransition(null)} />

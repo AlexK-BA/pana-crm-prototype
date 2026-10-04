@@ -84,10 +84,11 @@ interface EntityStoreValue {
   changeTask: (id: string, input: TaskChangeInput, access?: MatchingAccess) => Task
 
   tasks: Task[]
-  /** Per-user manual queue order (userId → taskId → rank). Presentation only; never changes priority. */
-  manualTaskOrder: Record<string, Record<string, number>>
-  saveManualTaskOrder: (actorId: string, orderedTaskIds: string[]) => void
-  clearManualTaskOrder: (actorId: string) => void
+  /** Per-user manual list order (userId → listKey → itemId → rank). Presentation only; never changes priority or stage. */
+  manualOrder: Record<string, Record<string, Record<string, number>>>
+  saveManualOrder: (actorId: string, listKey: string, orderedIds: string[]) => void
+  /** Clears one list, every list whose key starts with `listKeyPrefix`, or all lists of the user when omitted. */
+  clearManualOrder: (actorId: string, listKeyPrefix?: string) => void
   cases: EngagementCase[]
   auditEvents: AuditEvent[]
   interactions: (Interaction | Call)[]
@@ -285,12 +286,17 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const [matchDecisions, setMatchDecisions] = useState<MatchDecision[]>([])
   const matchingState = useRef({ cases, patients, identities, matchDecisions })
   matchingState.current = { cases, patients, identities, matchDecisions }
-  const [manualTaskOrder, setManualTaskOrder] = useState<Record<string, Record<string, number>>>({})
-  const saveManualTaskOrder = useCallback((actorId: string, orderedTaskIds: string[]) => {
-    setManualTaskOrder(prev => ({ ...prev, [actorId]: { ...prev[actorId], ...Object.fromEntries(orderedTaskIds.map((id, index) => [id, index])) } }))
+  const [manualOrder, setManualOrder] = useState<Record<string, Record<string, Record<string, number>>>>({})
+  const saveManualOrder = useCallback((actorId: string, listKey: string, orderedIds: string[]) => {
+    setManualOrder(prev => ({ ...prev, [actorId]: { ...prev[actorId], [listKey]: { ...prev[actorId]?.[listKey], ...Object.fromEntries(orderedIds.map((id, index) => [id, index])) } } }))
   }, [])
-  const clearManualTaskOrder = useCallback((actorId: string) => {
-    setManualTaskOrder(prev => { const { [actorId]: _removed, ...rest } = prev; return rest })
+  const clearManualOrder = useCallback((actorId: string, listKeyPrefix?: string) => {
+    setManualOrder(prev => {
+      const { [actorId]: userLists, ...rest } = prev
+      if (!userLists || listKeyPrefix === undefined) return rest
+      const remaining = Object.fromEntries(Object.entries(userLists).filter(([key]) => !key.startsWith(listKeyPrefix)))
+      return Object.keys(remaining).length ? { ...rest, [actorId]: remaining } : rest
+    })
   }, [])
   const [comments, setComments] = useState<Comment[]>(COMMENTS ?? [])
   const [readAt, setReadAt] = useState<Record<string, string>>({})
@@ -1221,9 +1227,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       tasks,
-      manualTaskOrder,
-      saveManualTaskOrder,
-      clearManualTaskOrder,
+      manualOrder,
+      saveManualOrder,
+      clearManualOrder,
       cases,
       auditEvents,
       interactions,
@@ -1315,9 +1321,9 @@ export function EntityStoreProvider({ children }: { children: ReactNode }) {
       sendTreatmentPlanTask,
       sendBroadcast,
       linkDuplicateCase,
-      manualTaskOrder,
-      saveManualTaskOrder,
-      clearManualTaskOrder,
+      manualOrder,
+      saveManualOrder,
+      clearManualOrder,
     ],
   )
 
