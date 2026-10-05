@@ -70,6 +70,21 @@ test('Patient 360 uses the active PL/RU language for its workspace and actions',
   assert.match(profile, /tr\("Źródło pierwszego kontaktu \(niezmienne\)", "Источник первого контакта \(неизменяемый\)"\)/)
   assert.match(profile, /formatRelative\(latest, language\)/)
   assert.match(profile, /taskTypeLabel\(taskType\(task\), language\)/)
+  assert.match(profile, /channelText\(item\.channel, language\)/)
+  assert.match(profile, /taskStatusText\(task\.status, language\)/)
   assert.match(actions, /tr\("Utwórz zadanie", "Создать задачу"\)/)
   assert.match(actions, /taskTypeLabel\(type, language\)/)
+})
+
+test('Patient 360 seed workflow tasks retain canonical metadata for localized labels', () => {
+  const data = fs.readFileSync('lib/crm/entity-data.ts', 'utf8')
+  assert.match(data, /id: "task-11"[\s\S]*?type: "waitlist_contact", source: "workflow", mandatory: true/)
+  assert.match(data, /workflowRuleId: "leads\.waiting\.offer-slot"/)
+})
+
+test('command palette follows the active PL/RU language', () => {
+  const palette = fs.readFileSync('components/crm/command-palette.tsx', 'utf8')
+  assert.match(palette, /useLanguage\(\)/)
+  assert.match(palette, /tr\("Paleta poleceń", "Палитра команд"\)/)
+  assert.match(palette, /tr\("Szukaj spraw, pacjentów, numerów telefonu\.\.\.\", "Искать кейсы, пациентов, номера телефонов\.\.\.\"\)/)
 })
