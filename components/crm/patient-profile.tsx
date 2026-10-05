@@ -77,6 +77,7 @@ function PatientWorkspace({ patientId }: { patientId: string }) {
   const address = patient.address ? [patient.address.line1, patient.address.line2, `${patient.address.postalCode} ${patient.address.city}`, patient.address.countryCode].filter(Boolean).join(", ") : tr("Brak danych", "Нет данных")
   const currentMatches = view.matches.filter(item => ["pending", "conflict"].includes(item.status))
   const taskTitle = (task: typeof view.tasks[number]) => task.source === "workflow" || task.workflowRuleId ? taskTypeLabel(taskType(task), language) : task.title
+  const taskDescription = (task: typeof view.tasks[number]) => task.source === "workflow" || task.workflowRuleId ? taskTypeLabel(taskType(task), language) : task.description
   function command(work: () => void) { try { setError(""); setNotice(""); work() } catch (error) { setError(error instanceof Error ? error.message : tr("Nie udało się wykonać operacji.", "Не удалось выполнить операцию.")) } }
   function communication(caseId = primaryCase?.id ?? "", sms = false) { setCommunicationCase(caseId); setCommunicationSms(sms); setSection("communications") }
   const detail = (label: string, value: React.ReactNode) => <div className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 break-words text-sm">{value || tr("Brak danych", "Нет данных")}</dd></div>
@@ -143,7 +144,7 @@ function PatientWorkspace({ patientId }: { patientId: string }) {
           return <section key={group} className="space-y-2"><h3 className="font-semibold">{localized(label)} ({tasks.length})</h3>{tasks.map(task => <article key={task.id} className="space-y-2 rounded border p-3 text-sm">
             <div className="flex flex-wrap justify-between gap-2"><strong>{task.priority} · {taskTitle(task)}</strong><span>{task.dueAt ? dateTime(task.dueAt) : tr("Bez terminu", "Без срока")}</span></div>
             <p>{task.caseId} · {taskStatusText(task.status, language)} · {tr("odpowiedzialny", "ответственный")}: {actor(task.ownerId)} · {tr("typ", "тип")}: {taskTypeText(taskType(task), language)} · {tr("wymaga telefonu", "нужен звонок")}: {task.requiresCall ? tr("Tak", "Да") : tr("Nie", "Нет")} · {tr("próby", "попытки")}: {task.attempts}</p>
-            <p className="text-sm text-muted-foreground">{task.description}</p><TaskActions task={task}/><p>{tr("Ostatnie", "Последнее")}: {task.outcome ?? task.skipReason ?? tr("Brak wyniku", "Нет результата")} · {tr("Następne", "Следующее")}: {["completed", "cancelled", "failed"].includes(task.status) ? tr("Zachowane w historii", "Сохранено в истории") : task.requiresCall ? tr("Połączenie + wynik w podsumowaniu", "Звонок + результат в итогах") : task.title}</p>
+            <p className="text-sm text-muted-foreground">{taskDescription(task)}</p><TaskActions task={task}/><p>{tr("Ostatnie", "Последнее")}: {task.outcome ?? task.skipReason ?? tr("Brak wyniku", "Нет результата")} · {tr("Następne", "Следующее")}: {["completed", "cancelled", "failed"].includes(task.status) ? tr("Zachowane w historii", "Сохранено в истории") : task.requiresCall ? tr("Połączenie + wynik w podsumowaniu", "Звонок + результат в итогах") : taskTitle(task)}</p>
             <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openCase(task.caseId)}>{tr("Sprawa", "Кейс")}</Button>
 
             </div>
