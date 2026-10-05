@@ -68,6 +68,8 @@ test('Patient 360 uses the active PL/RU language for its workspace and actions',
   assert.match(profile, /tr\("Oś aktywności", "Хронология активности"\)/)
   assert.match(profile, /tr\("Patient 360 · podsumowanie", "Patient 360 · сводка"\)/)
   assert.match(profile, /tr\("Źródło pierwszego kontaktu \(niezmienne\)", "Источник первого контакта \(неизменяемый\)"\)/)
+  assert.match(profile, /formatRelative\(latest, language\)/)
+  assert.match(profile, /taskTypeLabel\(taskType\(task\), language\)/)
   assert.match(actions, /tr\("Utwórz zadanie", "Создать задачу"\)/)
   assert.match(actions, /taskTypeLabel\(type, language\)/)
 })
