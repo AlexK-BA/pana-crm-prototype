@@ -60,3 +60,14 @@ test('manual ordering stays presentational and filtered boards cannot move cards
   assert.match(board, /disabled=\{!canMoveCase \|\| reorderDisabled\}/)
   assert.match(columns, /if \(reorderDisabled\) return/)
 })
+
+test('Patient 360 uses the active PL/RU language for its workspace and actions', () => {
+  const profile = fs.readFileSync('components/crm/patient-profile.tsx', 'utf8')
+  const actions = fs.readFileSync('components/crm/patient-360-actions.tsx', 'utf8')
+  assert.match(profile, /tr\("Przegląd", "Обзор"\)/)
+  assert.match(profile, /tr\("Oś aktywności", "Хронология активности"\)/)
+  assert.match(profile, /tr\("Patient 360 · podsumowanie", "Patient 360 · сводка"\)/)
+  assert.match(profile, /tr\("Źródło pierwszego kontaktu \(niezmienne\)", "Источник первого контакта \(неизменяемый\)"\)/)
+  assert.match(actions, /tr\("Utwórz zadanie", "Создать задачу"\)/)
+  assert.match(actions, /taskTypeLabel\(type, language\)/)
+})
