@@ -14,6 +14,7 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { ChannelIcon, type ChannelPlatform } from "@/components/crm/channel-icon"
 import { useAuthorization } from "@/lib/crm/authorization-context"
+import { useLanguage } from "@/lib/crm/language-context"
 
 const ICON_CHANNELS: ChannelPlatform[] = ["instagram", "telegram", "whatsapp", "website", "phone"]
 
@@ -23,6 +24,7 @@ export function CommandPalette() {
   const { openCase } = useCasePanel()
   const { cases, patients, identities } = useScopedEntityStore()
   const { hasPermission, canAccessRoute } = useAuthorization()
+  const { tr } = useLanguage()
   const canViewCases = hasPermission("case:view")
 
   useEffect(() => {
@@ -37,22 +39,22 @@ export function CommandPalette() {
   }, [])
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Szukaj spraw, pacjentów, numerów telefonu..." />
+    <CommandDialog open={open} onOpenChange={setOpen} title={tr("Paleta poleceń", "Палитра команд")} description={tr("Wyszukaj polecenie do uruchomienia...", "Найдите команду для запуска...")}>
+      <CommandInput placeholder={tr("Szukaj spraw, pacjentów, numerów telefonu...", "Искать кейсы, пациентов, номера телефонов...")} />
       <CommandList>
-        <CommandEmpty>Nie znaleziono wyników.</CommandEmpty>
-        <CommandGroup heading="Nawigacja">
-          <CommandItem onSelect={() => { router.push("/"); setOpen(false) }}>Strona główna</CommandItem>
-          {canAccessRoute("/board") && <CommandItem onSelect={() => { router.push("/board"); setOpen(false) }}>Tablica CRM</CommandItem>}
-          {canAccessRoute("/inbox") && <CommandItem onSelect={() => { router.push("/inbox"); setOpen(false) }}>Skrzynka odbiorcza</CommandItem>}
+        <CommandEmpty>{tr("Nie znaleziono wyników.", "Ничего не найдено.")}</CommandEmpty>
+        <CommandGroup heading={tr("Nawigacja", "Навигация")}>
+          <CommandItem onSelect={() => { router.push("/"); setOpen(false) }}>{tr("Strona główna", "Главная")}</CommandItem>
+          {canAccessRoute("/board") && <CommandItem onSelect={() => { router.push("/board"); setOpen(false) }}>{tr("Tablica CRM", "Доска CRM")}</CommandItem>}
+          {canAccessRoute("/inbox") && <CommandItem onSelect={() => { router.push("/inbox"); setOpen(false) }}>{tr("Skrzynka odbiorcza", "Входящие")}</CommandItem>}
         </CommandGroup>
-        {canViewCases && <CommandGroup heading="Sprawy">
+        {canViewCases && <CommandGroup heading={tr("Sprawy", "Кейсы")}>
           {cases.slice(0, 12).map((engagementCase) => {
             const patient = patients.find((item) => item.id === engagementCase.patientId)
             const identity = identities.find((item) => item.id === engagementCase.contactIdentityId)
             const displayName = patient
               ? `${patient.firstName} ${patient.lastName}`
-              : identity?.displayName ?? "Nierozpoznany kontakt"
+              : identity?.displayName ?? tr("Nierozpoznany kontakt", "Неизвестный контакт")
             const platform: ChannelPlatform = identity && ICON_CHANNELS.includes(identity.channel as ChannelPlatform)
               ? identity.channel as ChannelPlatform
               : "internal"
