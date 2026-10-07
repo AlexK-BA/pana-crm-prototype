@@ -13,8 +13,7 @@ export interface Clinic {
   name: string
   /**
    * Tailwind color family used consistently across every list/kanban/card
-   * surface: PaNa Medica = green, PaNa Comfort = beige/amber, PaNa
-   * International = blue. Cases with no clinicId yet render neutral/white.
+   * surface: first clinic = green, second = beige/amber, third = blue. Cases with no clinicId yet render neutral/white.
    */
   color: "emerald" | "amber" | "sky"
 }
@@ -34,7 +33,7 @@ export interface Procedure {
   durationMin?: number
 }
 
-/** State of the link between a local record and PaNa's medical CRM (source of truth for patients). */
+/** State of the link between a local record and the external medical CRM (source of truth for patients). */
 export type IntegrationState =
   | "linked"
   | "match_suggested"
@@ -43,7 +42,7 @@ export type IntegrationState =
   | "sync_failed"
   | "unlinked"
 
-export type DataProvenanceSource = "PaNa CRM" | "Local CRM" | "Channel" | "User-entered"
+export type DataProvenanceSource = "Medical CRM" | "Local CRM" | "Channel" | "User-entered"
 
 export interface ProvenanceField {
   field: string

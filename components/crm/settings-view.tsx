@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { BOARD_LABEL_KEYS, BOARD_COLUMNS, COLOR_CLASSES } from "@/lib/crm/boards"
 import { CLINICS, PROCEDURES, DOCTORS, CLINIC_TONE } from "@/lib/crm/catalog"
+import { BRAND_CONFIG } from "@/lib/crm/brand-config"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,7 +33,7 @@ const INITIAL_KB: KbArticle[] = [
   {
     id: "kb-1",
     question: "Jakie są godziny otwarcia kliniki?",
-    answer: "Kliniki PaNa Medica są otwarte od poniedziałku do piątku 8:00–20:00, w soboty 9:00–15:00.",
+    answer: "Nasze kliniki są otwarte od poniedziałku do piątku 8:00–20:00, w soboty 9:00–15:00.",
     category: "Ogólne",
     uses: 142,
   },
@@ -46,7 +47,7 @@ const INITIAL_KB: KbArticle[] = [
   {
     id: "kb-3",
     question: "Czy przyjmujecie pacjentów z NFZ?",
-    answer: "PaNa Medica działa w modelu prywatnym — nie realizujemy świadczeń w ramach NFZ.",
+    answer: "Klinika działa w modelu prywatnym — nie realizujemy świadczeń w ramach NFZ.",
     category: "Płatności",
     uses: 54,
   },
@@ -55,7 +56,7 @@ const INITIAL_KB: KbArticle[] = [
 let kbSeq = INITIAL_KB.length
 
 const INITIAL_SOURCES = [
-  { id: "src-web", name: "pa-na.pl", type: "WWW", scope: "Wszystkie kliniki", items: 84, status: "Gotowe" },
+  { id: "src-web", name: BRAND_CONFIG.contactDomain, type: "WWW", scope: "Wszystkie kliniki", items: 84, status: "Gotowe" },
   { id: "src-prices", name: "Cenniki i procedury", type: "Dokumenty", scope: "Według kliniki", items: 12, status: "Gotowe" },
   { id: "src-doctors", name: "Lekarze i specjalizacje", type: "Medical CRM", scope: "Według kliniki", items: 26, status: "Synchronizacja" },
 ]
@@ -67,7 +68,7 @@ export function SettingsView() {
   const [section, setSection] = useState<"operations" | "access" | "communications" | "ai">("operations")
 
   const [botEnabled, setBotEnabled] = useState(true)
-  const [botName, setBotName] = useState("PaNa Assistant")
+  const [botName, setBotName] = useState<string>(BRAND_CONFIG.botName)
   const [botHours, setBotHours] = useState("Pon–Pt 8:00–20:00, Sob 9:00–15:00")
   const [autoReply, setAutoReply] = useState(true)
   const [escalationThreshold, setEscalationThreshold] = useState("3")

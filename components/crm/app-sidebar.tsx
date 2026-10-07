@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
+import { BRAND_CONFIG } from "@/lib/crm/brand-config"
 import { RoleSwitcher } from "@/components/crm/role-switcher"
 import {
   LayoutDashboard,
@@ -58,7 +59,7 @@ export function AppSidebar({ mobile = false, onNavigate }: { mobile?: boolean; o
           <Stethoscope className="h-4 w-4" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-semibold text-sidebar-foreground">PaNa Medica</div>
+          <div className="text-sm font-semibold text-sidebar-foreground">{BRAND_CONFIG.appName}</div>
           <div className="text-[11px] text-muted-foreground">
             {t(profile.labelKey)} {t("workspace_suffix")}
           </div>

@@ -1,4 +1,5 @@
 import type { ClinicId, SmsMessage, SmsProviderCapabilities, SmsProviderConfiguration } from "./entities"
+import { BRAND_CONFIG } from "./brand-config"
 
 const EMULATOR_CAPABILITIES: SmsProviderCapabilities = {
   outboundSms: true,
@@ -42,25 +43,25 @@ export function getSmsProviderCapabilities(provider: SmsProviderConfiguration["p
 export const INITIAL_SMS_PROVIDER_CONFIGS: SmsProviderConfiguration[] = [
   {
     id: "sms-pm-emulator",
-    name: "PaNa Medica · SMS emulator",
+    name: `${BRAND_CONFIG.clinicNames["pana-medica"]} · SMS emulator`,
     providerType: "emulator",
     clinicId: "pana-medica",
     enabled: true,
     senderMode: "sender_name",
-    senderValue: "PaNaMedica",
-    defaultMessageText: "Dzień dobry, tu PaNa Medica. Prosimy o kontakt z recepcją. Dziękujemy!",
+    senderValue: BRAND_CONFIG.smsSenderName,
+    defaultMessageText: `Dzień dobry, tu ${BRAND_CONFIG.clinicNames["pana-medica"]}. Prosimy o kontakt z recepcją. Dziękujemy!`,
     mode: "emulation",
     capabilities: EMULATOR_CAPABILITIES,
   },
   {
     id: "sms-pc-supervoip",
-    name: "PaNa Comfort · SuperVoIP",
+    name: `${BRAND_CONFIG.clinicNames["pana-comfort"]} · SuperVoIP`,
     providerType: "supervoip",
     clinicId: "pana-comfort",
     enabled: true,
     senderMode: "owned_number",
     senderValue: "+48 61 000 00 02",
-    defaultMessageText: "Dzień dobry, tu PaNa Comfort. Prosimy o kontakt z recepcją. Dziękujemy!",
+    defaultMessageText: `Dzień dobry, tu ${BRAND_CONFIG.clinicNames["pana-comfort"]}. Prosimy o kontakt z recepcją. Dziękujemy!`,
     mode: "emulation",
     inboundNumber: "+48 61 000 00 02",
     capabilities: SUPERVOIP_CAPABILITIES,
@@ -72,7 +73,7 @@ export const INITIAL_SMS_PROVIDER_CONFIGS: SmsProviderConfiguration[] = [
     enabled: true,
     isDefault: true,
     senderMode: "sender_name",
-    senderValue: "PaNa",
+    senderValue: BRAND_CONFIG.smsSenderName,
     defaultMessageText: "Dzień dobry, prosimy o kontakt z recepcją. Dziękujemy!",
     mode: "emulation",
     capabilities: SMSAPI_CAPABILITIES,

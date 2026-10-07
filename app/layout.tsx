@@ -1,11 +1,12 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { CrmProviders } from '@/components/crm/providers'
+import { BRAND_CONFIG } from '@/lib/crm/brand-config'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'PaNa Medica CRM',
-  description: 'Operator workspace prototype for the PaNa Medica dental CRM',
+  title: BRAND_CONFIG.appName,
+  description: BRAND_CONFIG.appDescription,
   generator: 'v0.app',
   icons: {
     icon: [
@@ -40,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme={BRAND_CONFIG.theme}>
       <body className="antialiased">
         <CrmProviders>{children}</CrmProviders>
         {process.env.NODE_ENV === 'production' && <Analytics />}

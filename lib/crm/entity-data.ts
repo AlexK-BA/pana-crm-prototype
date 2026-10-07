@@ -21,6 +21,7 @@ import type {
 } from "./entities"
 import { INITIAL_USERS } from "./user-catalog"
 import { DEMO_REFERENCE_MS } from "./demo-fixtures"
+import { BRAND_CONFIG } from "./brand-config"
 
 const HOUR = 1000 * 60 * 60
 // Fixed reference instant (not Date.now()) so every seeded timestamp is
@@ -73,8 +74,8 @@ export const PATIENTS: Patient[] = [
         treatmentPlanId: "tp-01", startsAt: iso(-720), endsAt: iso(-719), status: "completed", source: "medical_crm", lastSyncAt: iso(-2) },
     ],
     provenance: [
-      { field: "firstName", source: "PaNa CRM", value: "Marek", updatedAt: iso(-2) },
-      { field: "lastName", source: "PaNa CRM", value: "Nowicki", updatedAt: iso(-2) },
+      { field: "firstName", source: "Medical CRM", value: "Marek", updatedAt: iso(-2) },
+      { field: "lastName", source: "Medical CRM", value: "Nowicki", updatedAt: iso(-2) },
       { field: "phone", source: "Channel", value: "+48 611 924 357", updatedAt: iso(-120) },
     ],
     treatmentPlan: {
@@ -106,7 +107,7 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-6),
     careOwnerId: ILONA,
     contactable: true,
-    provenance: [{ field: "phone", source: "PaNa CRM", value: "+48 712 483 209", updatedAt: iso(-6) }],
+    provenance: [{ field: "phone", source: "Medical CRM", value: "+48 712 483 209", updatedAt: iso(-6) }],
   },
   {
     id: "pat-03",
@@ -132,7 +133,7 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-24),
     careOwnerId: PAVEL,
     contactable: true,
-    provenance: [{ field: "email", source: "PaNa CRM", value: "o.melnychuk@example.com", updatedAt: iso(-24) }],
+    provenance: [{ field: "email", source: "Medical CRM", value: "o.melnychuk@example.com", updatedAt: iso(-24) }],
   },
   // Scenario 15: data conflict between local name and medical CRM name.
   {
@@ -161,7 +162,7 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-3),
     careOwnerId: ILONA,
     contactable: true,
-    provenance: [{ field: "phone", source: "PaNa CRM", value: "+48 936 214 507", updatedAt: iso(-3) }],
+    provenance: [{ field: "phone", source: "Medical CRM", value: "+48 936 214 507", updatedAt: iso(-3) }],
   },
   // Scenario 25: medical CRM sync failed but local task remains workable.
   {
@@ -175,7 +176,7 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-30),
     careOwnerId: PAVEL,
     contactable: true,
-    provenance: [{ field: "phone", source: "PaNa CRM", value: "+48 863 402 118", updatedAt: iso(-30) }],
+    provenance: [{ field: "phone", source: "Medical CRM", value: "+48 863 402 118", updatedAt: iso(-30) }],
   },
   // Scenario 14: new patient synced from medical CRM, existing cases get assigned to it.
   {
@@ -189,7 +190,7 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-0.5),
     careOwnerId: DANIEL,
     contactable: true,
-    provenance: [{ field: "firstName", source: "PaNa CRM", value: "Yauhen", updatedAt: iso(-0.5) }],
+    provenance: [{ field: "firstName", source: "Medical CRM", value: "Yauhen", updatedAt: iso(-0.5) }],
   },
   {
     id: "pat-09",
@@ -202,7 +203,7 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-260),
     careOwnerId: ILONA,
     contactable: true,
-    provenance: [{ field: "phone", source: "PaNa CRM", value: "+48 775 903 261", updatedAt: iso(-260) }],
+    provenance: [{ field: "phone", source: "Medical CRM", value: "+48 775 903 261", updatedAt: iso(-260) }],
     treatmentPlan: {
       id: "tp-09",
       status: "in_progress",
@@ -225,7 +226,7 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-284),
     careOwnerId: PAVEL,
     contactable: true,
-    provenance: [{ field: "phone", source: "PaNa CRM", value: "+48 774 520 869", updatedAt: iso(-284) }],
+    provenance: [{ field: "phone", source: "Medical CRM", value: "+48 774 520 869", updatedAt: iso(-284) }],
   },
   {
     id: "pat-11",
@@ -250,7 +251,7 @@ export const PATIENTS: Patient[] = [
     lastSyncAt: iso(-5),
     careOwnerId: PAVEL,
     contactable: true,
-    provenance: [{ field: "phone", source: "PaNa CRM", value: "+48 683 527 419", updatedAt: iso(-5) }],
+    provenance: [{ field: "phone", source: "Medical CRM", value: "+48 683 527 419", updatedAt: iso(-5) }],
   },
 ]
 
@@ -281,7 +282,7 @@ export const CONTACT_IDENTITIES: ContactIdentity[] = [
   { id: "ci-12", patientId: "pat-12", channel: "instagram", value: "zhukouski.a", isPrimary: true, verified: true },
   // Scenario 18: incoming unknown number, no patient/contact yet.
   { id: "ci-13", patientId: undefined, channel: "phone", value: "+48 592 817 364", isPrimary: true, verified: false },
-  // Scenario 32: PaNa International direct-form intake.
+  // Scenario 32: International direct-form intake.
   { id: "ci-14", patientId: undefined, channel: "website", value: "form:international-2026-09", isPrimary: true, verified: false },
   // Fresh Instagram DM, not yet triaged into any clinic — renders as a
   // neutral/white card everywhere until an operator assigns a clinic.
@@ -467,7 +468,7 @@ export const ENGAGEMENT_CASES: EngagementCase[] = [
     createdAt: iso(-96),
     attribution: attribution(touch({ type: "first_touch", source: "Instagram Ads", channel: "instagram", campaign: "restor_summer", language: "be", clinicIntentId: "pana-comfort", at: iso(-96), sourceRecordId: "ig-lead-77213" })),
   },
-  // Scenario 32: PaNa International direct-form intake (no Google Sheets bridge).
+  // Scenario 32: International direct-form intake (no Google Sheets bridge).
   {
     id: "case-1103",
     patientId: undefined,
@@ -479,7 +480,7 @@ export const ENGAGEMENT_CASES: EngagementCase[] = [
     doctorId: "doc-lisowska",
     responsibleTeamId: DANIEL,
     createdAt: iso(-3),
-    attribution: attribution(touch({ type: "first_touch", source: "PaNa International Website Form", channel: "website", language: "pl", clinicIntentId: "pana-international", at: iso(-3), sourceRecordId: "web-intl-99201" })),
+    attribution: attribution(touch({ type: "first_touch", source: "International Website Form", channel: "website", language: "pl", clinicIntentId: "pana-international", at: iso(-3), sourceRecordId: "web-intl-99201" })),
   },
   {
     id: "case-1104",
@@ -800,7 +801,7 @@ export const INTERACTIONS: (Interaction | Call | SmsMessage)[] = [
   {
     id: "int-12", caseId: "case-1012", type: "social", channel: "instagram", direction: "outgoing", at: iso(-0.04),
     contactIdentityId: "ci-15", authorId: "bot-pana", senderKind: "bot",
-    text: "Cześć! Jestem wirtualnym asystentem PaNa. Mogę przekazać aktualne informacje organizacyjne o wybielaniu i połączyć Cię z konsultantem.",
+    text: "Cześć! Jestem wirtualnym asystentem kliniki. Mogę przekazać aktualne informacje organizacyjne o wybielaniu i połączyć Cię z konsultantem.",
     aiTrace: {
       runId: "ai-run-demo-1012", modelProvider: "demo", modelName: "kb-assistant", modelVersion: "prototype-1",
       policyId: "ai-policy-global-v1", policyVersion: 1, promptTemplateId: "administrative-chat", promptTemplateVersion: 1,
@@ -812,7 +813,7 @@ export const INTERACTIONS: (Interaction | Call | SmsMessage)[] = [
   {
     id: "sms-01", caseId: "case-1001", patientId: "pat-01", type: "sms", channel: "phone", direction: "outgoing",
     at: iso(-20), authorId: WERONIKA, text: "Dzień dobry, przypominamy o kontakcie w sprawie planu leczenia.",
-    recipient: "+48 611 924 357", sender: "PaNaMedica", providerType: "emulator", providerConfigurationId: "sms-pm-emulator",
+    recipient: "+48 611 924 357", sender: BRAND_CONFIG.smsSenderName, providerType: "emulator", providerConfigurationId: "sms-pm-emulator",
     providerMessageId: "emulator-sms-01", deliveryStatus: "delivered", providerStatus: "DELIVERED", partsCount: 1,
     submittedAt: iso(-20), deliveredAt: iso(-19.99),
   } as SmsMessage,
@@ -826,7 +827,7 @@ export const INTERACTIONS: (Interaction | Call | SmsMessage)[] = [
   {
     id: "sms-demo-incoming", patientId: "pat-01", clinicId: "pana-medica", type: "sms", channel: "phone", direction: "incoming",
     at: iso(-2), text: "Dziękuję za wiadomość. Skontaktuję się z recepcją. (demo)",
-    recipient: "PaNaMedica", sender: "+48 611 924 357", providerType: "emulator", providerConfigurationId: "sms-pm-emulator",
+    recipient: BRAND_CONFIG.smsSenderName, sender: "+48 611 924 357", providerType: "emulator", providerConfigurationId: "sms-pm-emulator",
     providerMessageId: "demo-incoming-01", deliveryStatus: "received", partsCount: 1,
   } as SmsMessage,
 
@@ -893,8 +894,8 @@ export const BROADCASTS: Broadcast[] = [
     id: "bc-01",
     name: "Przypomnienie o wizytach kontrolnych — wrzesień",
     channel: "sms",
-    message: "Cześć {{imię}}! Przypominamy o kontrolnej wizycie w PaNa Medica. Odpowiedz TAK, aby potwierdzić.",
-    audienceLabel: "PaNa Medica · sprawy Patient Care",
+    message: "Cześć {{imię}}! Przypominamy o kontrolnej wizycie w naszej klinice. Odpowiedz TAK, aby potwierdzić.",
+    audienceLabel: `${BRAND_CONFIG.clinicNames["pana-medica"]} · sprawy Patient Care`,
     clinicId: "pana-medica",
     recipientCount: 42,
     status: "sent",
@@ -906,7 +907,7 @@ export const BROADCASTS: Broadcast[] = [
     name: "Lista oczekujących — wolny termin implantologia",
     channel: "sms",
     message: "Dzień dobry {{imię}}, zwolnił się termin u dr. Yanushkevich. Zadzwoń, aby zarezerwować.",
-    audienceLabel: "PaNa Medica · lista oczekujących",
+    audienceLabel: `${BRAND_CONFIG.clinicNames["pana-medica"]} · lista oczekujących`,
     clinicId: "pana-medica",
     recipientCount: 6,
     status: "sent",
