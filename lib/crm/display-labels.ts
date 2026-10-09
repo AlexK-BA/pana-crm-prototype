@@ -38,6 +38,7 @@ const CHANNEL: Record<string, Record<Language, string>> = {
   whatsapp: { pl: "WhatsApp", ru: "WhatsApp" },
   instagram: { pl: "Instagram", ru: "Instagram" },
   facebook: { pl: "Facebook", ru: "Facebook" },
+  tiktok: { pl: "TikTok", ru: "TikTok" },
   telegram: { pl: "Telegram", ru: "Telegram" },
   viber: { pl: "Viber", ru: "Viber" },
   sms: { pl: "SMS", ru: "SMS" },

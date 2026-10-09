@@ -684,7 +684,8 @@ export const TASKS: Task[] = [
   // Scenario 26: waitlist case promoted to active callback.
   {
     id: "task-11", caseId: "case-1011", patientId: "pat-06", title: "Zaproponuj termin z listy oczekujących",
-    status: "ready", priority: "P2", dueAt: iso(-0.4), createdAt: iso(-140), ownerId: ILONA, attempts: 1, requiresCall: true,
+    description: "Zaproponuj termin z listy oczekujących", type: "waitlist_contact", source: "workflow", mandatory: true,
+    workflowRuleId: "leads.waiting.offer-slot", status: "ready", priority: "P2", dueAt: iso(-0.4), createdAt: iso(-140), ownerId: ILONA, attempts: 1, requiresCall: true,
   },
   {
     id: "task-12", caseId: "case-1201", patientId: "pat-08", title: "Przypomnienie o wizycie jutro",

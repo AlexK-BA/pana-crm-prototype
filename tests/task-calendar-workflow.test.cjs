@@ -20,6 +20,7 @@ test('all stage IDs retain one existing workflow catalog with type, due policy a
  const h=create(),rules=h.load('lib/crm/workflow-rules.ts').WORKFLOW_STAGE_RULES,boards=h.load('lib/crm/boards.ts').BOARD_COLUMNS
  for(const [board,columns] of Object.entries(boards))for(const column of columns)assert.ok(rules.some(rule=>rule.board===board&&rule.status===column.id))
  assert.ok(rules.filter(rule=>!rule.terminal).every(rule=>rule.nextActionMandatory))
+ assert.ok(rules.filter(rule=>!rule.terminal).every(rule=>rule.suggestedTasks.includes('custom')&&rule.suggestedTasks.length>=2))
 })
 test('stage and starter task commit together; same retained command/double click creates one active task',()=>{
  const h=create(),move=h.store.moveCase,a=access();const touch=JSON.stringify(h.store.cases[0].attribution)

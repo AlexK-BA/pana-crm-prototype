@@ -270,7 +270,7 @@ export function KanbanBoard() {
                 </div>
                 <div className="flex-1 space-y-2 overflow-y-auto px-2 pb-3 pt-2">
                   {columnCases.map((c) => (
-                    <SortableItem key={c.id} id={c.id} handleLabel={tr("Zmień kolejność karty", "Изменить порядок карточки")}>
+                    <SortableItem key={c.id} id={c.id} disabled={!canMoveCase || reorderDisabled} handleLabel={tr("Zmień kolejność karty", "Изменить порядок карточки")}>
                       {(handle) => (
                         <div className="flex items-start gap-1">
                           <div className="pt-2">{handle}</div>

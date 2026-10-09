@@ -63,7 +63,10 @@ export function SortableColumns({ id, columns, reorderDisabled, onReorder, onMov
     const overIsColumn = overId.startsWith(COLUMN_PREFIX)
     const to = overIsColumn ? overId.slice(COLUMN_PREFIX.length) : findColumn(overId)
     if (!from || !to || !(to in columns)) return
-    if (from !== to) return onMove?.(itemId, from, to)
+    if (from !== to) {
+      if (reorderDisabled) return
+      return onMove?.(itemId, from, to)
+    }
     if (reorderDisabled || itemId === overId) return
     const ids = columns[from]
     const fromIndex = ids.indexOf(itemId), toIndex = overIsColumn ? ids.length - 1 : ids.indexOf(overId)
