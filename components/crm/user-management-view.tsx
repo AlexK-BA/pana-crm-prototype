@@ -41,6 +41,29 @@ export function UserManagementView() {
     return matchesQuery && (status === "all" || user.status === status)
   }), [query, status, users])
 
+  function renderActions(user: (typeof visible)[number]) {
+    return (
+      <div className="flex justify-end gap-1">
+        <Tooltip>
+          <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === currentUser.id} aria-label="Edytuj role i kliniki" onClick={() => { setError(""); setEditing(user); setDraft({ name: user.name, email: user.email, roles: [...user.roles], clinics: user.clinicIds }) }}><ShieldCheck className="h-3.5 w-3.5" /></Button>} />
+          <TooltipContent>Edytuj role i kliniki</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Resetuj hasło" onClick={() => { setError(""); setPendingAction({ type: "password", user }) }}><KeyRound className="h-3.5 w-3.5" /></Button>} />
+          <TooltipContent>Resetuj hasło</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Zakończ sesje" onClick={() => { setError(""); setPendingAction({ type: "sessions", user }) }}><Laptop2 className="h-3.5 w-3.5" /></Button>} />
+          <TooltipContent>Zakończ aktywne sesje</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === currentUser.id} aria-label={user.status === "inactive" ? "Aktywuj" : "Dezaktywuj"} onClick={() => { setError(""); setPendingAction({ type: "active", user }) }}>{user.status === "inactive" ? <UserCheck className="h-3.5 w-3.5 text-emerald-600" /> : <UserX className="h-3.5 w-3.5 text-amber-600" />}</Button>} />
+          <TooltipContent>{user.status === "inactive" ? "Aktywuj konto" : "Dezaktywuj konto"}</TooltipContent>
+        </Tooltip>
+      </div>
+    )
+  }
+
   function notify(text: string) {
     setMessage(text)
     setTimeout(() => setMessage(""), 2500)
@@ -113,8 +136,28 @@ export function UserManagementView() {
         </div>
         {error && <p role="alert" className="px-4 py-2 text-sm text-destructive">{error}</p>}
         {message && <div role="status" className="border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-700">{message}</div>}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] text-left text-sm md:min-w-[900px]">
+        <ul className="divide-y divide-border md:hidden" aria-label="Użytkownicy aplikacji">
+          {visible.map((user) => (
+            <li key={user.id} className="flex flex-col gap-2.5 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{user.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                </div>
+                <Badge variant="outline" className={STATUS_TONE[user.status]}>{STATUS_LABEL[user.status]}</Badge>
+              </div>
+              <div className="flex flex-wrap gap-1">{user.roles.map((role) => <Badge key={role} variant="secondary" className="text-[10px]">{roleLabel(role)}</Badge>)}</div>
+              <p className="text-xs text-muted-foreground">
+                {user.clinicIds.length ? user.clinicIds.map((id) => CLINICS.find((clinic) => clinic.id === id)?.name).join(", ") : "Dane zagregowane"}
+                {" · "}
+                {user.lastLoginAt ? formatRelative(user.lastLoginAt) : "Nigdy"}
+              </p>
+              {renderActions(user)}
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-muted/40 text-xs text-muted-foreground"><tr><th className="px-4 py-2.5 font-medium">Użytkownik</th><th className="px-3 py-2.5 font-medium">Role</th><th className="hidden px-3 py-2.5 font-medium md:table-cell">Zakres klinik</th><th className="px-3 py-2.5 font-medium">Status</th><th className="hidden px-3 py-2.5 font-medium md:table-cell">Ostatnie logowanie</th><th className="px-4 py-2.5 text-right font-medium">Działania</th></tr></thead>
             <tbody className="divide-y divide-border">
               {visible.map((user) => (
@@ -124,24 +167,7 @@ export function UserManagementView() {
                   <td className="hidden px-3 py-3 text-xs text-muted-foreground md:table-cell">{user.clinicIds.length ? user.clinicIds.map((id) => CLINICS.find((clinic) => clinic.id === id)?.name).join(", ") : "Dane zagregowane"}</td>
                   <td className="px-3 py-3"><Badge variant="outline" className={STATUS_TONE[user.status]}>{STATUS_LABEL[user.status]}</Badge></td>
                   <td className="hidden px-3 py-3 text-xs text-muted-foreground md:table-cell">{user.lastLoginAt ? formatRelative(user.lastLoginAt) : "Nigdy"}</td>
-                  <td className="px-4 py-3"><div className="flex justify-end gap-1">
-                  <Tooltip>
-                    <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === currentUser.id} aria-label="Edytuj role i kliniki" onClick={() => { setError(""); setEditing(user); setDraft({ name: user.name, email: user.email, roles: [...user.roles], clinics: user.clinicIds }) }}><ShieldCheck className="h-3.5 w-3.5" /></Button>} />
-                    <TooltipContent>Edytuj role i kliniki</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Resetuj hasło" onClick={() => { setError(""); setPendingAction({ type: "password", user }) }}><KeyRound className="h-3.5 w-3.5" /></Button>} />
-                    <TooltipContent>Resetuj hasło</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger render={<Button size="icon" variant="ghost" aria-label="Zakończ sesje" onClick={() => { setError(""); setPendingAction({ type: "sessions", user }) }}><Laptop2 className="h-3.5 w-3.5" /></Button>} />
-                    <TooltipContent>Zakończ aktywne sesje</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === currentUser.id} aria-label={user.status === "inactive" ? "Aktywuj" : "Dezaktywuj"} onClick={() => { setError(""); setPendingAction({ type: "active", user }) }}>{user.status === "inactive" ? <UserCheck className="h-3.5 w-3.5 text-emerald-600" /> : <UserX className="h-3.5 w-3.5 text-amber-600" />}</Button>} />
-                    <TooltipContent>{user.status === "inactive" ? "Aktywuj konto" : "Dezaktywuj konto"}</TooltipContent>
-                  </Tooltip>
-                  </div></td>
+                  <td className="px-4 py-3">{renderActions(user)}</td>
                 </tr>
               ))}
             </tbody>
