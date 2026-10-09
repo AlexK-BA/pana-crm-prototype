@@ -228,11 +228,11 @@ export function KanbanBoard() {
           </PopoverContent>
         </Popover>
         <div className="flex items-center rounded-md border border-input p-0.5">
-          <Button variant="secondary" size="icon" className="h-7 w-7">
-            <LayoutGrid className="h-3.5 w-3.5" />
+          <Button variant="secondary" size="icon" className="h-7 w-7" aria-label="Widok tablicy" aria-pressed="true">
+            <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <List className="h-3.5 w-3.5" />
+          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Widok listy" aria-pressed="false">
+            <List className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         </div>
       </div>

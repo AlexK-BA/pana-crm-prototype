@@ -41,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" data-theme={BRAND_CONFIG.theme}>
+    <html lang="pl" data-theme={BRAND_CONFIG.theme}>
       <body className="antialiased">
         <CrmProviders>{children}</CrmProviders>
         {process.env.NODE_ENV === 'production' && <Analytics />}
