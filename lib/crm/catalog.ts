@@ -1,9 +1,10 @@
 import type { Clinic, ClinicId, Doctor, Procedure } from "./entities"
+import { BRAND_CONFIG } from "./brand-config"
 
 export const CLINICS: Clinic[] = [
-  { id: "pana-medica", name: "PaNa Medica", color: "emerald" },
-  { id: "pana-comfort", name: "PaNa Comfort", color: "amber" },
-  { id: "pana-international", name: "PaNa International", color: "sky" },
+  { id: "pana-medica", name: BRAND_CONFIG.clinicNames["pana-medica"], color: "emerald" },
+  { id: "pana-comfort", name: BRAND_CONFIG.clinicNames["pana-comfort"], color: "amber" },
+  { id: "pana-international", name: BRAND_CONFIG.clinicNames["pana-international"], color: "sky" },
 ]
 
 export function getClinic(id?: string) {
@@ -13,8 +14,7 @@ export function getClinic(id?: string) {
 
 /**
  * Visual identity per clinic, applied consistently everywhere a case/patient
- * card renders: PaNa Medica → green, PaNa Comfort → beige/amber, PaNa
- * International → blue. Cases with no clinic assigned yet fall back to
+ * card renders: first clinic → green, second → beige/amber, third → blue. Cases with no clinic assigned yet fall back to
  * UNASSIGNED_TONE (plain white/neutral) via getClinicTone.
  */
 export const CLINIC_TONE: Record<Clinic["color"], { bar: string; chip: string; dot: string; soft: string }> = {

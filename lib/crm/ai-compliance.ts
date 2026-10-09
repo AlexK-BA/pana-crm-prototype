@@ -1,5 +1,6 @@
 import type { AiComplianceConfiguration, AiComplianceLocaleContent, AiConversationPolicy, ClinicId } from "./entities"
 import { AccessCommandError } from "./permissions"
+import { BRAND_CONFIG } from "./brand-config"
 
 export const INITIAL_AI_COMPLIANCE_CONFIGURATIONS: AiComplianceConfiguration[] = [{
   id: "ai-compliance-global-draft-v1",
@@ -8,9 +9,9 @@ export const INITIAL_AI_COMPLIANCE_CONFIGURATIONS: AiComplianceConfiguration[] =
   version: 1,
   botPolicyId: "ai-policy-global-v1",
   botPolicyVersion: 1,
-  controllerName: "PaNa — do zatwierdzenia przez DPO",
+  controllerName: BRAND_CONFIG.controllerName,
   privacyContact: "Do uzupełnienia i zatwierdzenia przez DPO",
-  privacyNoticeUrl: "https://pa-na.pl/",
+  privacyNoticeUrl: BRAND_CONFIG.privacyNoticeUrl,
   modelProviderStatement: "Do uzupełnienia po wyborze dostawcy i zatwierdzeniu warunków przetwarzania.",
   locales: [{
     language: "pl",
