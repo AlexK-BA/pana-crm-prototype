@@ -10,8 +10,10 @@ import { Switch } from "@/components/ui/switch"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 import { PERMISSION_DEFINITIONS } from "@/lib/crm/permissions"
 import { ROLE_ORDER, ROLE_PROFILES, type RoleId } from "@/lib/crm/roles"
+import { useLanguage } from "@/lib/crm/language-context"
 
 export function RolePermissionMatrix() {
+  const { t } = useLanguage()
   const [selectedRole, setSelectedRole] = useState<RoleId>("operator")
   const [resetTarget, setResetTarget] = useState<RoleId | null>(null)
   const [error, setError] = useState("")
@@ -37,16 +39,16 @@ export function RolePermissionMatrix() {
           <p className="mt-1 max-w-2xl text-xs text-muted-foreground">Rola jest pakietem atomowych uprawnień. Zakres klinik użytkownika pozostaje dodatkowym ograniczeniem danych.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedRole} onValueChange={(value) => value && setSelectedRole(value as RoleId)}><SelectTrigger className="w-48"><SelectValue /></SelectTrigger><SelectContent>{ROLE_ORDER.map((role) => <SelectItem key={role} value={role}>{ROLE_PROFILES[role].id}</SelectItem>)}</SelectContent></Select>
+          <Select value={selectedRole} onValueChange={(value) => value && setSelectedRole(value as RoleId)}><SelectTrigger className="w-48"><SelectValue>{(value: RoleId | null) => value ? t(ROLE_PROFILES[value].labelKey) : null}</SelectValue></SelectTrigger><SelectContent>{ROLE_ORDER.map((role) => <SelectItem key={role} value={role}>{t(ROLE_PROFILES[role].labelKey)}</SelectItem>)}</SelectContent></Select>
           <Button variant="outline" size="sm" className="gap-1.5" disabled={protectedRole || !canManage} onClick={() => { setError(""); setResetTarget(selectedRole) }}><RotateCcw className="h-3.5 w-3.5" />Domyślne</Button>
         </div>
       </div>
-      <div className="border-b border-border bg-muted/20 px-4 py-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">{ROLE_PROFILES[selectedRole].id}</span> · {rolePermissions[selectedRole].length} uprawnień{protectedRole && <Badge variant="outline" className="ml-2">Rola systemowa · pełny dostęp</Badge>}</div>
+      <div className="border-b border-border bg-muted/20 px-4 py-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">{t(ROLE_PROFILES[selectedRole].labelKey)}</span> · {rolePermissions[selectedRole].length} uprawnień{protectedRole && <Badge variant="outline" className="ml-2">Rola systemowa · pełny dostęp</Badge>}</div>
       {error && <p role="alert" className="px-4 py-2 text-sm text-destructive">{error}</p>}
       {!canManage && <p className="px-4 py-2 text-xs text-muted-foreground">Zmiana macierzy wymaga configuration:manage.</p>}
       <Dialog open={Boolean(resetTarget)} onOpenChange={(open) => !open && setResetTarget(null)}>
         <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Przywrócić domyślne uprawnienia?</DialogTitle></DialogHeader>
-          <p className="text-sm">Rola: {resetTarget}. Bieżący pakiet zostanie zastąpiony domyślnym i zapisany w Audit Log.</p>
+          <p className="text-sm">Rola: {resetTarget ? t(ROLE_PROFILES[resetTarget].labelKey) : ""}. Bieżący pakiet zostanie zastąpiony domyślnym i zapisany w Audit Log.</p>
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <DialogFooter><Button variant="ghost" onClick={() => setResetTarget(null)}>Anuluj</Button><Button onClick={confirmReset}>Potwierdź reset</Button></DialogFooter>
         </DialogContent>

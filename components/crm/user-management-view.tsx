@@ -16,13 +16,17 @@ import type { ClinicId } from "@/lib/crm/entities"
 import { formatRelative } from "@/lib/crm/format"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 import { RolePermissionMatrix } from "@/components/crm/role-permission-matrix"
+import { useLanguage } from "@/lib/crm/language-context"
 
 const STATUS_LABEL = { invited: "Zaproszony", active: "Aktywny", inactive: "Nieaktywny", locked: "Zablokowany" }
+const STATUS_FILTER_LABEL: Record<string, string> = { all: "Wszystkie statusy", active: "Aktywni", inactive: "Nieaktywni", invited: "Zaproszeni", locked: "Zablokowani" }
 const STATUS_TONE = { invited: "border-sky-200 bg-sky-50 text-sky-700", active: "border-emerald-200 bg-emerald-50 text-emerald-700", inactive: "border-slate-200 bg-slate-50 text-slate-600", locked: "border-red-200 bg-red-50 text-red-700" }
 
 export function UserManagementView() {
   const { users, currentUser, createUser, setActive, requestPasswordReset, revokeSessions, updateAccess } = useUserDirectory()
   const { hasPermission } = useAuthorization()
+  const { t } = useLanguage()
+  const roleLabel = (role: RoleId) => t(ROLE_PROFILES[role].labelKey)
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState("all")
   const [editing, setEditing] = useState<AppUser | null>(null)
@@ -105,21 +109,21 @@ export function UserManagementView() {
         </div>
         <div className="flex gap-2 border-b border-border p-3">
           <div className="relative max-w-sm flex-1"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Szukaj po imieniu lub e-mailu" className="pl-8" /></div>
-          <Select value={status} onValueChange={(value) => setStatus(value ?? "all")}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Wszystkie statusy</SelectItem><SelectItem value="active">Aktywni</SelectItem><SelectItem value="inactive">Nieaktywni</SelectItem><SelectItem value="invited">Zaproszeni</SelectItem><SelectItem value="locked">Zablokowani</SelectItem></SelectContent></Select>
+          <Select value={status} onValueChange={(value) => setStatus(value ?? "all")}><SelectTrigger className="w-44"><SelectValue>{(value: string | null) => STATUS_FILTER_LABEL[value ?? "all"]}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">Wszystkie statusy</SelectItem><SelectItem value="active">Aktywni</SelectItem><SelectItem value="inactive">Nieaktywni</SelectItem><SelectItem value="invited">Zaproszeni</SelectItem><SelectItem value="locked">Zablokowani</SelectItem></SelectContent></Select>
         </div>
         {error && <p role="alert" className="px-4 py-2 text-sm text-destructive">{error}</p>}
         {message && <div role="status" className="border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-700">{message}</div>}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-muted/40 text-xs text-muted-foreground"><tr><th className="px-4 py-2.5 font-medium">Użytkownik</th><th className="px-3 py-2.5 font-medium">Role</th><th className="px-3 py-2.5 font-medium">Zakres klinik</th><th className="px-3 py-2.5 font-medium">Status</th><th className="px-3 py-2.5 font-medium">Ostatnie logowanie</th><th className="px-4 py-2.5 text-right font-medium">Działania</th></tr></thead>
+          <table className="w-full min-w-[480px] text-left text-sm md:min-w-[900px]">
+            <thead className="bg-muted/40 text-xs text-muted-foreground"><tr><th className="px-4 py-2.5 font-medium">Użytkownik</th><th className="px-3 py-2.5 font-medium">Role</th><th className="hidden px-3 py-2.5 font-medium md:table-cell">Zakres klinik</th><th className="px-3 py-2.5 font-medium">Status</th><th className="hidden px-3 py-2.5 font-medium md:table-cell">Ostatnie logowanie</th><th className="px-4 py-2.5 text-right font-medium">Działania</th></tr></thead>
             <tbody className="divide-y divide-border">
               {visible.map((user) => (
                 <tr key={user.id} className="hover:bg-muted/20">
                   <td className="px-4 py-3"><p className="font-medium">{user.name}</p><p className="text-xs text-muted-foreground">{user.email}</p></td>
-                  <td className="px-3 py-3"><div className="flex flex-wrap gap-1">{user.roles.map((role) => <Badge key={role} variant="secondary" className="text-[10px]">{ROLE_PROFILES[role].id}</Badge>)}</div></td>
-                  <td className="px-3 py-3 text-xs text-muted-foreground">{user.clinicIds.length ? user.clinicIds.map((id) => CLINICS.find((clinic) => clinic.id === id)?.name).join(", ") : "Dane zagregowane"}</td>
+                  <td className="px-3 py-3"><div className="flex flex-wrap gap-1">{user.roles.map((role) => <Badge key={role} variant="secondary" className="text-[10px]">{roleLabel(role)}</Badge>)}</div></td>
+                  <td className="hidden px-3 py-3 text-xs text-muted-foreground md:table-cell">{user.clinicIds.length ? user.clinicIds.map((id) => CLINICS.find((clinic) => clinic.id === id)?.name).join(", ") : "Dane zagregowane"}</td>
                   <td className="px-3 py-3"><Badge variant="outline" className={STATUS_TONE[user.status]}>{STATUS_LABEL[user.status]}</Badge></td>
-                  <td className="px-3 py-3 text-xs text-muted-foreground">{user.lastLoginAt ? formatRelative(user.lastLoginAt) : "Nigdy"}</td>
+                  <td className="hidden px-3 py-3 text-xs text-muted-foreground md:table-cell">{user.lastLoginAt ? formatRelative(user.lastLoginAt) : "Nigdy"}</td>
                   <td className="px-4 py-3"><div className="flex justify-end gap-1">
                   <Tooltip>
                     <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === currentUser.id} aria-label="Edytuj role i kliniki" onClick={() => { setError(""); setEditing(user); setDraft({ name: user.name, email: user.email, roles: [...user.roles], clinics: user.clinicIds }) }}><ShieldCheck className="h-3.5 w-3.5" /></Button>} />
@@ -159,7 +163,7 @@ export function UserManagementView() {
             {pendingAction?.type === "sessions" && `Zarejestrować odwołanie sesji użytkownika ${pendingAction.user.name}? Rzeczywiste sesje obsłuży przyszły backend.`}
             {pendingAction?.type === "active" && (pendingAction.user.status === "inactive" ? `Konto użytkownika ${pendingAction.user.name} zostanie ponownie aktywowane.` : `Konto użytkownika ${pendingAction?.user.name} zostanie dezaktywowane, bez usuwania historii i przypisanych danych.`)}
           </p>
-          {pendingAction?.type === "access" && <p className="text-sm">Zmiana dostępu dla {pendingAction.user.name}: role {pendingAction.user.roles.join(", ")} → {pendingAction.roles?.join(", ") || "brak"}; kliniki {pendingAction.user.clinicIds.join(", ") || "brak"} → {pendingAction.clinicIds?.join(", ") || "brak"}.</p>}
+          {pendingAction?.type === "access" && <p className="text-sm">Zmiana dostępu dla {pendingAction.user.name}: role {pendingAction.user.roles.map(roleLabel).join(", ")} → {pendingAction.roles?.map(roleLabel).join(", ") || "brak"}; kliniki {pendingAction.user.clinicIds.join(", ") || "brak"} → {pendingAction.clinicIds?.join(", ") || "brak"}.</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">Operacja zostanie zapisana w dzienniku audytowym wraz z wykonującym ją administratorem.</p>
           <DialogFooter><Button variant="ghost" onClick={() => setPendingAction(null)}>Anuluj</Button><Button onClick={confirmAction}>Potwierdź</Button></DialogFooter>
@@ -170,9 +174,10 @@ export function UserManagementView() {
 }
 
 function UserDialog({ open, title, draft, setDraft, toggleClinic, onClose, onSave, editing, error }: { open: boolean; title: string; draft: { name: string; email: string; roles: RoleId[]; clinics: ClinicId[] }; setDraft: Dispatch<SetStateAction<{ name: string; email: string; roles: RoleId[]; clinics: ClinicId[] }>>; toggleClinic: (id: ClinicId) => void; onClose: () => void; onSave: () => void; editing: boolean; error: string }) {
+  const { t } = useLanguage()
   return <Dialog open={open} onOpenChange={(value) => !value && onClose()}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader><div className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5"><Label>Imię i nazwisko</Label><Input value={draft.name} disabled={editing} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} /></div><div className="space-y-1.5"><Label>E-mail służbowy</Label><Input type="email" value={draft.email} disabled={editing} onChange={(event) => setDraft((prev) => ({ ...prev, email: event.target.value }))} /></div></div>
-    <div className="space-y-2"><Label>Role</Label><div className="grid gap-2 sm:grid-cols-2">{ROLE_ORDER.map((role) => <label key={role} className="flex items-center gap-2 rounded-md border border-border p-2 text-xs"><input type="checkbox" checked={draft.roles.includes(role)} onChange={() => setDraft((prev) => ({ ...prev, roles: prev.roles.includes(role) ? prev.roles.filter((id) => id !== role) : [...prev.roles, role] }))} />{role}</label>)}</div></div>
+    <div className="space-y-2"><Label>Role</Label><div className="grid gap-2 sm:grid-cols-2">{ROLE_ORDER.map((role) => <label key={role} className="flex items-center gap-2 rounded-md border border-border p-2 text-xs"><input type="checkbox" checked={draft.roles.includes(role)} onChange={() => setDraft((prev) => ({ ...prev, roles: prev.roles.includes(role) ? prev.roles.filter((id) => id !== role) : [...prev.roles, role] }))} />{t(ROLE_PROFILES[role].labelKey)}</label>)}</div></div>
     <div className="space-y-2"><Label>Zakres klinik</Label><div className="grid gap-2 sm:grid-cols-3">{CLINICS.map((clinic) => <label key={clinic.id} className="flex items-center gap-2 rounded-md border border-border p-2 text-xs"><input type="checkbox" checked={draft.clinics.includes(clinic.id)} onChange={() => toggleClinic(clinic.id)} />{clinic.name}</label>)}</div></div>
     {!editing && <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">Nowe konto otrzyma status „Zaproszony”. To emulacja: e-mail ani link nie jest wysyłany i żadne hasło nie jest tworzone.</p>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

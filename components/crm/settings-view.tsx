@@ -55,6 +55,19 @@ const INITIAL_KB: KbArticle[] = [
 
 let kbSeq = INITIAL_KB.length
 
+const WORKFLOW_BOARD_PL: Record<string, string> = { leads: "Leady", deals: "Wizyty", patients: "Pacjenci" }
+const WORKFLOW_POLICY_PL: Record<string, string> = { manual: "ręcznie", appointment: "wg terminu wizyty", clinical: "wg wskazań klinicznych" }
+const WORKFLOW_LABEL_PL: Record<string, string> = {
+  new: "Nowy", qualification: "Kwalifikacja", waiting: "Lista oczekujących", call_later: "Oddzwonić później", failed: "Nieudany", closed: "Zamknięty", converted: "Skonwertowany",
+  scheduled: "Umówiona", post_visit: "Po wizycie", recall: "Przypomnienie", care: "Opieka", no_show: "Nieobecność", completed: "Zakończona",
+  appt_scheduled: "Wizyta umówiona", new_patient: "Nowy pacjent", returning: "Powracający", in_treatment: "W leczeniu", control: "Kontrola",
+  call: "telefon", message: "wiadomość", sms: "SMS", email: "e-mail", custom: "własne",
+  waitlist_contact: "kontakt z listy oczekujących", appointment_booking: "umówienie wizyty", appointment_confirmation: "potwierdzenie wizyty",
+  post_visit_follow_up: "kontakt po wizycie", send_treatment_plan: "wysłanie planu leczenia", patient_care_handoff: "przekazanie opieki",
+  treatment_plan_review: "przegląd planu leczenia",
+}
+const workflowLabel = (key: string) => WORKFLOW_LABEL_PL[key] ?? key.replaceAll("_", " ")
+
 const INITIAL_SOURCES = [
   { id: "src-web", name: BRAND_CONFIG.contactDomain, type: "WWW", scope: "Wszystkie kliniki", items: 84, status: "Gotowe" },
   { id: "src-prices", name: "Cenniki i procedury", type: "Dokumenty", scope: "Według kliniki", items: 12, status: "Gotowe" },
@@ -128,7 +141,7 @@ export function SettingsView() {
       </nav>
 
       <div className={section === "ai" ? "contents" : "hidden"}><AiComplianceCenter /></div>
-      <section className={cn("space-y-2 rounded border p-4", section !== "operations" && "hidden")}><h2 className="font-semibold">Workflow / SLA — prototype defaults</h2><p className="text-sm text-muted-foreground">Wartości kalendarne do potwierdzenia przez Daniela. Brak kalendarza pracy / świąt. Clinical / Appointment wymaga jawnego terminu; konfiguracja backend w przyszłości.</p><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr><th>Board / etap</th><th>Automatyczna task</th><th>SLA / polityka</th><th>Sugerowane</th></tr></thead><tbody>{WORKFLOW_STAGE_RULES.map(rule=><tr key={`${rule.board}/${rule.status}`} className="border-t"><td className="p-2">{rule.board}/{rule.status}{rule.terminal?" · terminal":""}</td><td>{rule.automaticTask?.title??"Jawny wybór / bez automatyzacji"}</td><td>{rule.automaticTask?.duePolicy==="sla"?`${rule.automaticTask.dueInMinutes} min`:rule.automaticTask?.duePolicy??"manual"}</td><td>{rule.suggestedTasks?.join(", ")}</td></tr>)}</tbody></table></div></section>
+      <section className={cn("space-y-2 rounded border p-4", section !== "operations" && "hidden")}><h2 className="font-semibold">Workflow i SLA — wartości domyślne prototypu</h2><p className="text-sm text-muted-foreground">Wartości kalendarne wymagają potwierdzenia. Brak kalendarza pracy i świąt. Zadania kliniczne i wizyty wymagają jawnego terminu; konfiguracja w backendzie w przyszłości.</p><div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-xs"><thead><tr><th className="p-2">Tablica / etap</th><th>Zadanie automatyczne</th><th>SLA / polityka</th><th>Sugerowane</th></tr></thead><tbody>{WORKFLOW_STAGE_RULES.map(rule=><tr key={`${rule.board}/${rule.status}`} className="border-t"><td className="p-2">{WORKFLOW_BOARD_PL[rule.board] ?? rule.board} / {workflowLabel(rule.status)}{rule.terminal?" · końcowy":""}</td><td>{rule.automaticTask?.title??"Jawny wybór / bez automatyzacji"}</td><td>{rule.automaticTask?.duePolicy==="sla"?`${rule.automaticTask.dueInMinutes} min`:WORKFLOW_POLICY_PL[rule.automaticTask?.duePolicy ?? "manual"] ?? rule.automaticTask?.duePolicy}</td><td>{rule.suggestedTasks?.map(workflowLabel).join(", ")}</td></tr>)}</tbody></table></div></section>
       <section className={cn("rounded-lg border border-border bg-card p-4", section !== "access" && "hidden")}>
         <h2 className="mb-1 text-sm font-semibold text-foreground">{t("settings_role_title")}</h2>
         <p className="mb-3 text-xs text-muted-foreground">{t("settings_role_desc")}</p>
