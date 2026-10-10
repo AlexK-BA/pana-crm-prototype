@@ -401,7 +401,7 @@ export function ConversationThread({
           ))}
         </div>
       )}
-      <div className="flex items-end gap-2 border-t border-border pt-3">
+      <div className="flex flex-wrap items-end gap-2 border-t border-border pt-3 md:flex-nowrap">
         <input ref={fileInputRef} type="file" multiple className="sr-only" tabIndex={-1} onChange={(event) => {
           const names = Array.from(event.target.files ?? []).map((file) => file.name)
           setAttachments((prev) => [...new Set([...prev, ...names])])
@@ -452,10 +452,10 @@ export function ConversationThread({
           }}
           placeholder="Napisz wiadomość..."
           rows={1}
-          className="min-h-9 flex-1 resize-none text-sm"
+          className="min-h-9 flex-1 resize-none text-sm max-md:order-first max-md:basis-full"
           disabled={!canSendMessage || (channel !== "phone" && !targetCaseId) || (channel === "phone" && !canSendCustomSms)}
         />
-        <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={(!draft.trim() && !attachments.length) || !canSendMessage || (channel !== "phone" && !targetCaseId) || (channel === "phone" && (!canSendCustomSms || !phoneIdentity || !smsProvider))} aria-label="Wyślij">
+        <Button size="icon" className="h-9 w-9 shrink-0 max-md:ml-auto" onClick={handleSend} disabled={(!draft.trim() && !attachments.length) || !canSendMessage || (channel !== "phone" && !targetCaseId) || (channel === "phone" && (!canSendCustomSms || !phoneIdentity || !smsProvider))} aria-label="Wyślij">
           <Send className="h-4 w-4" />
         </Button>
       </div>

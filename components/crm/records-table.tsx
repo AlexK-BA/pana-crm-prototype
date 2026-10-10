@@ -149,7 +149,7 @@ export function RecordsTable() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-3 md:px-6">
-        <div className="relative w-56">
+        <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -161,7 +161,7 @@ export function RecordsTable() {
 
         <Select value={board} onValueChange={(v) => setBoard(v as CaseBoard | "all")}>
           <SelectTrigger className="h-8 w-44 text-sm">
-            <SelectValue placeholder={t("board")} />
+            <SelectValue placeholder={t("board")}>{board === "all" ? t("all_boards") : t(BOARD_LABEL_KEYS[board])}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("all_boards")}</SelectItem>
@@ -175,7 +175,7 @@ export function RecordsTable() {
 
         <Select value={clinic} onValueChange={(v) => setClinic(v ?? "all")}>
           <SelectTrigger className="h-8 w-44 text-sm">
-            <SelectValue placeholder="Klinika" />
+            <SelectValue placeholder="Klinika">{clinic === "all" ? "Wszystkie kliniki" : clinics.find(([id]) => id === clinic)?.[1]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Wszystkie kliniki</SelectItem>
@@ -189,7 +189,7 @@ export function RecordsTable() {
 
         <Select value={doctor} onValueChange={(v) => setDoctor(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Lekarz" />
+            <SelectValue placeholder="Lekarz">{doctor === "all" ? "Wszyscy lekarze" : doctors.find((d) => d.id === doctor)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Wszyscy lekarze</SelectItem>
@@ -203,7 +203,7 @@ export function RecordsTable() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Usługa" />
+            <SelectValue placeholder="Usługa">{service === "all" ? "Wszystkie usługi" : services.find((s) => s.id === service)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Wszystkie usługi</SelectItem>
@@ -217,7 +217,7 @@ export function RecordsTable() {
 
         <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Właściciel" />
+            <SelectValue placeholder="Właściciel">{assignee === "all" ? "Wszyscy właściciele" : assignees.find((o) => o.id === assignee)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Wszyscy właściciele</SelectItem>
