@@ -144,6 +144,16 @@ const SUMMARY_RU: Record<string, string> = {
   "Team Leader zmienił przypisanie": "Тимлид изменил назначение", "Status zmieniony": "Статус изменён",
   "Wykryto konflikt danych z Medical CRM (nazwisko)": "Обнаружен конфликт данных с Medical CRM (фамилия)",
   "Eskalacja P0 utworzona ręcznie": "Эскалация P0 создана вручную", "Przypisano po rozpoczęciu obsługi": "Назначено после начала обработки",
+  "Synchronizacja z Medical CRM nie powiodła się — dane lokalne pozostają dostępne": "Синхронизация с Medical CRM не удалась — локальные данные остаются доступны",
+  "Zaktualizowano kolejność kolumn kanban": "Порядок колонок канбан обновлён",
+  "Połączono kontakt e-mail z pacjentem po dopasowaniu numeru telefonu": "E-mail объединён с пациентом после сопоставления номера телефона",
+  "Lead przekształcony w Deal": "Лид преобразован в визит",
+}
+
+const AUDIT_VALUE_RU: Record<string, string> = {
+  "Waiting List": "Список ожидания", Qualification: "Квалификация", "Call Later": "Перезвонить позже",
+  Nieprzypisane: "Не назначено", "Converted to Deal": "Преобразован в визит", "Appointment Scheduled": "Визит запланирован",
+  "ci-04b (niepowiązany)": "ci-04b (не связан)",
 }
 
 function readableSummary(event: AuditEvent, language: "pl" | "ru") {
@@ -156,6 +166,7 @@ function readableSummary(event: AuditEvent, language: "pl" | "ru") {
 
 function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: "pl" | "ru") {
   if (!value) return undefined
+  if (language === "ru" && AUDIT_VALUE_RU[value]) return AUDIT_VALUE_RU[value]
   if (value === "no_task") return language === "ru" ? "Нет задачи" : "Brak zadania"
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>

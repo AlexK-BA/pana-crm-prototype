@@ -110,6 +110,8 @@ test('admin home and audit log follow the active PL/RU language', () => {
   assert.match(home, /tr\("Sprawy w systemie", "Кейсы в системе"\)/)
   assert.match(home, /formatRelative\(e\.at, language\)/)
   assert.match(audit, /TYPE_LABELS_RU/)
+  assert.match(audit, /AUDIT_VALUE_RU/)
+  assert.match(audit, /"Zaktualizowano kolejność kolumn kanban": "Порядок колонок канбан обновлён"/)
   assert.match(audit, /tr\("Dziennik zdarzeń", "Журнал событий"\)/)
   assert.match(audit, /formatRelative\(event\.at, language\)/)
 })
