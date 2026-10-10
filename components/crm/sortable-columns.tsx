@@ -126,7 +126,7 @@ export function SortableItem({ id, disabled, handleLabel, children }: {
       {...listeners}
       aria-label={handleLabel}
       title={tr("Przeciągnij, aby zmienić kolejność (priorytet się nie zmienia)", "Перетащите, чтобы изменить порядок (приоритет не меняется)")}
-      className="flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+      className="flex h-9 w-7 shrink-0 cursor-grab md:h-6 md:w-4 touch-none items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
     >
       <GripVertical className="h-4 w-4" aria-hidden="true" />
     </button>
