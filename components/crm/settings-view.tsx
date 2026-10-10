@@ -62,7 +62,7 @@ const WORKFLOW_POLICY: Record<string, readonly [string, string]> = {
   manual: ["ręcznie", "вручную"], appointment: ["wg terminu wizyty", "по времени визита"], clinical: ["wg wskazań klinicznych", "по клиническим показаниям"],
 }
 const WORKFLOW_LABEL: Record<string, readonly [string, string]> = {
-  new: ["Nowy", "Новый"], qualification: ["Kwalifikacja", "Квалификация"], waiting: ["Lista oczekujących", "Список ожидания"], call_later: ["Oddzwonić później", "Перезвонить позже"], failed: ["Nieudany", "Неудачный"], closed: ["Zamknięty", "Закрытый"], converted: ["Skonwertowany", "Конвертированный"],
+  new: ["Nowy", "Новый"], qualification: ["Kwalifikacja", "Квалификация"], waiting: ["Lista oczekujących", "Список ожидания"], call_later: ["Oddzwonić później", "Перезвонить позже"], failed: ["Nieudany", "Неудачный"], closed: ["Zamknięty", "Закрытый"], converted: ["Skonwertowany", "Конвертированный"], complete: ["Zakończone", "Завершено"],
   scheduled: ["Umówiona", "Запланирован"], post_visit: ["Po wizycie", "После визита"], recall: ["Przypomnienie", "Напоминание"], care: ["Opieka", "Сопровождение"], no_show: ["Nieobecność", "Неявка"], completed: ["Zakończona", "Завершён"],
   appt_scheduled: ["Wizyta umówiona", "Визит запланирован"], new_patient: ["Nowy pacjent", "Новый пациент"], returning: ["Powracający", "Повторный пациент"], in_treatment: ["W leczeniu", "На лечении"], control: ["Kontrola", "Контроль"],
   call: ["telefon", "звонок"], message: ["wiadomość", "сообщение"], sms: ["SMS", "SMS"], email: ["e-mail", "e-mail"], custom: ["własne", "пользовательское"],

@@ -23,6 +23,7 @@ import {
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useUserDirectory, type AppUser } from "@/lib/crm/user-directory"
 import { useAuthorization } from "@/lib/crm/authorization-context"
+import { useLanguage } from "@/lib/crm/language-context"
 import type { AuditEvent, AuditEventType } from "@/lib/crm/entities"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
@@ -115,25 +116,56 @@ const ACTION_LABELS: Record<string, string> = {
   workflow_task_skipped: "Pominięcie zadania workflow",
 }
 
-function readableSummary(event: AuditEvent) {
+const ACTION_LABELS_RU: Record<string, string> = {
+  task_edit: "Редактирование задачи", task_reschedule: "Перенос срока задачи", task_reassign: "Смена ответственного",
+  task_reprioritize: "Смена приоритета задачи", task_replace: "Замена задачи", task_cancel: "Отмена задачи",
+  task_complete: "Завершение задачи", task_reopen: "Повторное открытие задачи", task_created: "Создание задачи",
+  workflow_task_skipped: "Пропуск задачи процесса",
+}
+
+const TYPE_LABELS_RU: Record<AuditEventType, string> = {
+  case_created: "Создание кейса", comment_added: "Комментарий сотрудника", patient_local_updated: "Локальные данные пациента",
+  patient_match_searched: "Поиск пациента", patient_match_suggested: "Предложение совпадения", patient_auto_linked: "Автопривязка пациента",
+  patient_match_approved: "Подтверждение совпадения", patient_match_rejected: "Отклонение совпадения", patient_match_conflict: "Конфликт совпадения",
+  contact_identity_linked: "Привязка контакта", contact_identity_reused: "Повторное использование контакта", user_invited: "Приглашение пользователя",
+  user_activated: "Активация пользователя", user_deactivated: "Деактивация пользователя", user_password_reset_requested: "Запрос сброса пароля",
+  user_sessions_revoked: "Отзыв сессий", user_access_changed: "Изменение доступа", role_permissions_changed: "Изменение разрешений роли",
+  role_permissions_reset: "Сброс разрешений роли", access_denied: "Отказ в доступе", conversation_handoff: "Передача диалога",
+  ai_control_changed: "Управление ИИ", ai_policy_changed: "Политика ИИ", ai_activation_scheduled: "Планирование ИИ",
+  ai_activation_cancelled: "Отмена активации ИИ", ai_activation_started: "Активация ИИ", ai_response_recorded: "Ответ ИИ",
+  sms_send: "Отправка SMS", sms_failed: "Ошибка SMS", sms_retry: "Повторная отправка SMS", sms_provider_change: "Смена SMS-провайдера",
+  sms_provider_test: "Тест SMS-провайдера", sms_provider_config: "Настройка SMS", status_change: "Изменение статуса",
+  assignment_change: "Изменение назначения", task_change: "Изменение задачи", priority_change: "Изменение приоритета",
+  merge: "Объединение", link: "Привязка", unlink: "Отвязка", sync: "Синхронизация",
+}
+
+const SUMMARY_RU: Record<string, string> = {
+  "Sprawa z listy oczekujących przeniesiona do aktywnego callbacku": "Заявка из списка ожидания переведена в активный обратный звонок",
+  "Team Leader zmienił przypisanie": "Тимлид изменил назначение", "Status zmieniony": "Статус изменён",
+  "Wykryto konflikt danych z Medical CRM (nazwisko)": "Обнаружен конфликт данных с Medical CRM (фамилия)",
+  "Eskalacja P0 utworzona ręcznie": "Эскалация P0 создана вручную", "Przypisano po rozpoczęciu obsługi": "Назначено после начала обработки",
+}
+
+function readableSummary(event: AuditEvent, language: "pl" | "ru") {
+  if (language === "ru" && SUMMARY_RU[event.summary]) return SUMMARY_RU[event.summary]
   const actionId = event.action
-  const action = actionId ? ACTION_LABELS[actionId] : undefined
+  const action = actionId ? (language === "ru" ? ACTION_LABELS_RU[actionId] : ACTION_LABELS[actionId]) : undefined
   if (!actionId || !action || !event.summary.startsWith(actionId)) return event.summary
   return `${action}${event.summary.slice(actionId.length)}`
 }
 
-function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[]) {
+function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: "pl" | "ru") {
   if (!value) return undefined
-  if (value === "no_task") return "Brak zadania"
+  if (value === "no_task") return language === "ru" ? "Нет задачи" : "Brak zadania"
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value
     if (event.action === "task_reprioritize") return String(parsed.priority ?? "—")
     if (event.action === "task_reassign") return actorName(String(parsed.ownerId ?? "—"), users)
-    if (event.action === "task_reschedule") return typeof parsed.dueAt === "string" ? formatDateTime(parsed.dueAt) : "Bez terminu"
+    if (event.action === "task_reschedule") return typeof parsed.dueAt === "string" ? formatDateTime(parsed.dueAt, undefined, language === "ru" ? "ru-RU" : "pl-PL") : language === "ru" ? "Без срока" : "Bez terminu"
     if (["task_complete", "task_cancel", "task_reopen"].includes(event.action ?? "")) return [parsed.status, parsed.outcome].filter(Boolean).join(" · ") || "—"
     if (event.action === "task_replace") return String(parsed.replacementTaskId ?? parsed.status ?? "—")
-    return [parsed.title, parsed.status, parsed.priority].filter(Boolean).join(" · ") || "Zmieniono dane"
+    return [parsed.title, parsed.status, parsed.priority].filter(Boolean).join(" · ") || (language === "ru" ? "Данные изменены" : "Zmieniono dane")
   } catch {
     return value
   }
@@ -152,6 +184,7 @@ export function AuditLogView() {
   const { auditEvents } = useScopedEntityStore()
   const { users } = useUserDirectory()
   const { hasPermission } = useAuthorization()
+  const { language, tr } = useLanguage()
   const [query, setQuery] = useState("")
   const [activeType, setActiveType] = useState<AuditEventType | "all">("all")
 
@@ -178,7 +211,7 @@ export function AuditLogView() {
   )
 
   const conflicts = useMemo(
-    () => sorted.filter((e) => e.type === "sync" && e.summary.toLowerCase().includes("konflikt")).length,
+    () => sorted.filter((e) => e.type === "sync" && /konflikt|конфликт/i.test(e.summary)).length,
     [sorted],
   )
 
@@ -188,15 +221,15 @@ export function AuditLogView() {
     return counts
   }, [sorted])
 
-  if (!hasPermission("audit:view")) return <p role="alert">Brak dostępu do Audit Log.</p>
+  if (!hasPermission("audit:view")) return <p role="alert">{tr("Brak dostępu do Audit Log.", "Нет доступа к журналу аудита.")}</p>
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Zdarzenia w systemie" value={sorted.length} />
-        <Stat label="Ostatnie 24h" value={last24h} />
-        <Stat label="Konflikty synchronizacji" value={conflicts} accent={conflicts > 0} />
-        <Stat label="Typy zdarzeń" value={typeCounts.size} />
+        <Stat label={tr("Zdarzenia w systemie", "События в системе")} value={sorted.length} />
+        <Stat label={tr("Ostatnie 24h", "Последние 24 часа")} value={last24h} />
+        <Stat label={tr("Konflikty synchronizacji", "Конфликты синхронизации")} value={conflicts} accent={conflicts > 0} />
+        <Stat label={tr("Typy zdarzeń", "Типы событий")} value={typeCounts.size} />
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -205,17 +238,17 @@ export function AuditLogView() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Szukaj po sprawie, aktorze, treści…"
+            placeholder={tr("Szukaj po sprawie, aktorze, treści…", "Поиск по кейсу, автору или содержанию…")}
             className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
           <FilterChip active={activeType === "all"} onClick={() => setActiveType("all")}>
-            Wszystkie ({sorted.length})
+            {tr("Wszystkie", "Все")} ({sorted.length})
           </FilterChip>
           {TYPE_ORDER.filter((t) => (typeCounts.get(t) ?? 0) > 0).map((t) => (
             <FilterChip key={t} active={activeType === t} onClick={() => setActiveType(t)}>
-              {TYPE_META[t].label} ({typeCounts.get(t) ?? 0})
+              {language === "ru" ? TYPE_LABELS_RU[t] : TYPE_META[t].label} ({typeCounts.get(t) ?? 0})
             </FilterChip>
           ))}
         </div>
@@ -225,20 +258,20 @@ export function AuditLogView() {
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium text-foreground">
-            Dziennik zdarzeń
+            {tr("Dziennik zdarzeń", "Журнал событий")}
             <span className="ml-2 text-xs font-normal text-muted-foreground">({filtered.length})</span>
           </h3>
         </div>
         {filtered.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            Brak zdarzeń spełniających kryteria filtrowania.
+            {tr("Brak zdarzeń spełniających kryteria filtrowania.", "Нет событий, соответствующих фильтрам.")}
           </p>
         ) : (
           <ul className="divide-y divide-border">
             {filtered.map((event) => {
               const meta = TYPE_META[event.type]
-              const before = readableAuditValue(event.before, event, users)
-              const after = readableAuditValue(event.after, event, users)
+              const before = readableAuditValue(event.before, event, users, language)
+              const after = readableAuditValue(event.after, event, users, language)
               return (
                 <li key={event.id} className="flex items-start gap-3 px-4 py-3">
                   <span
@@ -248,7 +281,7 @@ export function AuditLogView() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{readableSummary(event)}</span>
+                      <span className="text-sm font-medium text-foreground">{readableSummary(event, language)}</span>
                       {event.occurrences && event.occurrences > 1 ? (
                         <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
                           ×{event.occurrences}
@@ -274,12 +307,12 @@ export function AuditLogView() {
                         {actorInitials(event.actorId, users)}
                       </span>
                       <span>{actorName(event.actorId, users)}</span>
-                      {event.targetUserId && <span>· użytkownik {actorName(event.targetUserId, users)}</span>}
-                      {event.targetRole && <span>· rola {event.targetRole}</span>}
-                      {event.caseId ? <span>· sprawa {event.caseId}</span> : null}
-                      {event.patientId ? <span>· pacjent {event.patientId}</span> : null}
-                      <span title={formatDateTime(event.at)}>
-                        · {mounted ? formatRelative(event.at) : formatDateTime(event.at)}
+                      {event.targetUserId && <span>· {tr("użytkownik", "пользователь")} {actorName(event.targetUserId, users)}</span>}
+                      {event.targetRole && <span>· {tr("rola", "роль")} {event.targetRole}</span>}
+                      {event.caseId ? <span>· {tr("sprawa", "кейс")} {event.caseId}</span> : null}
+                      {event.patientId ? <span>· {tr("pacjent", "пациент")} {event.patientId}</span> : null}
+                      <span title={formatDateTime(event.at, undefined, language === "ru" ? "ru-RU" : "pl-PL")}>
+                        · {mounted ? formatRelative(event.at, language) : formatDateTime(event.at, undefined, language === "ru" ? "ru-RU" : "pl-PL")}
                       </span>
                     </div>
                   </div>
