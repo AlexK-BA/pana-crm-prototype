@@ -89,3 +89,16 @@ test('command palette follows the active PL/RU language', () => {
   assert.match(palette, /tr\("Paleta poleceń", "Палитра команд"\)/)
   assert.match(palette, /tr\("Szukaj spraw, pacjentów, numerów telefonu\.\.\.\", "Искать кейсы, пациентов, номера телефонов\.\.\.\"\)/)
 })
+
+test('admin users, permissions and workflow settings follow the active PL/RU language', () => {
+  const users = fs.readFileSync('components/crm/user-management-view.tsx', 'utf8')
+  const permissions = fs.readFileSync('components/crm/role-permission-matrix.tsx', 'utf8')
+  const settings = fs.readFileSync('components/crm/settings-view.tsx', 'utf8')
+  assert.match(users, /tr\("Użytkownicy aplikacji", "Пользователи приложения"\)/)
+  assert.match(users, /formatRelative\(user\.lastLoginAt, language\)/)
+  assert.match(users, /tr\("Edytuj role i kliniki", "Изменить роли и клиники"\)/)
+  assert.match(permissions, /PERMISSION_RU\[permission\.id\]/)
+  assert.match(permissions, /tr\("Role i uprawnienia", "Роли и разрешения"\)/)
+  assert.match(settings, /WORKFLOW_TASK_TITLE_RU/)
+  assert.match(settings, /tr\("Źródła wiedzy bota", "Источники знаний бота"\)/)
+})

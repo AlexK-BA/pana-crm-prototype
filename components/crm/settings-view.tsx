@@ -55,18 +55,36 @@ const INITIAL_KB: KbArticle[] = [
 
 let kbSeq = INITIAL_KB.length
 
-const WORKFLOW_BOARD_PL: Record<string, string> = { leads: "Leady", deals: "Wizyty", patients: "Pacjenci" }
-const WORKFLOW_POLICY_PL: Record<string, string> = { manual: "ręcznie", appointment: "wg terminu wizyty", clinical: "wg wskazań klinicznych" }
-const WORKFLOW_LABEL_PL: Record<string, string> = {
-  new: "Nowy", qualification: "Kwalifikacja", waiting: "Lista oczekujących", call_later: "Oddzwonić później", failed: "Nieudany", closed: "Zamknięty", converted: "Skonwertowany",
-  scheduled: "Umówiona", post_visit: "Po wizycie", recall: "Przypomnienie", care: "Opieka", no_show: "Nieobecność", completed: "Zakończona",
-  appt_scheduled: "Wizyta umówiona", new_patient: "Nowy pacjent", returning: "Powracający", in_treatment: "W leczeniu", control: "Kontrola",
-  call: "telefon", message: "wiadomość", sms: "SMS", email: "e-mail", custom: "własne",
-  waitlist_contact: "kontakt z listy oczekujących", appointment_booking: "umówienie wizyty", appointment_confirmation: "potwierdzenie wizyty",
-  post_visit_follow_up: "kontakt po wizycie", send_treatment_plan: "wysłanie planu leczenia", patient_care_handoff: "przekazanie opieki",
-  treatment_plan_review: "przegląd planu leczenia",
+const WORKFLOW_BOARD: Record<string, readonly [string, string]> = {
+  leads: ["Leady", "Лиды"], deals: ["Wizyty", "Визиты"], patients: ["Pacjenci", "Пациенты"],
 }
-const workflowLabel = (key: string) => WORKFLOW_LABEL_PL[key] ?? key.replaceAll("_", " ")
+const WORKFLOW_POLICY: Record<string, readonly [string, string]> = {
+  manual: ["ręcznie", "вручную"], appointment: ["wg terminu wizyty", "по времени визита"], clinical: ["wg wskazań klinicznych", "по клиническим показаниям"],
+}
+const WORKFLOW_LABEL: Record<string, readonly [string, string]> = {
+  new: ["Nowy", "Новый"], qualification: ["Kwalifikacja", "Квалификация"], waiting: ["Lista oczekujących", "Список ожидания"], call_later: ["Oddzwonić później", "Перезвонить позже"], failed: ["Nieudany", "Неудачный"], closed: ["Zamknięty", "Закрытый"], converted: ["Skonwertowany", "Конвертированный"],
+  scheduled: ["Umówiona", "Запланирован"], post_visit: ["Po wizycie", "После визита"], recall: ["Przypomnienie", "Напоминание"], care: ["Opieka", "Сопровождение"], no_show: ["Nieobecność", "Неявка"], completed: ["Zakończona", "Завершён"],
+  appt_scheduled: ["Wizyta umówiona", "Визит запланирован"], new_patient: ["Nowy pacjent", "Новый пациент"], returning: ["Powracający", "Повторный пациент"], in_treatment: ["W leczeniu", "На лечении"], control: ["Kontrola", "Контроль"],
+  call: ["telefon", "звонок"], message: ["wiadomość", "сообщение"], sms: ["SMS", "SMS"], email: ["e-mail", "e-mail"], custom: ["własne", "пользовательское"],
+  waitlist_contact: ["kontakt z listy oczekujących", "контакт со списком ожидания"], appointment_booking: ["umówienie wizyty", "запись на визит"], appointment_confirmation: ["potwierdzenie wizyty", "подтверждение визита"],
+  post_visit_follow_up: ["kontakt po wizycie", "контакт после визита"], send_treatment_plan: ["wysłanie planu leczenia", "отправка плана лечения"], patient_care_handoff: ["przekazanie opieki", "передача в сопровождение"],
+  treatment_plan_review: ["przegląd planu leczenia", "проверка плана лечения"],
+}
+const WORKFLOW_TASK_TITLE_RU: Record<string, string> = {
+  "leads.new.first-contact": "Первый контакт с новым лидом",
+  "leads.qualification.complete": "Завершить квалификацию и определить следующий шаг",
+  "leads.waiting.offer-slot": "Предложить время из списка ожидания",
+  "deals.scheduled.confirm": "Подтвердить запланированный визит",
+  "deals.post-visit.follow-up": "Связаться после визита",
+  "deals.recall.schedule": "Запланировать рекомендованный контрольный визит",
+  "deals.care.handoff": "Принять пациента на сопровождение",
+  "deals.no-show.call": "Связаться после неявки",
+  "patients.scheduled.reminder": "Подтвердить ближайший визит",
+  "patients.new.welcome": "Первый контакт отдела сопровождения",
+  "patients.returning.next-step": "Определить следующий шаг для повторного пациента",
+  "patients.treatment.review": "Проверить следующий этап плана лечения",
+  "patients.control.schedule": "Запланировать контрольный снимок",
+}
 
 const INITIAL_SOURCES = [
   { id: "src-web", name: BRAND_CONFIG.contactDomain, type: "WWW", scope: "Wszystkie kliniki", items: 84, status: "Gotowe" },
@@ -76,7 +94,7 @@ const INITIAL_SOURCES = [
 
 export function SettingsView() {
   const { role, setRole } = useRole()
-  const { t, tr } = useLanguage()
+  const { language, t, tr } = useLanguage()
   const { users } = useUserDirectory()
   const [section, setSection] = useState<"operations" | "access" | "communications" | "ai">("operations")
 
@@ -94,6 +112,17 @@ export function SettingsView() {
   const [sources, setSources] = useState(INITIAL_SOURCES)
   const [testQuery, setTestQuery] = useState("")
   const [testAnswer, setTestAnswer] = useState("")
+  const localizedPair = (pair: readonly [string, string] | undefined, fallback: string) => pair ? (language === "ru" ? pair[1] : pair[0]) : fallback
+  const workflowLabel = (key: string) => localizedPair(WORKFLOW_LABEL[key], key.replaceAll("_", " "))
+  const workflowTaskTitle = (id: string, title: string) => language === "ru" ? WORKFLOW_TASK_TITLE_RU[id] ?? title : title
+  const sourceText = (value: string) => {
+    if (language !== "ru") return value
+    return ({
+      "Wszystkie kliniki": "Все клиники", "Według kliniki": "По клинике", "Do konfiguracji": "Требует настройки",
+      "Cenniki i procedury": "Прайс-листы и процедуры", "Lekarze i specjalizacje": "Врачи и специализации",
+      Dokumenty: "Документы", Dokument: "Документ", Gotowe: "Готово", Synchronizacja: "Синхронизация", Szkic: "Черновик",
+    } as Record<string, string>)[value] ?? value
+  }
 
   function startAdd() {
     setEditing(null)
@@ -141,7 +170,7 @@ export function SettingsView() {
       </nav>
 
       <div className={section === "ai" ? "contents" : "hidden"}><AiComplianceCenter /></div>
-      <section className={cn("space-y-2 rounded border p-4", section !== "operations" && "hidden")}><h2 className="font-semibold">Workflow i SLA — wartości domyślne prototypu</h2><p className="text-sm text-muted-foreground">Wartości kalendarne wymagają potwierdzenia. Brak kalendarza pracy i świąt. Zadania kliniczne i wizyty wymagają jawnego terminu; konfiguracja w backendzie w przyszłości.</p><div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-xs"><thead><tr><th className="p-2">Tablica / etap</th><th>Zadanie automatyczne</th><th>SLA / polityka</th><th>Sugerowane</th></tr></thead><tbody>{WORKFLOW_STAGE_RULES.map(rule=><tr key={`${rule.board}/${rule.status}`} className="border-t"><td className="p-2">{WORKFLOW_BOARD_PL[rule.board] ?? rule.board} / {workflowLabel(rule.status)}{rule.terminal?" · końcowy":""}</td><td>{rule.automaticTask?.title??"Jawny wybór / bez automatyzacji"}</td><td>{rule.automaticTask?.duePolicy==="sla"?`${rule.automaticTask.dueInMinutes} min`:WORKFLOW_POLICY_PL[rule.automaticTask?.duePolicy ?? "manual"] ?? rule.automaticTask?.duePolicy}</td><td>{rule.suggestedTasks?.map(workflowLabel).join(", ")}</td></tr>)}</tbody></table></div></section>
+      <section className={cn("space-y-2 rounded border p-4", section !== "operations" && "hidden")}><h2 className="font-semibold">{tr("Workflow i SLA — wartości domyślne prototypu", "Процессы и SLA — значения прототипа по умолчанию")}</h2><p className="text-sm text-muted-foreground">{tr("Wartości kalendarne wymagają potwierdzenia. Brak kalendarza pracy i świąt. Zadania kliniczne i wizyty wymagają jawnego terminu; konfiguracja w backendzie w przyszłości.", "Календарные значения требуют подтверждения. Рабочий календарь и праздники пока не настроены. Для клинических задач и визитов срок задаётся явно; конфигурация на бэкенде появится позднее.")}</p><div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-xs"><thead><tr><th className="p-2">{tr("Tablica / etap", "Доска / этап")}</th><th>{tr("Zadanie automatyczne", "Автоматическая задача")}</th><th>{tr("SLA / polityka", "SLA / политика")}</th><th>{tr("Sugerowane", "Рекомендуемые")}</th></tr></thead><tbody>{WORKFLOW_STAGE_RULES.map(rule=><tr key={`${rule.board}/${rule.status}`} className="border-t"><td className="p-2">{localizedPair(WORKFLOW_BOARD[rule.board], rule.board)} / {workflowLabel(rule.status)}{rule.terminal ? tr(" · końcowy", " · финальный") : ""}</td><td>{rule.automaticTask ? workflowTaskTitle(rule.automaticTask.id, rule.automaticTask.title) : tr("Jawny wybór / bez automatyzacji", "Явный выбор / без автоматизации")}</td><td>{rule.automaticTask?.duePolicy === "sla" ? `${rule.automaticTask.dueInMinutes} min` : localizedPair(WORKFLOW_POLICY[rule.automaticTask?.duePolicy ?? "manual"], rule.automaticTask?.duePolicy ?? "manual")}</td><td>{rule.suggestedTasks?.map(workflowLabel).join(", ")}</td></tr>)}</tbody></table></div></section>
       <section className={cn("rounded-lg border border-border bg-card p-4", section !== "access" && "hidden")}>
         <h2 className="mb-1 text-sm font-semibold text-foreground">{t("settings_role_title")}</h2>
         <p className="mb-3 text-xs text-muted-foreground">{t("settings_role_desc")}</p>
@@ -191,10 +220,10 @@ export function SettingsView() {
                 <p className="text-sm font-medium text-foreground">{user.name}</p>
                 <p className="text-xs text-muted-foreground">{user.email}</p>
               </div>
-              <Badge variant="secondary">{user.status}</Badge>
+              <Badge variant="secondary">{user.status === "active" ? tr("Aktywny", "Активен") : user.status === "inactive" ? tr("Nieaktywny", "Неактивен") : user.status === "invited" ? tr("Zaproszony", "Приглашён") : tr("Zablokowany", "Заблокирован")}</Badge>
             </div>
           ))}
-          <Button variant="outline" size="sm" className="mt-2 w-full" nativeButton={false} render={<Link href="/users">Zarządzaj użytkownikami i dostępem</Link>} />
+          <Button variant="outline" size="sm" className="mt-2 w-full" nativeButton={false} render={<Link href="/users">{tr("Zarządzaj użytkownikami i dostępem", "Управление пользователями и доступом")}</Link>} />
         </div>
       </section>
 
@@ -349,12 +378,12 @@ export function SettingsView() {
             <div>
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold">Źródła wiedzy bota</h3>
+                <h3 className="text-sm font-semibold">{tr("Źródła wiedzy bota", "Источники знаний бота")}</h3>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Źródła używane do odpowiedzi. W prototypie synchronizacja i indeksowanie są emulowane.</p>
+              <p className="mt-1 text-xs text-muted-foreground">{tr("Źródła używane do odpowiedzi. W prototypie synchronizacja i indeksowanie są emulowane.", "Источники, используемые для ответов. В прототипе синхронизация и индексация эмулируются.")}</p>
             </div>
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setSources((prev) => [...prev, { id: `src-${prev.length + 1}`, name: "Nowe źródło", type: "Dokument", scope: "Do konfiguracji", items: 0, status: "Szkic" }])}>
-              <Plus className="h-3.5 w-3.5" />Dodaj źródło
+              <Plus className="h-3.5 w-3.5" />{tr("Dodaj źródło", "Добавить источник")}
             </Button>
           </div>
           <div className="space-y-2">
@@ -362,11 +391,11 @@ export function SettingsView() {
               <div key={source.id} className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2.5">
                 {source.type === "WWW" ? <Globe2 className="h-4 w-4 text-sky-600" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{source.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{source.type} · {source.scope} · {source.items} elementów</p>
+                  <p className="truncate text-sm font-medium">{sourceText(source.name)}</p>
+                  <p className="text-[11px] text-muted-foreground">{sourceText(source.type)} · {sourceText(source.scope)} · {source.items} {tr("elementów", "элементов")}</p>
                 </div>
-                <Badge variant={source.status === "Gotowe" ? "secondary" : "outline"}>{source.status}</Badge>
-                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Ponownie indeksuj" onClick={() => setSources((prev) => prev.map((item) => item.id === source.id ? { ...item, status: "Gotowe" } : item))}>
+                <Badge variant={source.status === "Gotowe" ? "secondary" : "outline"}>{sourceText(source.status)}</Badge>
+                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={tr("Ponownie indeksuj", "Переиндексировать")} onClick={() => setSources((prev) => prev.map((item) => item.id === source.id ? { ...item, status: "Gotowe" } : item))}>
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -375,13 +404,13 @@ export function SettingsView() {
         </div>
 
         <div className="mb-5 rounded-lg border border-border p-3">
-          <div className="mb-2 flex items-center gap-2"><Play className="h-4 w-4 text-muted-foreground" /><h3 className="text-sm font-semibold">Test odpowiedzi</h3></div>
-          <p className="mb-3 text-xs text-muted-foreground">Sprawdź, czy bot znajduje odpowiedź w aktywnej bazie przed publikacją zmian.</p>
+          <div className="mb-2 flex items-center gap-2"><Play className="h-4 w-4 text-muted-foreground" /><h3 className="text-sm font-semibold">{tr("Test odpowiedzi", "Проверка ответа")}</h3></div>
+          <p className="mb-3 text-xs text-muted-foreground">{tr("Sprawdź, czy bot znajduje odpowiedź w aktywnej bazie przed publikacją zmian.", "Проверьте, находит ли бот ответ в активной базе до публикации изменений.")}</p>
           <div className="flex gap-2">
-            <Input value={testQuery} onChange={(event) => setTestQuery(event.target.value)} placeholder="Np. jakie są godziny otwarcia?" />
-            <Button variant="secondary" disabled={!testQuery.trim()} onClick={() => setTestAnswer(INITIAL_KB.find((item) => item.question.toLowerCase().includes("godziny"))?.answer ?? "Nie znaleziono pewnej odpowiedzi — przekaż rozmowę operatorowi.")}>Testuj</Button>
+            <Input value={testQuery} onChange={(event) => setTestQuery(event.target.value)} placeholder={tr("Np. jakie są godziny otwarcia?", "Например: какие часы работы?")} />
+            <Button variant="secondary" disabled={!testQuery.trim()} onClick={() => setTestAnswer(language === "ru" ? "Наши клиники открыты с понедельника по пятницу с 8:00 до 20:00, в субботу — с 9:00 до 15:00." : INITIAL_KB.find((item) => item.question.toLowerCase().includes("godziny"))?.answer ?? "Nie znaleziono pewnej odpowiedzi — przekaż rozmowę operatorowi.")}>{tr("Testuj", "Проверить")}</Button>
           </div>
-          {testAnswer && <div className="mt-3 rounded-md bg-muted px-3 py-2 text-xs leading-relaxed"><span className="font-medium">Odpowiedź bota:</span> {testAnswer}</div>}
+          {testAnswer && <div className="mt-3 rounded-md bg-muted px-3 py-2 text-xs leading-relaxed"><span className="font-medium">{tr("Odpowiedź bota", "Ответ бота")}:</span> {testAnswer}</div>}
         </div>
 
         {showForm && (
