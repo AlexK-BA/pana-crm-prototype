@@ -31,7 +31,7 @@ export function WaitlistView() {
   const { cases, moveCase, manualOrder, saveManualOrder, clearManualOrder } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const { tr } = useLanguage()
+  const { tr, language } = useLanguage()
   const actorId = INITIAL_USERS.find((o) => o.name === ROLE_PROFILES[role].user.name)?.id ?? "system"
   const reorderDisabled = query !== "" || clinic !== "all" || doctor !== "all" || service !== "all" || assignee !== "all"
 
@@ -67,7 +67,9 @@ export function WaitlistView() {
 
         <Select value={clinic} onValueChange={(v) => setClinic(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Klinika", "Клиника")} />
+            <SelectValue placeholder={tr("Klinika", "Клиника")}>
+              {(value: string | null) => (!value || value === "all" ? tr("Wszystkie kliniki", "Все клиники") : CLINICS.find((c) => c.id === value)?.name)}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszystkie kliniki", "Все клиники")}</SelectItem>
@@ -81,7 +83,9 @@ export function WaitlistView() {
 
         <Select value={doctor} onValueChange={(v) => setDoctor(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Lekarz", "Врач")} />
+            <SelectValue placeholder={tr("Lekarz", "Врач")}>
+              {(value: string | null) => (!value || value === "all" ? tr("Wszyscy lekarze", "Все врачи") : DOCTORS.find((d) => d.id === value)?.name)}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszyscy lekarze", "Все врачи")}</SelectItem>
@@ -95,7 +99,9 @@ export function WaitlistView() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Usługa", "Услуга")} />
+            <SelectValue placeholder={tr("Usługa", "Услуга")}>
+              {(value: string | null) => (!value || value === "all" ? tr("Wszystkie usługi", "Все услуги") : PROCEDURES.find((p) => p.id === value)?.name)}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
@@ -109,7 +115,9 @@ export function WaitlistView() {
 
         <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Właściciel", "Ответственный")} />
+            <SelectValue placeholder={tr("Właściciel", "Ответственный")}>
+              {(value: string | null) => (!value || value === "all" ? tr("Wszyscy właściciele", "Все ответственные") : INITIAL_USERS.find((o) => o.id === value)?.name)}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszyscy właściciele", "Все ответственные")}</SelectItem>
@@ -150,7 +158,7 @@ export function WaitlistView() {
               const procedure = getProcedure(c.serviceInterest)
               const doctor = getDoctor(c.doctorId)
               const owner = getOperator(c.responsibleTeamId)
-              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? "Nierozpoznany kontakt"
+              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? tr("Nierozpoznany kontakt", "Неопознанный контакт")
 
               return (
                 <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
@@ -170,10 +178,10 @@ export function WaitlistView() {
 
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={formatDateTime(c.createdAt)}>
                     <Clock className="h-3.5 w-3.5" />
-                    <span suppressHydrationWarning>Czeka od {formatRelative(c.createdAt).replace("in ", "")}</span>
+                    <span suppressHydrationWarning>{tr("Czeka od", "Ожидает")} {formatRelative(c.createdAt, language).replace("in ", "")}</span>
                   </div>
 
-                  <span className="text-xs text-muted-foreground">{owner?.name ?? "Nieprzypisane"}</span>
+                  <span className="text-xs text-muted-foreground">{owner?.name ?? tr("Nieprzypisane", "Не назначено")}</span>
 
                   <Button
                     size="sm"
@@ -181,7 +189,7 @@ export function WaitlistView() {
                     onClick={() => openCase(c.id)}
                   >
                     <PhoneCall className="h-3.5 w-3.5" />
-                    Zaproponuj termin
+                    {tr("Zaproponuj termin", "Предложить время")}
                   </Button>
                 </div>
               )
