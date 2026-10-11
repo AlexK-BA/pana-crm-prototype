@@ -236,10 +236,10 @@ export default function InboxPage() {
                         {formatRelative(c.lastAt)}
                       </span>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{c.lastMessage || "Brak treści"}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{c.lastMessage || tr("Brak treści", "Нет текста", "No content")}</p>
                     {!c.case.clinicId && (
                       <Badge variant="outline" className="mt-1 border-slate-200 bg-white text-[10px] text-slate-500">
-                        Do przypisania kliniki
+                        {tr("Do przypisania kliniki", "Требуется назначить клинику", "Clinic assignment required")}
                       </Badge>
                     )}
                   </div>
@@ -252,7 +252,7 @@ export default function InboxPage() {
               )
             })}
             {conversations.length === 0 && (
-              <p className="px-4 py-10 text-center text-sm text-muted-foreground">Brak rozmów spełniających filtry.</p>
+              <p className="px-4 py-10 text-center text-sm text-muted-foreground">{tr("Brak rozmów spełniających filtry.", "Нет диалогов по выбранным фильтрам.", "No conversations match the filters.")}</p>
             )}
           </div>
         </div>
@@ -268,7 +268,7 @@ export default function InboxPage() {
                   <p className="truncate text-sm font-semibold text-foreground">{active.displayName}</p>
                   <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
                     <Badge variant="outline" className={cn("max-w-full shrink truncate text-[11px]", activeClinicTone.chip)}>
-                      {activeClinic?.name ?? "Nieprzypisano kliniki"}
+                      {activeClinic?.name ?? tr("Nieprzypisano kliniki", "Клиника не назначена", "No clinic assigned")}
                     </Badge>
                     {active.identity && <span className="truncate text-xs text-muted-foreground max-md:hidden">{active.identity.value}</span>}
                   </div>
@@ -299,8 +299,8 @@ export default function InboxPage() {
                   <p className="mt-1 text-xs text-muted-foreground">{tr("Skopiuj dane z rozmowy i uzupełnij profil bez opuszczania czatu.", "Перенесите данные из диалога и заполните профиль, не выходя из чата.")}</p>
                   <div className="mt-4 space-y-3">
                     {([[
-                      "firstName", "Imię"
-                    ], ["lastName", "Nazwisko"], ["pesel", "PESEL"], ["phone", "Telefon"], ["email", "E-mail"]] as const).map(([field, label]) => (
+                      "firstName", tr("Imię", "Имя", "First name")
+                    ], ["lastName", tr("Nazwisko", "Фамилия", "Last name")], ["pesel", "PESEL"], ["phone", tr("Telefon", "Телефон", "Phone")], ["email", "E-mail"]] as const).map(([field, label]) => (
                       <div key={field} className="space-y-1.5">
                         <Label htmlFor={`inbox-${field}`} className="text-xs text-muted-foreground">{label}</Label>
                         <Input id={`inbox-${field}`} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={label} />
@@ -308,16 +308,16 @@ export default function InboxPage() {
                     ))}
                   </div>
                   <Button className="mt-4 w-full gap-1.5" disabled={!profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
-                    <Save className="h-3.5 w-3.5" />{profileSaved ? "Zapisano" : active.patient ? "Zapisz zmiany" : "Utwórz profil"}
+                    <Save className="h-3.5 w-3.5" />{profileSaved ? tr("Zapisano", "Сохранено", "Saved") : active.patient ? tr("Zapisz zmiany", "Сохранить изменения", "Save changes") : tr("Utwórz profil", "Создать профиль", "Create profile")}
                   </Button>
-                  <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">Profil lokalny można później dopasować lub zsynchronizować z Medical CRM. Historia zapisu pozostaje w audycie sprawy.</p>
+                  <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">{tr("Profil lokalny można później dopasować lub zsynchronizować z Medical CRM. Historia zapisu pozostaje w audycie sprawy.", "Локальный профиль можно позже сопоставить или синхронизировать с Medical CRM. История сохранения останется в аудите кейса.", "The local profile can be matched or synced with Medical CRM later. The saved history remains in the case audit log.")}</p>
                   </aside>
                 )}
               </div>
             </>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Wybierz rozmowę z listy po lewej.
+              {tr("Wybierz rozmowę z listy po lewej.", "Выберите диалог в списке слева.", "Select a conversation from the list.")}
             </div>
           )}
         </div>

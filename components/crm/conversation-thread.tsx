@@ -379,7 +379,7 @@ export function ConversationThread({
           className="h-3 w-3 accent-destructive"
         />
         <label htmlFor={toggleId} className="cursor-pointer select-none">
-          Symuluj błąd wysyłki (test UAT)
+          {tr("Symuluj błąd wysyłki (test UAT)", "Симулировать ошибку отправки (UAT)", "Simulate delivery failure (UAT test)")}
         </label>
       </div>
       {attachments.length > 0 && (
