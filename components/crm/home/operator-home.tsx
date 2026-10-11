@@ -270,7 +270,7 @@ export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void
           <span className="sr-only">{item.task.priority}</span>
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{item.patientName}</p>
+          <p className="truncate text-sm font-medium text-foreground">{item.patientName === "Nierozpoznany kontakt" ? t("unknown_contact") : item.patientName}</p>
           <p className="truncate text-xs text-muted-foreground">
             <span className={cn("mr-1 inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium", tone.chip)}>
               {item.clinicAssigned ? item.clinicName : t("no_clinic")}
