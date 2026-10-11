@@ -122,9 +122,9 @@ export function RecordsTable() {
   }
 
   const audienceLabel = [
-    board === "all" ? "wszystkie tablice" : BOARD_LABELS[board].split(" ·")[0],
-    clinic === "all" ? "wszystkie kliniki" : clinics.find(([id]) => id === clinic)?.[1] ?? clinic,
-    query ? `filtr "${query}"` : null,
+    board === "all" ? tr("wszystkie tablice", "все доски") : BOARD_LABELS[board].split(" ·")[0],
+    clinic === "all" ? tr("wszystkie kliniki", "все клиники") : clinics.find(([id]) => id === clinic)?.[1] ?? clinic,
+    query ? tr(`filtr "${query}"`, `фильтр «${query}»`) : null,
   ]
     .filter(Boolean)
     .join(" · ")
@@ -234,60 +234,60 @@ export function RecordsTable() {
             render={
               <Button variant="outline" size="sm" className="h-8 gap-1.5">
                 <BookmarkPlus className="h-3.5 w-3.5" />
-                Zapisz widok
+                {tr("Zapisz widok", "Сохранить вид")}
               </Button>
             }
           />
         
           <PopoverContent align="start" className="w-64 space-y-2">
-            <p className="text-xs font-medium text-foreground">Nazwa widoku</p>
+            <p className="text-xs font-medium text-foreground">{tr("Nazwa widoku", "Название вида")}</p>
             <Input
               value={viewName}
               onChange={(e) => setViewName(e.target.value)}
-              placeholder="np. Deale kliniki Centrum"
+              placeholder={tr("np. Deale kliniki Centrum", "напр. Сделки клиники Centrum")}
               className="h-8 text-sm"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) saveCurrentView()
               }}
             />
             <Button size="sm" className="h-8 w-full" onClick={saveCurrentView} disabled={!viewName.trim()}>
-              Zapisz filtry
+              {tr("Zapisz filtry", "Сохранить фильтры")}
             </Button>
           </PopoverContent>
         </Popover>
 
         <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setBroadcastOpen(true)}>
           {justSent ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <MessageSquareText className="h-3.5 w-3.5" />}
-          {justSent ? "Wysłano" : "Kampania SMS"}
+          {justSent ? tr("Wysłano", "Отправлено") : tr("Kampania SMS", "SMS-кампания")}
         </Button>
 
-        <span className="ml-auto text-xs text-muted-foreground">{rows.length} rekordów</span>
+        <span className="ml-auto text-xs text-muted-foreground">{tr(`${rows.length} rekordów`, `Записей: ${rows.length}`)}</span>
       </div>
 
       <Dialog open={broadcastOpen} onOpenChange={setBroadcastOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nowa kampania SMS</DialogTitle>
+            <DialogTitle>{tr("Nowa kampania SMS", "Новая SMS-кампания")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Odbiorcy: <span className="font-medium text-foreground">{rows.length}</span> kontaktów · {audienceLabel}
+              {tr("Odbiorcy", "Получатели")}: <span className="font-medium text-foreground">{rows.length}</span> {tr("kontaktów", "контактов")} · {audienceLabel}
             </p>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Nazwa kampanii</label>
+              <label className="text-xs font-medium text-foreground">{tr("Nazwa kampanii", "Название кампании")}</label>
               <Input
                 value={broadcastName}
                 onChange={(e) => setBroadcastName(e.target.value)}
-                placeholder="np. Przypomnienie o wizycie kontrolnej"
+                placeholder={tr("np. Przypomnienie o wizycie kontrolnej", "напр. Напоминание о повторном визите")}
                 className="h-8 text-sm"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Treść wiadomości</label>
+              <label className="text-xs font-medium text-foreground">{tr("Treść wiadomości", "Текст сообщения")}</label>
               <Textarea
                 value={broadcastMessage}
                 onChange={(e) => setBroadcastMessage(e.target.value)}
-                placeholder="Wpisz treść SMS..."
+                placeholder={tr("Wpisz treść SMS...", "Введите текст SMS...")}
                 className="min-h-24 text-sm"
                 maxLength={480}
               />
@@ -295,9 +295,9 @@ export function RecordsTable() {
             </div>
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline">Anuluj</Button>} />
+            <DialogClose render={<Button variant="outline">{t("cancel")}</Button>} />
             <Button onClick={handleSendBroadcast} disabled={!broadcastName.trim() || !broadcastMessage.trim()}>
-              Wyślij do {rows.length} kontaktów
+              {tr(`Wyślij do ${rows.length} kontaktów`, `Отправить ${rows.length} контактам`)}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -305,7 +305,7 @@ export function RecordsTable() {
 
       {savedViews.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-muted/30 px-4 py-2 md:px-6">
-          <span className="text-[11px] text-muted-foreground">Zapisane widoki:</span>
+          <span className="text-[11px] text-muted-foreground">{tr("Zapisane widoki:", "Сохранённые виды:")}</span>
           {savedViews.map((v) => (
             <span key={v.id} className="flex items-center gap-1 rounded-full border border-border bg-background pl-2.5 pr-1 py-0.5 text-[11px]">
               <button onClick={() => applyView(v)} className="hover:underline">
@@ -314,7 +314,7 @@ export function RecordsTable() {
               <button
                 onClick={() => setSavedViews((prev) => prev.filter((sv) => sv.id !== v.id))}
                 className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label={`Usuń widok ${v.name}`}
+                aria-label={tr(`Usuń widok ${v.name}`, `Удалить вид ${v.name}`)}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -363,21 +363,21 @@ export function RecordsTable() {
         <table className="hidden w-full text-sm md:table">
           <thead className="sticky top-0 bg-background text-left text-xs text-muted-foreground">
             <tr className="border-b border-border">
-              <th className="px-4 py-2 font-medium md:px-6">Kontakt / Pacjent</th>
-              <th className="px-3 py-2 font-medium">Tablica</th>
-              <th className="px-3 py-2 font-medium">Etap</th>
-              <th className="px-3 py-2 font-medium">Klinika</th>
-              <th className="px-3 py-2 font-medium">Usługa</th>
-              <th className="px-3 py-2 font-medium">Właściciel</th>
-              <th className="px-3 py-2 font-medium">Zadania</th>
-              <th className="px-3 py-2 font-medium">Utworzono</th>
+              <th className="px-4 py-2 font-medium md:px-6">{tr("Kontakt / Pacjent", "Контакт / Пациент")}</th>
+              <th className="px-3 py-2 font-medium">{t("board")}</th>
+              <th className="px-3 py-2 font-medium">{tr("Etap", "Этап")}</th>
+              <th className="px-3 py-2 font-medium">{tr("Klinika", "Клиника")}</th>
+              <th className="px-3 py-2 font-medium">{tr("Usługa", "Услуга")}</th>
+              <th className="px-3 py-2 font-medium">{tr("Właściciel", "Ответственный")}</th>
+              <th className="px-3 py-2 font-medium">{t("tab_tasks")}</th>
+              <th className="px-3 py-2 font-medium">{tr("Utworzono", "Создано")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((c) => {
               const patient = getPatient(c.patientId)
               const identity = getIdentity(c.contactIdentityId)
-              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? "Nierozpoznany kontakt"
+              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? t("unknown_contact")
               const clinicRecord = getClinic(c.clinicId)
               const tone = getClinicTone(c.clinicId)
               const procedure = getProcedure(c.serviceInterest)
@@ -404,11 +404,11 @@ export function RecordsTable() {
                   </td>
                   <td className="px-3 py-2.5">
                     <Badge variant="outline" className={cn("text-[11px]", tone.chip)}>
-                      {clinicRecord?.name ?? "Nieprzypisano"}
+                      {clinicRecord?.name ?? t("unassigned_owner")}
                     </Badge>
                   </td>
                   <td className="px-3 py-2.5 text-muted-foreground">{procedure?.name ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{owner?.name ?? "Nieprzypisane"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{owner?.name ?? t("unassigned_owner")}</td>
                   <td className={cn("px-3 py-2.5", openTasks > 0 ? "text-foreground" : "text-muted-foreground")}>{openTasks}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{formatDateTime(c.createdAt)}</td>
                 </tr>
@@ -417,7 +417,7 @@ export function RecordsTable() {
           </tbody>
         </table>
         {rows.length === 0 && (
-          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Brak rekordów dla wybranych filtrów.</div>
+          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">{tr("Brak rekordów dla wybranych filtrów.", "Нет записей для выбранных фильтров.")}</div>
         )}
       </div>
     </div>
