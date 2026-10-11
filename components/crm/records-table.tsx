@@ -53,7 +53,7 @@ export function RecordsTable() {
   const { cases, tasks, broadcasts, sendBroadcast } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const { t, tr } = useLanguage()
+  const { t, tr, locale } = useLanguage()
   const meName = ROLE_PROFILES[role].user.name
   const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
 
@@ -343,7 +343,7 @@ export function RecordsTable() {
                   <span className="flex items-center gap-2">
                     <span className={cn("h-2 w-2 shrink-0 rounded-full", tone.dot)} aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{name}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(c.createdAt)}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(c.createdAt, undefined, locale)}</span>
                   </span>
                   <span className="flex flex-wrap items-center gap-1.5">
                     <Badge variant="outline" className="text-[11px]">{statusLabel}</Badge>
@@ -410,7 +410,7 @@ export function RecordsTable() {
                   <td className="px-3 py-2.5 text-muted-foreground">{procedure?.name ?? "—"}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{owner?.name ?? t("unassigned_owner")}</td>
                   <td className={cn("px-3 py-2.5", openTasks > 0 ? "text-foreground" : "text-muted-foreground")}>{openTasks}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{formatDateTime(c.createdAt)}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{formatDateTime(c.createdAt, undefined, locale)}</td>
                 </tr>
               )
             })}

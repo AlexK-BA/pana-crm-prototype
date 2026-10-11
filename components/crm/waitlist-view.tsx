@@ -31,7 +31,7 @@ export function WaitlistView() {
   const { cases, moveCase, manualOrder, saveManualOrder, clearManualOrder } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const { tr, language } = useLanguage()
+  const { tr, language, locale } = useLanguage()
   const actorId = INITIAL_USERS.find((o) => o.name === ROLE_PROFILES[role].user.name)?.id ?? "system"
   const reorderDisabled = query !== "" || clinic !== "all" || doctor !== "all" || service !== "all" || assignee !== "all"
 
@@ -172,7 +172,7 @@ export function WaitlistView() {
                     </p>
                   </button>
 
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={formatDateTime(c.createdAt)}>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={formatDateTime(c.createdAt, undefined, locale)}>
                     <Clock className="h-3.5 w-3.5" />
                     <span suppressHydrationWarning>{tr("Czeka od", "Ожидает уже")} {waitingDuration}</span>
                   </div>
