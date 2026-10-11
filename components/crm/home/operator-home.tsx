@@ -20,6 +20,7 @@ import {
 import { actionKindText, priorityText } from "@/lib/crm/display-labels"
 import { getClinicTone } from "@/lib/crm/catalog"
 import { formatRelative } from "@/lib/crm/format"
+import { taskDisplayTitle } from "@/lib/crm/task-type-labels"
 import { cn } from "@/lib/utils"
 
 const ACTION_KINDS: ActionKind[] = ["unassigned_clinic", "reply", "call", "follow_up", "treatment_plan"]
@@ -123,7 +124,7 @@ export function OperatorHome() {
                 {nextItem.lastActionAt && <> · {formatRelative(nextItem.lastActionAt, language)}</>}
               </p>
               <p className="text-xs font-medium text-foreground" suppressHydrationWarning>
-                {t("next_step")}: {nextItem.task.title}
+                {t("next_step")}: {taskDisplayTitle(nextItem.task, language)}
                 {nextItem.task.dueAt && <> · {formatRelative(nextItem.task.dueAt, language)}</>}
               </p>
             </div>
@@ -278,7 +279,7 @@ export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void
             {item.doctorName ? ` · ${item.doctorName}` : ""}
           </p>
         </div>
-        <div className="hidden w-44 shrink-0 truncate text-xs text-muted-foreground md:block">{item.task.title}</div>
+        <div className="hidden w-44 shrink-0 truncate text-xs text-muted-foreground md:block">{taskDisplayTitle(item.task, language)}</div>
         <div
           className={cn("w-24 shrink-0 text-right text-xs font-medium", item.overdue ? "text-red-600" : "text-foreground")}
           suppressHydrationWarning

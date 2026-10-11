@@ -17,7 +17,7 @@ import { getClinic } from "@/lib/crm/catalog"
 import { BOARD_COLUMNS, BOARD_LABEL_KEYS } from "@/lib/crm/boards"
 import { PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { priorityText, taskStatusText } from "@/lib/crm/display-labels"
-import { taskTypeLabel } from "@/lib/crm/task-type-labels"
+import { taskDisplayTitle, taskTypeLabel } from "@/lib/crm/task-type-labels"
 import { CreateCaseTask, TaskActions } from "./task-actions"
 import { SortableList } from "./sortable-list"
 import { hasManualOrder, sortWithManualOrder } from "@/lib/crm/manual-order"
@@ -97,7 +97,7 @@ export function ScheduleList(){
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {handle}
               <Badge className={cn("border-0 text-white",PRIORITY_TONE[task.priority])}>{task.priority}</Badge>
-              <strong className="text-sm">{task.title}</strong>
+              <strong className="text-sm">{taskDisplayTitle(task, language)}</strong>
               <span className={cn("ml-auto flex items-center gap-1 text-xs",overdue?"font-medium text-red-700":"text-muted-foreground")}>
                 {overdue&&<AlertCircle className="h-3 w-3" aria-hidden="true"/>}
                 {taskStatusText(effectiveStatus(task,now),language)} · {task.dueAt?formatDateTime(task.dueAt,timeZone):tr("Bez terminu","Без срока")}
