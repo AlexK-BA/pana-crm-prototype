@@ -9,9 +9,9 @@ import { useAuthorization } from "@/lib/crm/authorization-context"
 import { useLanguage } from "@/lib/crm/language-context"
 
 const STATUS_LABELS = {
-  draft: { pl: "Wersja robocza", ru: "Черновик" },
-  published: { pl: "Opublikowana", ru: "Опубликована" },
-  retired: { pl: "Wycofana", ru: "Снята с публикации" },
+  draft: { en: "Draft", pl: "Wersja robocza", ru: "Черновик" },
+  published: { en: "Published", pl: "Opublikowana", ru: "Опубликована" },
+  retired: { en: "Retired", pl: "Wycofana", ru: "Снята с публикации" },
 } as const
 
 const READINESS_LABELS: Record<string, { pl: string; ru: string }> = {

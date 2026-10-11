@@ -156,7 +156,7 @@ const AUDIT_VALUE_RU: Record<string, string> = {
   "ci-04b (niepowiązany)": "ci-04b (не связан)",
 }
 
-function readableSummary(event: AuditEvent, language: "pl" | "ru") {
+function readableSummary(event: AuditEvent, language: "en" | "pl" | "ru") {
   if (language === "ru" && SUMMARY_RU[event.summary]) return SUMMARY_RU[event.summary]
   const actionId = event.action
   const action = actionId ? (language === "ru" ? ACTION_LABELS_RU[actionId] : ACTION_LABELS[actionId]) : undefined
@@ -164,7 +164,7 @@ function readableSummary(event: AuditEvent, language: "pl" | "ru") {
   return `${action}${event.summary.slice(actionId.length)}`
 }
 
-function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: "pl" | "ru") {
+function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: "en" | "pl" | "ru") {
   if (!value) return undefined
   if (language === "ru" && AUDIT_VALUE_RU[value]) return AUDIT_VALUE_RU[value]
   if (value === "no_task") return language === "ru" ? "Нет задачи" : "Brak zadania"

@@ -168,7 +168,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           render={
             <Button variant="outline" size="sm" className="gap-1.5" aria-label={t("language")}>
               <Languages className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{language === "pl" ? "PL" : "RU"}</span>
+              <span className="hidden sm:inline">{language.toUpperCase()}</span>
             </Button>
           }
         />
@@ -176,9 +176,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           <DropdownMenuGroup>
             <DropdownMenuLabel className="text-xs text-muted-foreground">{t("language")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {(["pl", "ru"] as Language[]).map((lang) => (
+            {(["en", "pl", "ru"] as Language[]).map((lang) => (
               <DropdownMenuItem key={lang} onClick={() => setLanguage(lang)} className="justify-between">
-                {lang === "pl" ? "Polski" : "Русский"}
+                {lang === "en" ? "English" : lang === "pl" ? "Polski" : "Русский"}
                 {language === lang && <span className="text-xs text-primary">✓</span>}
               </DropdownMenuItem>
             ))}
