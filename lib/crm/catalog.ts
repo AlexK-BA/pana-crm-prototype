@@ -1,5 +1,6 @@
 import type { Clinic, ClinicId, Doctor, Procedure } from "./entities"
 import { BRAND_CONFIG } from "./brand-config"
+import type { Language } from "./language-context"
 
 export const CLINICS: Clinic[] = [
   { id: "pana-medica", name: BRAND_CONFIG.clinicNames["pana-medica"], color: "emerald" },
@@ -51,6 +52,24 @@ export const PROCEDURES: Procedure[] = [
 export function getProcedure(id?: string) {
   if (!id) return undefined
   return PROCEDURES.find((p) => p.id === id)
+}
+
+const PROCEDURE_LABELS: Record<string, Record<Language, string>> = {
+  "proc-implant": { en: "Implant dentistry", pl: "Implantologia", ru: "Имплантология" },
+  "proc-ortho": { en: "Orthodontics", pl: "Ortodoncja", ru: "Ортодонтия" },
+  "proc-endo": { en: "Endodontics", pl: "Endodoncja", ru: "Эндодонтия" },
+  "proc-prosth": { en: "Prosthodontics", pl: "Protetyka", ru: "Протезирование" },
+  "proc-restor": { en: "Restorative dentistry", pl: "Stomatologia zachowawcza", ru: "Терапевтическая стоматология" },
+  "proc-perio": { en: "Periodontics", pl: "Periodontologia", ru: "Пародонтология" },
+  "proc-hygiene": { en: "Dental hygiene", pl: "Higienizacja", ru: "Профессиональная гигиена" },
+  "proc-consult": { en: "General consultation", pl: "Konsultacja ogólna", ru: "Общая консультация" },
+  "proc-whitening": { en: "Teeth whitening", pl: "Wybielanie", ru: "Отбеливание" },
+  "proc-xray": { en: "Follow-up X-ray", pl: "Kontrolne RTG", ru: "Контрольный рентген" },
+}
+
+export function procedureLabel(id: string | undefined, language: Language) {
+  if (!id) return undefined
+  return PROCEDURE_LABELS[id]?.[language] ?? getProcedure(id)?.name ?? id
 }
 
 export const DOCTORS: Doctor[] = [

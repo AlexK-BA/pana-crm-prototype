@@ -18,7 +18,7 @@ import {
   type QueueItem,
 } from "@/lib/crm/entity-selectors"
 import { actionKindText, priorityText } from "@/lib/crm/display-labels"
-import { getClinicTone } from "@/lib/crm/catalog"
+import { getClinicTone, procedureLabel } from "@/lib/crm/catalog"
 import { formatRelative } from "@/lib/crm/format"
 import { taskDisplayTitle } from "@/lib/crm/task-type-labels"
 import { cn } from "@/lib/utils"
@@ -117,7 +117,7 @@ export function OperatorHome() {
             <div className="min-w-0">
               <p className="text-base font-semibold text-foreground">{nextItem.patientName}</p>
               <p className="text-xs text-muted-foreground">
-                {nextItem.clinicName} · {nextItem.serviceName ?? t("no_service")} · {nextItem.identityLabel}
+                {nextItem.clinicName} · {procedureLabel(nextItem.case.serviceInterest, language) ?? t("no_service")} · {nextItem.identityLabel}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground" suppressHydrationWarning>
                 {t("last_action")}: {nextItem.lastAction ?? "—"}
@@ -275,7 +275,7 @@ export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void
             <span className={cn("mr-1 inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium", tone.chip)}>
               {item.clinicAssigned ? item.clinicName : t("no_clinic")}
             </span>
-            {item.serviceName ?? "—"}
+            {procedureLabel(item.case.serviceInterest, language) ?? "—"}
             {item.doctorName ? ` · ${item.doctorName}` : ""}
           </p>
         </div>

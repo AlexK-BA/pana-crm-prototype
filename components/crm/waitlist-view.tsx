@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, PhoneCall, Clock } from "lucide-react"
 import { getPatient, getIdentity } from "@/lib/crm/entity-data"
-import { getClinic, getDoctor, getProcedure, CLINICS, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
+import { getClinic, getDoctor, procedureLabel, CLINICS, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
 import { getOperator } from "@/lib/crm/entity-selectors"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
@@ -95,13 +95,13 @@ export function WaitlistView() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Usługa", "Услуга")}>{service === "all" ? tr("Wszystkie usługi", "Все услуги") : PROCEDURES.find((p) => p.id === service)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Usługa", "Услуга")}>{service === "all" ? tr("Wszystkie usługi", "Все услуги") : procedureLabel(service, language)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {PROCEDURES.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.name}
+                {procedureLabel(p.id, language)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -127,7 +127,7 @@ export function WaitlistView() {
           </Button>
         )}
         <span className={cn("text-xs text-muted-foreground", !hasManualOrder(manualOrder, WAITLIST_KEY) && "ml-auto")}>
-          {tr(`${waitlisted.length} na liście oczekujących`, `В листе ожидания: ${waitlisted.length}`)}
+          {tr(`${waitlisted.length} na liście oczekujących`, `В листе ожидания: ${waitlisted.length}`, `${waitlisted.length} on the waitlist`)}
         </span>
       </div>
 
@@ -149,12 +149,11 @@ export function WaitlistView() {
               const patient = getPatient(c.patientId)
               const identity = getIdentity(c.contactIdentityId)
               const clinic = getClinic(c.clinicId)
-              const procedure = getProcedure(c.serviceInterest)
               const doctor = getDoctor(c.doctorId)
               const owner = getOperator(c.responsibleTeamId)
               const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? tr("Nierozpoznany kontakt", "Неопознанный контакт")
               const waitingDuration = formatRelative(c.createdAt, language)
-                .replace(/\s+(temu|назад)$/u, "")
+                .replace(/\s+(temu|назад|ago)$/u, "")
 
               return (
                 <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
@@ -167,14 +166,14 @@ export function WaitlistView() {
                       </Badge>
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground md:truncate">
-                      {procedure?.name ?? tr("Bez określonej usługi", "Услуга не указана")}
+                      {procedureLabel(c.serviceInterest, language) ?? tr("Bez określonej usługi", "Услуга не указана")}
                       {doctor ? ` · ${doctor.name}` : ""}
                     </p>
                   </button>
 
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={formatDateTime(c.createdAt, undefined, locale)}>
                     <Clock className="h-3.5 w-3.5" />
-                    <span suppressHydrationWarning>{tr("Czeka od", "Ожидает уже")} {waitingDuration}</span>
+                    <span suppressHydrationWarning>{tr("Czeka od", "Ожидает уже", "Waiting")} {waitingDuration}</span>
                   </div>
 
                   <span className="text-xs text-muted-foreground">{owner?.name ?? tr("Nieprzypisane", "Не назначено")}</span>

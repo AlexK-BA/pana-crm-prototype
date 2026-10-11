@@ -33,7 +33,7 @@ export function TaskCalendar(){
   const start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7)+offset*7)
   const days=Array.from({length:7},(_,index)=>{const date=new Date(start);date.setDate(date.getDate()+index);return date})
   const projection=selectTaskCalendar(store.tasks.filter(task=>hasPermission("task:assign")||!task.ownerId||task.ownerId===store.currentUser.id)),dated=projection.dated.filter(task=>history||isActive(task)),detail=store.tasks.find(task=>task.id===selected),reschedule=store.tasks.find(task=>task.id===pending?.id)
-  const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient?`${patient.firstName} ${patient.lastName}`:tr("Kontakt","Контакт")}
+  const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient ? (patient.firstName === "Nierozpoznany" ? tr("Nierozpoznany kontakt","Неопознанный контакт") : `${patient.firstName} ${patient.lastName}`) : tr("Kontakt","Контакт")}
   const ownerName=(ownerId?:string)=>users.find(user=>user.id===ownerId)?.name??tr("Brak właściciela","Без ответственного")
   const todayKey=new Date(now).toDateString()
   const dayKey=(date:Date)=>`${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`
