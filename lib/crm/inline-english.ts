@@ -41,7 +41,6 @@ export const INLINE_ENGLISH: Record<string, string> = {
   "Zmiana kolejności jest wyłączona przy aktywnych filtrach.": "Reordering is disabled while filters are active.",
   "Zespół": "Team",
   "Zamknij": "Close",
-  "Zakres klinik": "Clinic scope",
   "Zadania": "Tasks",
   "Wybierz sprawę": "Select case",
   "Wybierz następne zadanie": "Select next task",
@@ -389,6 +388,14 @@ export const INLINE_ENGLISH: Record<string, string> = {
   "Sugerowane": "Suggested",
   " · końcowy": " · terminal",
   "Jawny wybór / bez automatyzacji": "Explicit choice / no automation",
+  "Wszyscy użytkownicy": "All users",
+  "Aktywni": "Active",
+  "Nieaktywni": "Inactive",
+  "Administratorzy": "Administrators",
+  "Konta są dezaktywowane, nigdy usuwane. Operacje bezpieczeństwa pozostają audytowalne.": "Accounts are deactivated, never deleted. Security operations remain auditable.",
+  "Użytkownik": "User",
+  "Zakres klinik": "Clinic scope",
+  "Działania": "Actions",
 }
 
 export function inlineEnglish(polish: string) {

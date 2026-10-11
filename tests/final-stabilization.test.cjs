@@ -113,7 +113,7 @@ test('admin users, permissions and workflow settings follow the active PL/RU lan
   assert.match(permissions, /tr\("Role i uprawnienia", "Роли и разрешения"\)/)
   assert.match(settings, /WORKFLOW_TASK_TITLE_RU/)
   assert.match(settings, /tr\("Źródła wiedzy bota", "Источники знаний бота"\)/)
-  assert.match(settings, /complete: \["Zakończone", "Завершено"\]/)
+  assert.match(settings, /complete: \["Zakończone", "Завершено", "Completed"\]/)
 })
 
 test('admin home and audit log follow the active PL/RU language', () => {
