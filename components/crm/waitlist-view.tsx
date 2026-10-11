@@ -31,7 +31,7 @@ export function WaitlistView() {
   const { cases, moveCase, manualOrder, saveManualOrder, clearManualOrder } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const { tr } = useLanguage()
+  const { tr, language, locale } = useLanguage()
   const actorId = INITIAL_USERS.find((o) => o.name === ROLE_PROFILES[role].user.name)?.id ?? "system"
   const reorderDisabled = query !== "" || clinic !== "all" || doctor !== "all" || service !== "all" || assignee !== "all"
 
@@ -60,7 +60,7 @@ export function WaitlistView() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Szukaj pacjenta lub kontaktu..."
+            placeholder={tr("Szukaj pacjenta lub kontaktu...", "Поиск пациента или контакта...")}
             className="h-8 pl-8 text-sm"
           />
         </div>
@@ -126,13 +126,15 @@ export function WaitlistView() {
             {tr("Przywróć kolejność automatyczną", "Вернуть автоматический порядок")}
           </Button>
         )}
-        <span className={cn("text-xs text-muted-foreground", !hasManualOrder(manualOrder, WAITLIST_KEY) && "ml-auto")}>{waitlisted.length} na liście oczekujących</span>
+        <span className={cn("text-xs text-muted-foreground", !hasManualOrder(manualOrder, WAITLIST_KEY) && "ml-auto")}>
+          {tr(`${waitlisted.length} na liście oczekujących`, `В листе ожидания: ${waitlisted.length}`)}
+        </span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {waitlisted.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Lista oczekujących jest pusta.
+            {tr("Lista oczekujących jest pusta.", "Лист ожидания пуст.")}
           </div>
         ) : (
           <SortableList
@@ -150,7 +152,9 @@ export function WaitlistView() {
               const procedure = getProcedure(c.serviceInterest)
               const doctor = getDoctor(c.doctorId)
               const owner = getOperator(c.responsibleTeamId)
-              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? "Nierozpoznany kontakt"
+              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? tr("Nierozpoznany kontakt", "Неопознанный контакт")
+              const waitingDuration = formatRelative(c.createdAt, language)
+                .replace(/\s+(temu|назад)$/u, "")
 
               return (
                 <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
@@ -163,17 +167,17 @@ export function WaitlistView() {
                       </Badge>
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground md:truncate">
-                      {procedure?.name ?? "Bez określonej usługi"}
+                      {procedure?.name ?? tr("Bez określonej usługi", "Услуга не указана")}
                       {doctor ? ` · ${doctor.name}` : ""}
                     </p>
                   </button>
 
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={formatDateTime(c.createdAt)}>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={formatDateTime(c.createdAt, undefined, locale)}>
                     <Clock className="h-3.5 w-3.5" />
-                    <span suppressHydrationWarning>Czeka od {formatRelative(c.createdAt).replace("in ", "")}</span>
+                    <span suppressHydrationWarning>{tr("Czeka od", "Ожидает уже")} {waitingDuration}</span>
                   </div>
 
-                  <span className="text-xs text-muted-foreground">{owner?.name ?? "Nieprzypisane"}</span>
+                  <span className="text-xs text-muted-foreground">{owner?.name ?? tr("Nieprzypisane", "Не назначено")}</span>
 
                   <Button
                     size="sm"
@@ -181,7 +185,7 @@ export function WaitlistView() {
                     onClick={() => openCase(c.id)}
                   >
                     <PhoneCall className="h-3.5 w-3.5" />
-                    Zaproponuj termin
+                    {tr("Zaproponuj termin", "Предложить время")}
                   </Button>
                 </div>
               )
