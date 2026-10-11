@@ -60,17 +60,17 @@ export function WaitlistView() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Szukaj pacjenta lub kontaktu..."
+            placeholder={tr("Szukaj pacjenta lub kontaktu...", "Поиск пациента или контакта...")}
             className="h-8 pl-8 text-sm"
           />
         </div>
 
         <Select value={clinic} onValueChange={(v) => setClinic(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Klinika" />
+            <SelectValue placeholder={tr("Klinika", "Клиника")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie kliniki</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie kliniki", "Все клиники")}</SelectItem>
             {CLINICS.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
@@ -81,10 +81,10 @@ export function WaitlistView() {
 
         <Select value={doctor} onValueChange={(v) => setDoctor(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Lekarz" />
+            <SelectValue placeholder={tr("Lekarz", "Врач")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy lekarze</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy lekarze", "Все врачи")}</SelectItem>
             {DOCTORS.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}
@@ -95,10 +95,10 @@ export function WaitlistView() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Usługa" />
+            <SelectValue placeholder={tr("Usługa", "Услуга")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie usługi</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {PROCEDURES.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
@@ -109,10 +109,10 @@ export function WaitlistView() {
 
         <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Właściciel" />
+            <SelectValue placeholder={tr("Właściciel", "Ответственный")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy właściciele</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy właściciele", "Все ответственные")}</SelectItem>
             {INITIAL_USERS.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.name}
@@ -126,13 +126,13 @@ export function WaitlistView() {
             {tr("Przywróć kolejność automatyczną", "Вернуть автоматический порядок")}
           </Button>
         )}
-        <span className={cn("text-xs text-muted-foreground", !hasManualOrder(manualOrder, WAITLIST_KEY) && "ml-auto")}>{waitlisted.length} na liście oczekujących</span>
+        <span className={cn("text-xs text-muted-foreground", !hasManualOrder(manualOrder, WAITLIST_KEY) && "ml-auto")}>{tr(`${waitlisted.length} na liście oczekujących`, `В листе ожидания: ${waitlisted.length}`)}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {waitlisted.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Lista oczekujących jest pusta.
+            {tr("Lista oczekujących jest pusta.", "Лист ожидания пуст.")}
           </div>
         ) : (
           <SortableList
@@ -163,7 +163,7 @@ export function WaitlistView() {
                       </Badge>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {procedure?.name ?? "Bez określonej usługi"}
+                      {procedure?.name ?? tr("Bez określonej usługi", "Услуга не указана")}
                       {doctor ? ` · ${doctor.name}` : ""}
                     </p>
                   </button>
