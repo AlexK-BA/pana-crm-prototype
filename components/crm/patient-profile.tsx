@@ -105,7 +105,7 @@ function PatientWorkspace({ patientId }: { patientId: string }) {
     </header>
     {currentMatches.length > 0 && <div role="status" className="space-y-2 rounded border border-amber-300 bg-amber-50 p-3 text-sm">{tr("Dopasowanie pacjenta wymaga weryfikacji.", "Сопоставление пациента требует проверки.")}{currentMatches.map(item => <p key={item.id}>{item.status === "conflict" ? tr("Konflikt", "Конфликт") : tr("Oczekuje na dopasowanie", "Ожидает сопоставления")} · <button className="underline" onClick={() => openCase(item.caseId)}>{item.caseId}</button></p>)}</div>}
     <Tabs value={section} onValueChange={setSection}>
-      <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
+      <TabsList className="h-auto w-full flex-wrap justify-start gap-1 group-data-horizontal/tabs:h-auto">
         <TabsTrigger value="overview">{tr("Przegląd", "Обзор")}</TabsTrigger>{hasPermission("case:view") && <TabsTrigger value="cases">{tr("Sprawy", "Кейсы")} ({view.cases.length})</TabsTrigger>}{hasPermission("task:view") && <TabsTrigger value="tasks">{tr("Zadania", "Задачи")} ({view.tasks.length})</TabsTrigger>}
         {hasPermission("communication:view") && <TabsTrigger value="communications">{tr("Komunikacje", "Коммуникации")}</TabsTrigger>}{(hasPermission("communication:view") || hasPermission("audit:view")) && <TabsTrigger value="activity">{tr("Oś aktywności", "Хронология активности")}</TabsTrigger>}
         {hasPermission("case:view") && <TabsTrigger value="comments">{tr("Komentarze", "Комментарии")} ({view.comments.length})</TabsTrigger>}{hasPermission("patient:view_medical") && <TabsTrigger value="medical">Medical CRM</TabsTrigger>}

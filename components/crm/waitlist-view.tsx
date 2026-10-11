@@ -55,7 +55,7 @@ export function WaitlistView() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-3 md:px-6">
-        <div className="relative w-64">
+        <div className="relative w-full sm:w-64">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -67,10 +67,10 @@ export function WaitlistView() {
 
         <Select value={clinic} onValueChange={(v) => setClinic(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Klinika" />
+            <SelectValue placeholder={tr("Klinika", "Клиника")}>{clinic === "all" ? tr("Wszystkie kliniki", "Все клиники") : CLINICS.find((c) => c.id === clinic)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie kliniki</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie kliniki", "Все клиники")}</SelectItem>
             {CLINICS.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
@@ -81,10 +81,10 @@ export function WaitlistView() {
 
         <Select value={doctor} onValueChange={(v) => setDoctor(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Lekarz" />
+            <SelectValue placeholder={tr("Lekarz", "Врач")}>{doctor === "all" ? tr("Wszyscy lekarze", "Все врачи") : DOCTORS.find((d) => d.id === doctor)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy lekarze</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy lekarze", "Все врачи")}</SelectItem>
             {DOCTORS.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}
@@ -95,10 +95,10 @@ export function WaitlistView() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Usługa" />
+            <SelectValue placeholder={tr("Usługa", "Услуга")}>{service === "all" ? tr("Wszystkie usługi", "Все услуги") : PROCEDURES.find((p) => p.id === service)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie usługi</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {PROCEDURES.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
@@ -109,10 +109,10 @@ export function WaitlistView() {
 
         <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Właściciel" />
+            <SelectValue placeholder={tr("Właściciel", "Ответственный")}>{assignee === "all" ? tr("Wszyscy właściciele", "Все ответственные") : INITIAL_USERS.find((o) => o.id === assignee)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy właściciele</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy właściciele", "Все ответственные")}</SelectItem>
             {INITIAL_USERS.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.name}
@@ -155,14 +155,14 @@ export function WaitlistView() {
               return (
                 <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
                   {handle}
-                  <button onClick={() => openCase(c.id)} className="min-w-0 flex-1 text-left">
-                    <div className="flex items-center gap-2">
+                  <button onClick={() => openCase(c.id)} className="min-w-0 flex-1 basis-40 text-left">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="truncate text-sm font-medium text-foreground hover:underline">{name}</p>
-                      <Badge variant="outline" className={cn("text-[10px]", `text-${clinic?.color}-700`)}>
+                      <Badge variant="outline" className={cn("shrink-0 text-[10px]", `text-${clinic?.color}-700`)}>
                         {clinic?.name}
                       </Badge>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    <p className="mt-0.5 text-xs text-muted-foreground md:truncate">
                       {procedure?.name ?? "Bez określonej usługi"}
                       {doctor ? ` · ${doctor.name}` : ""}
                     </p>

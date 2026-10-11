@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useState } from "react"
 import {
+  ArrowLeft,
   Search,
   CheckCheck,
   Phone,
@@ -72,6 +73,11 @@ export default function InboxPage() {
   const [profileOpen, setProfileOpen] = useState(true)
   const [profileDraft, setProfileDraft] = useState({ firstName: "", lastName: "", pesel: "", phone: "", email: "" })
   const [profileSaved, setProfileSaved] = useState(false)
+  const [mobileView, setMobileView] = useState<"list" | "thread">("list")
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 767px)").matches) setProfileOpen(false)
+  }, [])
 
   const { cases, interactions, identities, patients, readAt, createDraftCase, saveCaseContactProfile } = useScopedEntityStore()
   const { openCase } = useCasePanel()
@@ -158,7 +164,7 @@ export default function InboxPage() {
   return (
     <PageShell title="Inbox" titleRu="Входящие" subtitle="Wszystkie rozmowy czatowe, niezależnie od kart CRM" subtitleRu="Все чаты независимо от карточек CRM" noPadding>
       <div className="flex h-full">
-        <div className="flex w-[340px] shrink-0 flex-col border-r border-border">
+        <div className={cn("flex w-full min-w-0 shrink-0 flex-col border-r border-border md:w-[340px]", mobileView === "thread" && "max-md:hidden")}>
           <div className="space-y-2 border-b border-border px-3 py-3">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -210,7 +216,10 @@ export default function InboxPage() {
               return (
                 <button
                   key={c.case.id}
-                  onClick={() => setSelectedCaseId(c.case.id)}
+                  onClick={() => {
+                    setSelectedCaseId(c.case.id)
+                    setMobileView("thread")
+                  }}
                   className={cn(
                     "relative flex w-full items-start gap-3 border-b border-border px-3 py-3 text-left transition-colors hover:bg-accent",
                     activeCaseId === c.case.id && "bg-accent",
@@ -248,32 +257,35 @@ export default function InboxPage() {
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className={cn("flex min-w-0 flex-1 flex-col", mobileView === "list" && "max-md:hidden")}>
           {active ? (
             <>
-              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-                <div className="min-w-0">
+              <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3 md:gap-3 md:px-4">
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 md:hidden" onClick={() => setMobileView("list")} aria-label={tr("Wróć do listy rozmów", "Назад к списку чатов")}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-foreground">{active.displayName}</p>
-                  <div className="mt-0.5 flex items-center gap-1.5">
-                    <Badge variant="outline" className={cn("text-[11px]", activeClinicTone.chip)}>
+                  <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                    <Badge variant="outline" className={cn("max-w-full shrink truncate text-[11px]", activeClinicTone.chip)}>
                       {activeClinic?.name ?? "Nieprzypisano kliniki"}
                     </Badge>
-                    {active.identity && <span className="text-xs text-muted-foreground">{active.identity.value}</span>}
+                    {active.identity && <span className="truncate text-xs text-muted-foreground max-md:hidden">{active.identity.value}</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => openCase(active.case.id)}>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 max-md:w-9 max-md:px-0 md:h-8" onClick={() => openCase(active.case.id)} aria-label={tr("Otwórz sprawę", "Открыть кейс")}>
                     <ExternalLink className="h-3.5 w-3.5" />
-                    Otwórz sprawę
+                    <span className="max-md:sr-only">{tr("Otwórz sprawę", "Открыть кейс")}</span>
                   </Button>
-                  <Button variant={profileOpen ? "secondary" : "outline"} size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => setProfileOpen((value) => !value)}>
+                  <Button variant={profileOpen ? "secondary" : "outline"} size="sm" className="h-9 shrink-0 gap-1.5 max-md:w-9 max-md:px-0 md:h-8" aria-pressed={profileOpen} onClick={() => setProfileOpen((value) => !value)} aria-label={tr("Dane kontaktu", "Контактные данные")}>
                     <ContactRound className="h-3.5 w-3.5" />
-                    Dane kontaktu
+                    <span className="max-md:sr-only">{tr("Dane kontaktu", "Контактные данные")}</span>
                   </Button>
                 </div>
               </div>
               <div className="flex min-h-0 flex-1">
-                <div className="min-w-0 flex-1 px-4 py-3">
+                <div className={cn("min-w-0 flex-1 px-4 py-3", profileOpen && "max-md:hidden")}>
                   <ConversationThread
                     caseIds={[active.case.id]}
                     primaryCaseId={active.case.id}
@@ -282,9 +294,9 @@ export default function InboxPage() {
                   />
                 </div>
                 {profileOpen && (
-                  <aside className="w-[310px] shrink-0 overflow-y-auto border-l border-border bg-muted/20 p-4">
-                  <h3 className="text-sm font-semibold">Profil rozmówcy</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">Skopiuj dane z rozmowy i uzupełnij profil bez opuszczania czatu.</p>
+                  <aside className="w-full min-w-0 shrink-0 overflow-y-auto bg-muted/20 p-4 md:w-[310px] md:border-l md:border-border">
+                  <h3 className="text-sm font-semibold">{tr("Profil rozmówcy", "Профиль собеседника")}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">{tr("Skopiuj dane z rozmowy i uzupełnij profil bez opuszczania czatu.", "Перенесите данные из диалога и заполните профиль, не выходя из чата.")}</p>
                   <div className="mt-4 space-y-3">
                     {([[
                       "firstName", "Imię"

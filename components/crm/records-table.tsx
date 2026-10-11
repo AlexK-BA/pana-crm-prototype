@@ -53,7 +53,7 @@ export function RecordsTable() {
   const { cases, tasks, broadcasts, sendBroadcast } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const { t } = useLanguage()
+  const { t, tr } = useLanguage()
   const meName = ROLE_PROFILES[role].user.name
   const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
 
@@ -149,7 +149,7 @@ export function RecordsTable() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-3 md:px-6">
-        <div className="relative w-56">
+        <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -161,7 +161,7 @@ export function RecordsTable() {
 
         <Select value={board} onValueChange={(v) => setBoard(v as CaseBoard | "all")}>
           <SelectTrigger className="h-8 w-44 text-sm">
-            <SelectValue placeholder={t("board")} />
+            <SelectValue placeholder={t("board")}>{board === "all" ? t("all_boards") : t(BOARD_LABEL_KEYS[board])}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("all_boards")}</SelectItem>
@@ -175,10 +175,10 @@ export function RecordsTable() {
 
         <Select value={clinic} onValueChange={(v) => setClinic(v ?? "all")}>
           <SelectTrigger className="h-8 w-44 text-sm">
-            <SelectValue placeholder="Klinika" />
+            <SelectValue placeholder={tr("Klinika", "Клиника")}>{clinic === "all" ? tr("Wszystkie kliniki", "Все клиники") : clinics.find(([id]) => id === clinic)?.[1]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie kliniki</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie kliniki", "Все клиники")}</SelectItem>
             {clinics.map(([id, name]) => (
               <SelectItem key={id} value={id}>
                 {name}
@@ -189,10 +189,10 @@ export function RecordsTable() {
 
         <Select value={doctor} onValueChange={(v) => setDoctor(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Lekarz" />
+            <SelectValue placeholder={tr("Lekarz", "Врач")}>{doctor === "all" ? tr("Wszyscy lekarze", "Все врачи") : doctors.find((d) => d.id === doctor)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy lekarze</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy lekarze", "Все врачи")}</SelectItem>
             {doctors.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}
@@ -203,10 +203,10 @@ export function RecordsTable() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Usługa" />
+            <SelectValue placeholder={tr("Usługa", "Услуга")}>{service === "all" ? tr("Wszystkie usługi", "Все услуги") : services.find((s) => s.id === service)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie usługi</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {services.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}
@@ -217,10 +217,10 @@ export function RecordsTable() {
 
         <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Właściciel" />
+            <SelectValue placeholder={tr("Właściciel", "Ответственный")}>{assignee === "all" ? tr("Wszyscy właściciele", "Все ответственные") : assignees.find((o) => o.id === assignee)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy właściciele</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy właściciele", "Все ответственные")}</SelectItem>
             {assignees.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.name}
@@ -324,7 +324,43 @@ export function RecordsTable() {
       )}
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
+        <ul className="divide-y divide-border/60 md:hidden" aria-label="Rekordy">
+          {rows.map((c) => {
+            const patient = getPatient(c.patientId)
+            const identity = getIdentity(c.contactIdentityId)
+            const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? tr("Nierozpoznany kontakt", "Неизвестный контакт")
+            const clinicRecord = getClinic(c.clinicId)
+            const tone = getClinicTone(c.clinicId)
+            const procedure = getProcedure(c.serviceInterest)
+            const owner = getOperator(c.responsibleTeamId)
+            const statusColumn = BOARD_COLUMNS[c.board].find((col) => col.id === c.status)
+            const statusLabel = statusColumn ? t(statusColumn.labelKey) : c.status
+            const openTasks = tasks.filter((task) => task.caseId === c.id && task.status !== "completed" && task.status !== "cancelled").length
+
+            return (
+              <li key={c.id}>
+                <button type="button" onClick={() => openCase(c.id)} className="block w-full space-y-1.5 px-4 py-3 text-left hover:bg-accent/50">
+                  <span className="flex items-center gap-2">
+                    <span className={cn("h-2 w-2 shrink-0 rounded-full", tone.dot)} aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(c.createdAt)}</span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant="outline" className="text-[11px]">{statusLabel}</Badge>
+                    <Badge variant="outline" className={cn("text-[11px]", tone.chip)}>{clinicRecord?.name ?? tr("Nieprzypisano", "Не назначено")}</Badge>
+                    <span className="text-xs text-muted-foreground">{t(BOARD_LABEL_KEYS[c.board])}</span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                    <span>{procedure?.name ?? "—"}</span>
+                    <span>{owner?.name ?? tr("Nieprzypisane", "Не назначено")}</span>
+                    <span className={openTasks > 0 ? "text-foreground" : undefined}>{tr("Zadania", "Задачи")}: {openTasks}</span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <table className="hidden w-full text-sm md:table">
           <thead className="sticky top-0 bg-background text-left text-xs text-muted-foreground">
             <tr className="border-b border-border">
               <th className="px-4 py-2 font-medium md:px-6">Kontakt / Pacjent</th>
