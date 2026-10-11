@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Search, BookmarkPlus, X, MessageSquareText, Check } from "lucide-react"
 import { getPatient, getIdentity } from "@/lib/crm/entity-data"
-import { getClinic, getClinicTone, getProcedure, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
+import { getClinic, getClinicTone, procedureLabel, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
 import { getOperator } from "@/lib/crm/entity-selectors"
 import { BOARD_LABELS, BOARD_LABEL_KEYS, BOARD_COLUMNS } from "@/lib/crm/boards"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
@@ -53,7 +53,7 @@ export function RecordsTable() {
   const { cases, tasks, broadcasts, sendBroadcast } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const { t, tr, locale } = useLanguage()
+  const { t, tr, locale, language } = useLanguage()
   const meName = ROLE_PROFILES[role].user.name
   const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
 
@@ -203,13 +203,13 @@ export function RecordsTable() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Usługa", "Услуга")}>{service === "all" ? tr("Wszystkie usługi", "Все услуги") : services.find((s) => s.id === service)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Usługa", "Услуга")}>{service === "all" ? tr("Wszystkie usługi", "Все услуги") : procedureLabel(service, language)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {services.map((s) => (
               <SelectItem key={s.id} value={s.id}>
-                {s.name}
+                {procedureLabel(s.id, language)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -261,7 +261,7 @@ export function RecordsTable() {
           {justSent ? tr("Wysłano", "Отправлено") : tr("Kampania SMS", "SMS-кампания")}
         </Button>
 
-        <span className="ml-auto text-xs text-muted-foreground">{tr(`${rows.length} rekordów`, `Записей: ${rows.length}`)}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{tr(`${rows.length} rekordów`, `Записей: ${rows.length}`, `${rows.length} records`)}</span>
       </div>
 
       <Dialog open={broadcastOpen} onOpenChange={setBroadcastOpen}>
@@ -328,10 +328,9 @@ export function RecordsTable() {
           {rows.map((c) => {
             const patient = getPatient(c.patientId)
             const identity = getIdentity(c.contactIdentityId)
-            const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? tr("Nierozpoznany kontakt", "Неизвестный контакт")
+            const name = patient ? (patient.firstName === "Nierozpoznany" ? t("unknown_contact") : `${patient.firstName} ${patient.lastName}`) : identity?.value ?? t("unknown_contact")
             const clinicRecord = getClinic(c.clinicId)
             const tone = getClinicTone(c.clinicId)
-            const procedure = getProcedure(c.serviceInterest)
             const owner = getOperator(c.responsibleTeamId)
             const statusColumn = BOARD_COLUMNS[c.board].find((col) => col.id === c.status)
             const statusLabel = statusColumn ? t(statusColumn.labelKey) : c.status
@@ -351,7 +350,7 @@ export function RecordsTable() {
                     <span className="text-xs text-muted-foreground">{t(BOARD_LABEL_KEYS[c.board])}</span>
                   </span>
                   <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-                    <span>{procedure?.name ?? "—"}</span>
+                    <span>{procedureLabel(c.serviceInterest, language) ?? "—"}</span>
                     <span>{owner?.name ?? tr("Nieprzypisane", "Не назначено")}</span>
                     <span className={openTasks > 0 ? "text-foreground" : undefined}>{tr("Zadania", "Задачи")}: {openTasks}</span>
                   </span>
@@ -377,10 +376,9 @@ export function RecordsTable() {
             {rows.map((c) => {
               const patient = getPatient(c.patientId)
               const identity = getIdentity(c.contactIdentityId)
-              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? t("unknown_contact")
+              const name = patient ? (patient.firstName === "Nierozpoznany" ? t("unknown_contact") : `${patient.firstName} ${patient.lastName}`) : identity?.value ?? t("unknown_contact")
               const clinicRecord = getClinic(c.clinicId)
               const tone = getClinicTone(c.clinicId)
-              const procedure = getProcedure(c.serviceInterest)
               const owner = getOperator(c.responsibleTeamId)
               const statusColumn = BOARD_COLUMNS[c.board].find((col) => col.id === c.status)
               const statusLabel = statusColumn ? t(statusColumn.labelKey) : c.status
@@ -407,7 +405,7 @@ export function RecordsTable() {
                       {clinicRecord?.name ?? t("unassigned_owner")}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{procedure?.name ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{procedureLabel(c.serviceInterest, language) ?? "—"}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{owner?.name ?? t("unassigned_owner")}</td>
                   <td className={cn("px-3 py-2.5", openTasks > 0 ? "text-foreground" : "text-muted-foreground")}>{openTasks}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{formatDateTime(c.createdAt, undefined, locale)}</td>

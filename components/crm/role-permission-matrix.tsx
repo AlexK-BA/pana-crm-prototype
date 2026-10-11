@@ -16,6 +16,7 @@ const GROUP_RU: Record<string, string> = {
   Sprawy: "Заявки", Zadania: "Задачи", Pacjent: "Пациент", Komunikacja: "Коммуникации",
   AI: "ИИ", SMS: "SMS", Telefonia: "Телефония", Raporty: "Отчёты", Administracja: "Администрирование",
 }
+const GROUP_EN: Record<string, string> = { Sprawy: "Cases", Zadania: "Tasks", Pacjent: "Patient", Komunikacja: "Communications", AI: "AI", SMS: "SMS", Telefonia: "Telephony", Raporty: "Reports", Administracja: "Administration" }
 
 const PERMISSION_RU = {
   "case:view": ["Просмотр заявок", "Открытие заявок в разрешённой области данных."],
@@ -46,6 +47,17 @@ const PERMISSION_RU = {
   "configuration:manage": ["Конфигурация", "Процессы, клиники и настройки приложения."],
   "users:manage": ["Пользователи и роли", "Учётные записи, доступ и матрица разрешений."],
 } satisfies Record<Permission, readonly [string, string]>
+const PERMISSION_EN: Record<Permission, readonly [string, string]> = {
+  "case:view": ["View cases", "Open cases within the permitted data scope."], "case:edit": ["Edit cases", "Change operational case data."], "case:move": ["Change stage", "Move cases between workflow stages."],
+  "task:view": ["View tasks", "Task list, calendar and details."], "task:work": ["Work tasks", "Start, complete and reschedule tasks."], "task:assign": ["Assign tasks", "Change owner and priority."],
+  "patient:view_basic": ["Basic data", "Patient contacts and basic profile."], "patient:view_medical": ["Medical data", "Treatment plan and clinical data."], "patient:edit_local": ["Local editing", "Complete data not managed by Medical CRM."], "patient:match_approve": ["Approve matching", "Controlled patient-to-case linking within the clinic scope."],
+  "communication:view": ["View communications", "Inbox and conversation history."], "communication:send": ["Send messages", "Chat, email and social channels."],
+  "ai:trace_view": ["AI answer sources", "Model versions, policies and knowledge-base sources without chain-of-thought disclosure."], "ai:manage": ["Manage AI", "Activation, handover and AI control policies."],
+  "sms:send_custom": ["Custom SMS text", "Send manually entered text."], "sms:send_template": ["SMS templates", "Send approved templates."], "sms:retry": ["Retry SMS", "Retry a failed SMS."], "sms:match_patient": ["Match incoming SMS", "Select the patient manually."], "sms:template_manage": ["Manage templates", "Create and deactivate templates."], "sms:provider_manage": ["Provider configuration", "Providers, senders and connection testing."],
+  "call:handle": ["Handle calls", "Receive and initiate calls."], "call:recording_view": ["Call recordings", "Listen to recordings within the permitted scope."],
+  "report:view_operational": ["Operational reports", "Team results and SLA."], "report:view_marketing": ["Marketing reports", "Campaign sources and conversion."],
+  "audit:view": ["Audit history", "Activity and the central audit log."], "configuration:manage": ["Configuration", "Workflow, clinics and application settings."], "users:manage": ["Users and roles", "Accounts, access and permission matrix."],
+}
 
 export function RolePermissionMatrix() {
   const { language, t, tr } = useLanguage()
@@ -89,8 +101,8 @@ export function RolePermissionMatrix() {
         </DialogContent>
       </Dialog>
       <div className="grid gap-0 lg:grid-cols-2">
-        {groups.map((group) => <div key={group} className="border-b border-border p-4 lg:odd:border-r"><h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{language === "ru" ? GROUP_RU[group] ?? group : group}</h3><div className="space-y-1">
-          {PERMISSION_DEFINITIONS.filter((item) => item.group === group).map((permission) => <label key={permission.id} className="flex items-center justify-between gap-4 rounded-md px-2 py-2 hover:bg-muted/40"><span className="min-w-0"><span className="block text-sm font-medium">{language === "ru" ? PERMISSION_RU[permission.id][0] : permission.label}</span><span className="block text-[11px] text-muted-foreground">{language === "ru" ? PERMISSION_RU[permission.id][1] : permission.description} · <code>{permission.id}</code></span></span><Switch checked={roleHasPermission(selectedRole, permission.id)} disabled={protectedRole || !canManage} onCheckedChange={() => toggle(permission.id)} /></label>)}
+        {groups.map((group) => <div key={group} className="border-b border-border p-4 lg:odd:border-r"><h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{language === "ru" ? GROUP_RU[group] ?? group : language === "en" ? GROUP_EN[group] ?? group : group}</h3><div className="space-y-1">
+          {PERMISSION_DEFINITIONS.filter((item) => item.group === group).map((permission) => <label key={permission.id} className="flex items-center justify-between gap-4 rounded-md px-2 py-2 hover:bg-muted/40"><span className="min-w-0"><span className="block text-sm font-medium">{language === "ru" ? PERMISSION_RU[permission.id][0] : language === "en" ? PERMISSION_EN[permission.id][0] : permission.label}</span><span className="block text-[11px] text-muted-foreground">{language === "ru" ? PERMISSION_RU[permission.id][1] : language === "en" ? PERMISSION_EN[permission.id][1] : permission.description} · <code>{permission.id}</code></span></span><Switch checked={roleHasPermission(selectedRole, permission.id)} disabled={protectedRole || !canManage} onCheckedChange={() => toggle(permission.id)} /></label>)}
         </div></div>)}
       </div>
       <div className="bg-muted/20 px-4 py-3 text-[11px] text-muted-foreground">{tr("Prototyp stosuje zmiany natychmiast w bieżącej sesji. Produkcyjnie wersje macierzy będą przechowywane po stronie backendu, audytowane i egzekwowane w każdym API.", "В прототипе изменения применяются сразу в текущем сеансе. В production версии матрицы будут храниться на бэкенде, аудироваться и проверяться в каждом API.")}</div>

@@ -26,7 +26,8 @@ const PATIENT_LINK_LABELS: Record<PatientLinkViewState, { pl: string; ru: string
   unlinked: { pl: "Niepowiązano", ru: "Не связано" },
 }
 
-export function patientLinkLabel(state: PatientLinkViewState, language: "pl" | "ru" = "pl") {
+export function patientLinkLabel(state: PatientLinkViewState, language: "en" | "pl" | "ru" = "en") {
+  if (language === "en") return state.replaceAll("_", " ").replace(/^./, char => char.toUpperCase())
   return PATIENT_LINK_LABELS[state][language]
 }
 

@@ -26,6 +26,7 @@ import { CLINICS, getClinicTone } from "@/lib/crm/catalog"
 import { getQueue } from "@/lib/crm/entity-queue"
 import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { formatRelative } from "@/lib/crm/format"
+import { taskDisplayTitle } from "@/lib/crm/task-type-labels"
 import type { ContactChannel, ClinicId } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
 import { useAuthorization } from "@/lib/crm/authorization-context"
@@ -168,7 +169,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           render={
             <Button variant="outline" size="sm" className="gap-1.5" aria-label={t("language")}>
               <Languages className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{language === "pl" ? "PL" : "RU"}</span>
+              <span className="hidden sm:inline">{language.toUpperCase()}</span>
             </Button>
           }
         />
@@ -176,9 +177,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           <DropdownMenuGroup>
             <DropdownMenuLabel className="text-xs text-muted-foreground">{t("language")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {(["pl", "ru"] as Language[]).map((lang) => (
+            {(["en", "pl", "ru"] as Language[]).map((lang) => (
               <DropdownMenuItem key={lang} onClick={() => setLanguage(lang)} className="justify-between">
-                {lang === "pl" ? "Polski" : "Русский"}
+                {lang === "en" ? "English" : lang === "pl" ? "Polski" : "Русский"}
                 {language === lang && <span className="text-xs text-primary">✓</span>}
               </DropdownMenuItem>
             ))}
@@ -251,7 +252,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
                     {item.task.priority}
                   </Badge>
                 </div>
-                <span className="truncate text-xs text-muted-foreground">{item.task.title}</span>
+                <span className="truncate text-xs text-muted-foreground">{taskDisplayTitle(item.task, language)}</span>
                 <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>
                   {item.clinicName} · {item.task.dueAt ? formatRelative(item.task.dueAt) : "—"}
                 </span>

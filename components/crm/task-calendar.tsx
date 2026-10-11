@@ -15,12 +15,12 @@ import { formatDateTime } from "@/lib/crm/format"
 import { getClinic, getClinicTone } from "@/lib/crm/catalog"
 import { PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { taskStatusText } from "@/lib/crm/display-labels"
-import { taskTypeLabel } from "@/lib/crm/task-type-labels"
+import { taskDisplayTitle, taskTypeLabel } from "@/lib/crm/task-type-labels"
 import { hasManualOrder, sortWithManualOrder } from "@/lib/crm/manual-order"
 import { TaskActions } from "./task-actions"
 import { SortableColumn, SortableColumns, SortableItem } from "./sortable-columns"
 
-const LOCALES = { pl: "pl-PL", ru: "ru-RU" } as const
+const LOCALES = { en: "en-GB", pl: "pl-PL", ru: "ru-RU" } as const
 
 export function TaskCalendar(){
   const store=useScopedEntityStore(),{openCase}=useCasePanel(),{hasPermission}=useAuthorization(),{users}=useUserDirectory(),{tr,language}=useLanguage()
@@ -33,7 +33,7 @@ export function TaskCalendar(){
   const start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7)+offset*7)
   const days=Array.from({length:7},(_,index)=>{const date=new Date(start);date.setDate(date.getDate()+index);return date})
   const projection=selectTaskCalendar(store.tasks.filter(task=>hasPermission("task:assign")||!task.ownerId||task.ownerId===store.currentUser.id)),dated=projection.dated.filter(task=>history||isActive(task)),detail=store.tasks.find(task=>task.id===selected),reschedule=store.tasks.find(task=>task.id===pending?.id)
-  const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient?`${patient.firstName} ${patient.lastName}`:tr("Kontakt","Контакт")}
+  const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient ? (patient.firstName === "Nierozpoznany" ? tr("Nierozpoznany kontakt","Неопознанный контакт") : `${patient.firstName} ${patient.lastName}`) : tr("Kontakt","Контакт")}
   const ownerName=(ownerId?:string)=>users.find(user=>user.id===ownerId)?.name??tr("Brak właściciela","Без ответственного")
   const todayKey=new Date(now).toDateString()
   const dayKey=(date:Date)=>`${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`
@@ -67,15 +67,15 @@ export function TaskCalendar(){
         <h2 className={cn("mb-2 text-xs font-semibold capitalize",isToday&&"text-primary")}>{day.toLocaleDateString(locale,{weekday:"short",day:"numeric",month:"short"})}</h2>
         {dayTasks.map(task=>{const item=store.cases.find(item=>item.id===task.caseId),overdue=isOverdue(task,now);return <SortableItem key={task.id} id={task.id} disabled={!isActive(task)} handleLabel={tr("Zmień kolejność zadania","Изменить порядок задачи")}>{handle=><div className="mb-2 flex items-start gap-0.5"><div className="pt-2">{handle}</div><button type="button" className={cn("w-full min-w-0 flex-1 space-y-1 rounded-md border bg-card p-2 text-left text-xs hover:bg-muted/50",overdue&&"border-red-300 bg-red-50/60")} onClick={()=>setSelected(task.id)}>
           <span className="flex items-center gap-1.5"><span className={cn("h-2 w-2 shrink-0 rounded-full",PRIORITY_TONE[task.priority])} aria-hidden="true"/><span className="sr-only">{task.priority}</span><span className="font-semibold tabular-nums">{new Date(task.dueAt!).toLocaleTimeString(locale,{hour:"2-digit",minute:"2-digit"})}</span>{overdue&&<AlertCircle className="h-3 w-3 text-red-600" aria-label={tr("Po terminie","Просрочено")}/>}{task.requiresCall&&<Phone className="ml-auto h-3 w-3 text-muted-foreground" aria-label={tr("Wymaga telefonu","Нужен звонок")}/>}</span>
-          <strong className="block leading-snug">{task.title}</strong>
+          <strong className="block leading-snug">{taskDisplayTitle(task, language)}</strong>
           <span className="block text-muted-foreground">{patientName(item?.patientId)}</span>
           <span className={cn("block truncate rounded px-1",getClinicTone(item?.clinicId).chip)}>{getClinic(item?.clinicId)?.name}</span>
         </button></div>}</SortableItem>})}
         {!dayTasks.length&&<p className="text-xs text-muted-foreground">{tr("Brak zadań","Нет задач")}</p>}
       </SortableColumn>
     })}</div></div></SortableColumns>
-    {projection.overdue.length>0&&<section className="rounded-lg border border-red-200 bg-red-50/40 p-3"><h2 className="flex items-center gap-2 text-sm font-semibold text-red-800"><AlertCircle className="h-4 w-4" aria-hidden="true"/>{tr("Przeterminowane","Просроченные")} · {projection.overdue.length}</h2><p className="text-xs text-muted-foreground">{tr("Zachowują pierwotną datę i nie przenoszą się same na dziś.","Сохраняют исходную дату и не переносятся на сегодня автоматически.")}</p><div className="mt-2 flex flex-wrap gap-2">{projection.overdue.map(task=><Button key={task.id} variant="outline" size="sm" className="bg-background" onClick={()=>setSelected(task.id)}>{task.title} · {formatDateTime(task.dueAt!,timeZone)}</Button>)}</div></section>}
-    <section className="rounded-lg border p-3"><h2 className="text-sm font-semibold">{tr("Bez terminu","Без срока")}</h2><div className="mt-2 flex flex-wrap gap-2">{projection.undated.filter(task=>history||isActive(task)).map(task=><Button key={task.id} variant="outline" size="sm" onClick={()=>setSelected(task.id)}>{task.title}</Button>)}</div>{!projection.undated.filter(task=>history||isActive(task)).length&&<p className="text-sm text-muted-foreground">{tr("Brak zadań bez terminu.","Нет задач без срока.")}</p>}</section>
+    {projection.overdue.length>0&&<section className="rounded-lg border border-red-200 bg-red-50/40 p-3"><h2 className="flex items-center gap-2 text-sm font-semibold text-red-800"><AlertCircle className="h-4 w-4" aria-hidden="true"/>{tr("Przeterminowane","Просроченные")} · {projection.overdue.length}</h2><p className="text-xs text-muted-foreground">{tr("Zachowują pierwotną datę i nie przenoszą się same na dziś.","Сохраняют исходную дату и не переносятся на сегодня автоматически.")}</p><div className="mt-2 flex flex-wrap gap-2">{projection.overdue.map(task=><Button key={task.id} variant="outline" size="sm" className="bg-background" onClick={()=>setSelected(task.id)}>{taskDisplayTitle(task, language)} · {formatDateTime(task.dueAt!,timeZone)}</Button>)}</div></section>}
+    <section className="rounded-lg border p-3"><h2 className="text-sm font-semibold">{tr("Bez terminu","Без срока")}</h2><div className="mt-2 flex flex-wrap gap-2">{projection.undated.filter(task=>history||isActive(task)).map(task=><Button key={task.id} variant="outline" size="sm" onClick={()=>setSelected(task.id)}>{taskDisplayTitle(task, language)}</Button>)}</div>{!projection.undated.filter(task=>history||isActive(task)).length&&<p className="text-sm text-muted-foreground">{tr("Brak zadań bez terminu.","Нет задач без срока.")}</p>}</section>
     {detail&&<section className="space-y-2 rounded-lg border p-3" aria-label={detail.title}>
       <div className="flex items-center gap-2"><strong>{detail.title}</strong><span className="text-xs text-muted-foreground">{taskTypeLabel(taskType(detail),language)} · {taskStatusText(effectiveStatus(detail,now),language)} · {ownerName(detail.ownerId)}</span><Button size="sm" variant="ghost" className="ml-auto" onClick={()=>setSelected(null)}>{tr("Zamknij","Закрыть")}</Button></div>
       {detail.description&&<p className="text-sm">{detail.description}</p>}

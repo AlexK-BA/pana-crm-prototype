@@ -1,10 +1,12 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { inlineEnglish } from "./inline-english"
 
-export type Language = "pl" | "ru"
+export type Language = "en" | "pl" | "ru"
 
-const STORAGE_KEY = "pana-crm-language"
+const STORAGE_KEY = "smart-clinic-crm-language"
+const LEGACY_STORAGE_KEY = "pana-crm-language"
 
 const DICTIONARY = {
   next_action: { pl: "Następne działanie", ru: "Следующее действие" },
@@ -218,26 +220,117 @@ const DICTIONARY = {
 export type DictionaryKey = keyof typeof DICTIONARY
 
 /** UI language only. Patient preferred language and content language are separate concepts. */
-export const UI_LOCALES: Record<Language, string> = { pl: "pl-PL", ru: "ru-RU" }
+export const UI_LOCALES: Record<Language, string> = { en: "en-GB", pl: "pl-PL", ru: "ru-RU" }
+
+/**
+ * English is the neutral commercial default. Existing PL/RU copy remains the
+ * source for the established regional versions while the product is migrated
+ * from inline labels to stable translation keys.
+ */
+const ENGLISH_DICTIONARY: Partial<Record<DictionaryKey, string>> = {
+  next_action: "Next action", skip_reason: "Skip with reason", open_start: "Open and start",
+  full_task_queue: "Full task queue", personal_queue_clear: "Your queue is clear",
+  personal_queue_clear_hint: "Tasks assigned to other team members are hidden. You can review unassigned tasks or the full queue.",
+  last_action: "Last action", next_step: "Next step", no_service: "No service",
+  tile_p0: "P0 Urgent", tile_p1: "P1 Missed", tile_p2: "P2 Due today", tile_p3: "P3 New leads",
+  tile_overdue: "Overdue", tile_unassigned: "Unassigned", clear_filter: "Clear filter",
+  tab_mine: "Mine", tab_unassigned: "Unassigned", tab_team: "Team", kanban_view: "Kanban view",
+  action_required: "Action required", all: "All", queue_empty: "The queue is empty.",
+  no_clinic: "No clinic", unknown_contact: "Unknown contact", full_profile: "Full profile", close: "Close",
+  board_lead: "Lead", board_deal: "Deal", board_patient_care: "Patient care", call: "Call",
+  message: "Message", book_appointment: "Book appointment",
+  matched_note: "Matched to an existing patient in Medical CRM.",
+  none_matched_note: "No match found — the contact remains unlinked.",
+  not_linked_note: "This contact is not linked to a Medical CRM patient yet.",
+  check_in_crm: "Check in Medical CRM", tab_tasks: "Tasks", tab_history: "Contact history",
+  tab_comments: "Comments", tab_audit: "Audit log", tab_timeline: "Timeline",
+  no_timeline: "No events for this case.", timeline_task_created: "Task created",
+  timeline_task_completed: "Task completed", timeline_comment: "Comment", no_tasks: "No tasks for this case.",
+  due_prefix: "due", unassigned_owner: "Unassigned", skipped_prefix: "Skipped", skip: "Skip",
+  skip_reason_placeholder: "Reason for skipping...", save: "Save", no_messages: "No messages in this case.",
+  no_comments: "No comments.", no_audit: "No system changes.", language: "Language", board: "Board",
+  all_boards: "All boards", nav_board: "CRM board", nav_inbox: "Inbox", nav_schedule: "Schedule",
+  nav_waitlist: "Waitlist", nav_calendar: "Task calendar", nav_records: "All records",
+  nav_audit: "Audit log", nav_docs: "Documentation", nav_settings: "Settings",
+  page_board_subtitle: "Leads, deals and patients", page_records_subtitle: "Browse and filter all cases",
+  page_waitlist_subtitle: "Cases waiting for an appointment proposal",
+  page_audit_subtitle: "Data, status and assignment changes across the system",
+  page_docs_subtitle: "AS-IS → TO-BE migration status", workspace_suffix: "Workspace",
+  search_placeholder: "Search cases and patients...", simulate_call: "Simulate call",
+  demo_incoming_call: "Demo: incoming call", notifications: "Notifications", needs_attention: "Needs attention",
+  no_new_notifications: "No new notifications.", new_case: "New case", create_case: "Create case", cancel: "Cancel",
+  contact_channel: "Contact channel", clinic_optional: "Clinic (optional)", no_assignment: "No assignment",
+  first_name: "First name", last_name: "Last name", phone_number: "Phone number",
+  patient_id_optional: "Medical CRM patient ID (optional)",
+  patient_id_hint: "An existing patient ID, phone number or email links the case to the patient profile immediately.",
+  first_note: "First note / message", first_note_placeholder: "Briefly describe the patient's request...",
+  role_operator_label: "Operator", role_operator_home: "My queue", role_operator_title: "Operator · Contact centre",
+  role_operator_desc: "Work with leads and deals: task queue, calls and messages.",
+  role_operator_greet: "What needs your attention now",
+  role_patient_care_label: "Patient care", role_patient_care_home: "Patient care",
+  role_patient_care_title: "Patient care specialist",
+  role_patient_care_desc: "Appointments, post-visit follow-up, recalls and patients in treatment.",
+  role_patient_care_greet: "Patients who need follow-up and support",
+  role_team_leader_label: "Team leader", role_team_leader_home: "Team", role_team_leader_title: "Team leader",
+  role_team_leader_desc: "P0–P4 queues, team workload, assignments and overdue tasks.",
+  role_team_leader_greet: "Queues, team workload and overdue tasks",
+  role_clinic_manager_label: "Clinic manager", role_clinic_manager_home: "Clinic",
+  role_clinic_manager_title: "Clinic manager",
+  role_clinic_manager_desc: "Doctors, procedures, schedule and patient-care outcomes for the clinic.",
+  role_clinic_manager_greet: "Your clinic's performance and workload",
+  role_marketing_label: "Marketing", role_marketing_home: "Marketing", role_marketing_title: "Marketing",
+  role_marketing_desc: "Attribution, funnel and campaign results — without access to medical data.",
+  role_marketing_greet: "Source attribution and campaign conversion",
+  role_admin_label: "Administrator", role_admin_home: "Administration", role_admin_title: "System administrator",
+  role_admin_desc: "Clinics, users, integrations, queue rules and audit log.",
+  role_admin_greet: "System status, users and integrations", contact_center_role: "Contact centre operator",
+  board_leads_label: "Leads · Contact centre", board_deals_label: "Deals · Contact centre",
+  board_patients_label: "Patients · Patient care", col_new: "New enquiry", col_qualification: "Qualification",
+  col_waiting: "Waitlist", col_call_later: "Call back later", col_failed: "No contact / no-show",
+  col_closed: "Closed · not converted", col_converted: "Converted to deal", col_scheduled: "Appointment scheduled",
+  col_post_visit: "Post-visit follow-up", col_recall: "Recall recommended", col_care: "Handed over to patient care",
+  col_no_show: "No-show", col_completed: "Deal completed", col_appt_scheduled: "Appointment scheduled",
+  col_new_patient: "New patient", col_returning: "Returning patient", col_in_treatment: "In treatment",
+  col_control: "Follow-up imaging", col_complete: "Treatment completed",
+  settings_title: "Settings", settings_subtitle: "Workspace, roles, team, clinic catalogue and stages",
+  settings_role_title: "Working role",
+  settings_role_desc: "Switch roles to preview the home dashboard for each position. The choice is stored locally and applies across all tabs.",
+  settings_team_title: "Team", settings_active: "Active", settings_clinics_title: "Clinics and procedures",
+  settings_doctors_count: "doctors", settings_procedures_count: "procedures", settings_boards_title: "Boards and stages",
+  settings_bot_title: "Bot settings",
+  settings_bot_desc: "Configure automatic replies, working hours and escalation for the chat assistant.",
+  settings_bot_enabled: "Bot enabled", settings_bot_name: "Bot name", settings_bot_hours: "Working hours",
+  settings_bot_channels: "Channels", settings_bot_autoreply: "Out-of-hours auto-reply",
+  settings_bot_escalation: "Escalation threshold",
+  settings_bot_escalation_hint: "Number of unsuccessful bot attempts before handover to a human operator.",
+  settings_kb_title: "Knowledge base",
+  settings_kb_desc: "Articles and answers used by the bot to handle patient enquiries automatically.",
+  settings_kb_add: "Add article", settings_kb_question: "Question / topic", settings_kb_answer: "Answer",
+  settings_kb_category: "Category", settings_kb_used: "uses", settings_kb_edit: "Edit",
+  settings_kb_delete: "Delete", settings_kb_empty: "The knowledge base has no articles yet.",
+}
+
+const humaniseKey = (key: DictionaryKey) => key.replace(/^(nav|page|settings|tab|tile|role)_/, "").replaceAll("_", " ").replace(/^./, char => char.toUpperCase())
 
 interface LanguageContextValue {
   language: Language
   setLanguage: (lang: Language) => void
   t: (key: DictionaryKey) => string
   /** Picks a system label for the current UI language. Never use it for user data. */
-  tr: (pl: string, ru: string) => string
+  tr: (pl: string, ru: string, en?: string) => string
   locale: string
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("pl")
+  const [language, setLanguageState] = useState<Language>("en")
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === "pl" || stored === "ru") setLanguageState(stored)
+    const stored = window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (stored === "en" || stored === "pl" || stored === "ru") setLanguageState(stored)
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY)
     setMounted(true)
   }, [])
 
@@ -247,9 +340,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language, mounted])
 
   const setLanguage = (lang: Language) => setLanguageState(lang)
-  const t = (key: DictionaryKey) => DICTIONARY[key][language]
+  const t = (key: DictionaryKey) => language === "en"
+    ? ENGLISH_DICTIONARY[key] ?? humaniseKey(key)
+    : DICTIONARY[key][language]
 
-  const tr = (pl: string, ru: string) => (language === "ru" ? ru : pl)
+  const tr = (pl: string, ru: string, en?: string) => language === "en" ? (en ?? inlineEnglish(pl) ?? pl) : language === "ru" ? ru : pl
 
   return <LanguageContext.Provider value={{ language, setLanguage, t, tr, locale: UI_LOCALES[language] }}>{children}</LanguageContext.Provider>
 }

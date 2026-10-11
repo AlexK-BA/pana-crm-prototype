@@ -18,8 +18,9 @@ import {
   type QueueItem,
 } from "@/lib/crm/entity-selectors"
 import { actionKindText, priorityText } from "@/lib/crm/display-labels"
-import { getClinicTone } from "@/lib/crm/catalog"
+import { getClinicTone, procedureLabel } from "@/lib/crm/catalog"
 import { formatRelative } from "@/lib/crm/format"
+import { taskDisplayTitle } from "@/lib/crm/task-type-labels"
 import { cn } from "@/lib/utils"
 
 const ACTION_KINDS: ActionKind[] = ["unassigned_clinic", "reply", "call", "follow_up", "treatment_plan"]
@@ -116,14 +117,14 @@ export function OperatorHome() {
             <div className="min-w-0">
               <p className="text-base font-semibold text-foreground">{nextItem.patientName}</p>
               <p className="text-xs text-muted-foreground">
-                {nextItem.clinicName} · {nextItem.serviceName ?? t("no_service")} · {nextItem.identityLabel}
+                {nextItem.clinicName} · {procedureLabel(nextItem.case.serviceInterest, language) ?? t("no_service")} · {nextItem.identityLabel}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground" suppressHydrationWarning>
                 {t("last_action")}: {nextItem.lastAction ?? "—"}
                 {nextItem.lastActionAt && <> · {formatRelative(nextItem.lastActionAt, language)}</>}
               </p>
               <p className="text-xs font-medium text-foreground" suppressHydrationWarning>
-                {t("next_step")}: {nextItem.task.title}
+                {t("next_step")}: {taskDisplayTitle(nextItem.task, language)}
                 {nextItem.task.dueAt && <> · {formatRelative(nextItem.task.dueAt, language)}</>}
               </p>
             </div>
@@ -269,16 +270,16 @@ export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void
           <span className="sr-only">{item.task.priority}</span>
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{item.patientName}</p>
+          <p className="truncate text-sm font-medium text-foreground">{item.patientName === "Nierozpoznany kontakt" ? t("unknown_contact") : item.patientName}</p>
           <p className="truncate text-xs text-muted-foreground">
             <span className={cn("mr-1 inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium", tone.chip)}>
               {item.clinicAssigned ? item.clinicName : t("no_clinic")}
             </span>
-            {item.serviceName ?? "—"}
+            {procedureLabel(item.case.serviceInterest, language) ?? "—"}
             {item.doctorName ? ` · ${item.doctorName}` : ""}
           </p>
         </div>
-        <div className="hidden w-44 shrink-0 truncate text-xs text-muted-foreground md:block">{item.task.title}</div>
+        <div className="hidden w-44 shrink-0 truncate text-xs text-muted-foreground md:block">{taskDisplayTitle(item.task, language)}</div>
         <div
           className={cn("w-24 shrink-0 text-right text-xs font-medium", item.overdue ? "text-red-600" : "text-foreground")}
           suppressHydrationWarning

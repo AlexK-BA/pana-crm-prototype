@@ -1,17 +1,19 @@
-export function formatRelative(iso: string, language: "pl" | "ru" = "pl") {
+export function formatRelative(iso: string, language: "en" | "pl" | "ru" = "en") {
   const diffMs = new Date(iso).getTime() - Date.now()
   const diffMin = Math.round(diffMs / 60000)
   const abs = Math.abs(diffMin)
 
   const past = diffMin <= 0
   const ru = language === "ru"
+  const en = language === "en"
 
   let label: string
   if (abs < 60) label = `${Math.max(abs, 1)} ${ru ? "мин" : "min"}`
-  else if (abs < 60 * 24) label = `${Math.round(abs / 60)} ${ru ? "ч" : "godz."}`
-  else label = `${Math.round(abs / (60 * 24))} ${ru ? "дн." : "dni"}`
+  else if (abs < 60 * 24) label = `${Math.round(abs / 60)} ${ru ? "ч" : en ? "hr" : "godz."}`
+  else label = `${Math.round(abs / (60 * 24))} ${ru ? "дн." : en ? "days" : "dni"}`
 
   if (ru) return past ? `${label} назад` : `через ${label}`
+  if (en) return past ? `${label} ago` : `in ${label}`
   return past ? `${label} temu` : `za ${label}`
 }
 
@@ -22,7 +24,7 @@ export function formatRelative(iso: string, language: "pl" | "ru" = "pl") {
 // hydration mismatches.
 export const CLINIC_TIME_ZONE = "Europe/Warsaw"
 
-export function formatDateTime(iso: string, timeZone = CLINIC_TIME_ZONE, locale = "pl-PL") {
+export function formatDateTime(iso: string, timeZone = CLINIC_TIME_ZONE, locale = "en-GB") {
   const d = new Date(iso)
   return d.toLocaleString(locale, {
     timeZone,

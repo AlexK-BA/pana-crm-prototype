@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { BOARD_LABEL_KEYS, BOARD_COLUMNS, COLOR_CLASSES } from "@/lib/crm/boards"
-import { CLINICS, PROCEDURES, DOCTORS, CLINIC_TONE } from "@/lib/crm/catalog"
+import { CLINICS, PROCEDURES, DOCTORS, CLINIC_TONE, procedureLabel } from "@/lib/crm/catalog"
 import { BRAND_CONFIG } from "@/lib/crm/brand-config"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -55,20 +55,20 @@ const INITIAL_KB: KbArticle[] = [
 
 let kbSeq = INITIAL_KB.length
 
-const WORKFLOW_BOARD: Record<string, readonly [string, string]> = {
-  leads: ["Leady", "Лиды"], deals: ["Wizyty", "Визиты"], patients: ["Pacjenci", "Пациенты"],
+const WORKFLOW_BOARD: Record<string, readonly [string, string, string]> = {
+  leads: ["Leady", "Лиды", "Leads"], deals: ["Wizyty", "Визиты", "Deals"], patients: ["Pacjenci", "Пациенты", "Patients"],
 }
-const WORKFLOW_POLICY: Record<string, readonly [string, string]> = {
-  manual: ["ręcznie", "вручную"], appointment: ["wg terminu wizyty", "по времени визита"], clinical: ["wg wskazań klinicznych", "по клиническим показаниям"],
+const WORKFLOW_POLICY: Record<string, readonly [string, string, string]> = {
+  manual: ["ręcznie", "вручную", "manual"], appointment: ["wg terminu wizyty", "по времени визита", "based on appointment time"], clinical: ["wg wskazań klinicznych", "по клиническим показаниям", "based on clinical guidance"],
 }
-const WORKFLOW_LABEL: Record<string, readonly [string, string]> = {
-  new: ["Nowy", "Новый"], qualification: ["Kwalifikacja", "Квалификация"], waiting: ["Lista oczekujących", "Список ожидания"], call_later: ["Oddzwonić później", "Перезвонить позже"], failed: ["Nieudany", "Неудачный"], closed: ["Zamknięty", "Закрытый"], converted: ["Skonwertowany", "Конвертированный"], complete: ["Zakończone", "Завершено"],
-  scheduled: ["Umówiona", "Запланирован"], post_visit: ["Po wizycie", "После визита"], recall: ["Przypomnienie", "Напоминание"], care: ["Opieka", "Сопровождение"], no_show: ["Nieobecność", "Неявка"], completed: ["Zakończona", "Завершён"],
-  appt_scheduled: ["Wizyta umówiona", "Визит запланирован"], new_patient: ["Nowy pacjent", "Новый пациент"], returning: ["Powracający", "Повторный пациент"], in_treatment: ["W leczeniu", "На лечении"], control: ["Kontrola", "Контроль"],
-  call: ["telefon", "звонок"], message: ["wiadomość", "сообщение"], sms: ["SMS", "SMS"], email: ["e-mail", "e-mail"], custom: ["własne", "пользовательское"],
-  waitlist_contact: ["kontakt z listy oczekujących", "контакт со списком ожидания"], appointment_booking: ["umówienie wizyty", "запись на визит"], appointment_confirmation: ["potwierdzenie wizyty", "подтверждение визита"],
-  post_visit_follow_up: ["kontakt po wizycie", "контакт после визита"], send_treatment_plan: ["wysłanie planu leczenia", "отправка плана лечения"], patient_care_handoff: ["przekazanie opieki", "передача в сопровождение"],
-  treatment_plan_review: ["przegląd planu leczenia", "проверка плана лечения"],
+const WORKFLOW_LABEL: Record<string, readonly [string, string, string]> = {
+  new: ["Nowy", "Новый", "New"], qualification: ["Kwalifikacja", "Квалификация", "Qualification"], waiting: ["Lista oczekujących", "Список ожидания", "Waitlist"], call_later: ["Oddzwonić później", "Перезвонить позже", "Call back later"], failed: ["Nieudany", "Неудачный", "Failed"], closed: ["Zamknięty", "Закрытый", "Closed"], converted: ["Skonwertowany", "Конвертированный", "Converted"], complete: ["Zakończone", "Завершено", "Completed"],
+  scheduled: ["Umówiona", "Запланирован", "Scheduled"], post_visit: ["Po wizycie", "После визита", "Post-visit"], recall: ["Przypomnienie", "Напоминание", "Recall"], care: ["Opieka", "Сопровождение", "Patient care"], no_show: ["Nieobecność", "Неявка", "No-show"], completed: ["Zakończona", "Завершён", "Completed"],
+  appt_scheduled: ["Wizyta umówiona", "Визит запланирован", "Appointment scheduled"], new_patient: ["Nowy pacjent", "Новый пациент", "New patient"], returning: ["Powracający", "Повторный пациент", "Returning"], in_treatment: ["W leczeniu", "На лечении", "In treatment"], control: ["Kontrola", "Контроль", "Follow-up"],
+  call: ["telefon", "звонок", "call"], message: ["wiadomość", "сообщение", "message"], sms: ["SMS", "SMS", "SMS"], email: ["e-mail", "e-mail", "email"], custom: ["własne", "пользовательское", "custom"],
+  waitlist_contact: ["kontakt z listy oczekujących", "контакт со списком ожидания", "waitlist contact"], appointment_booking: ["umówienie wizyty", "запись на визит", "appointment booking"], appointment_confirmation: ["potwierdzenie wizyty", "подтверждение визита", "appointment confirmation"],
+  post_visit_follow_up: ["kontakt po wizycie", "контакт после визита", "post-visit follow-up"], send_treatment_plan: ["wysłanie planu leczenia", "отправка плана лечения", "send treatment plan"], patient_care_handoff: ["przekazanie opieki", "передача в сопровождение", "patient-care handover"],
+  treatment_plan_review: ["przegląd planu leczenia", "проверка плана лечения", "treatment-plan review"],
 }
 const WORKFLOW_TASK_TITLE_RU: Record<string, string> = {
   "leads.new.first-contact": "Первый контакт с новым лидом",
@@ -84,6 +84,11 @@ const WORKFLOW_TASK_TITLE_RU: Record<string, string> = {
   "patients.returning.next-step": "Определить следующий шаг для повторного пациента",
   "patients.treatment.review": "Проверить следующий этап плана лечения",
   "patients.control.schedule": "Запланировать контрольный снимок",
+}
+const WORKFLOW_TASK_TITLE_EN: Record<string, string> = {
+  "leads.new.first-contact": "First contact with a new lead", "leads.qualification.complete": "Complete qualification and define the next step", "leads.waiting.offer-slot": "Offer a waitlist appointment",
+  "deals.scheduled.confirm": "Confirm scheduled appointment", "deals.post-visit.follow-up": "Post-visit follow-up", "deals.recall.schedule": "Schedule recommended recall", "deals.care.handoff": "Accept patient-care handover", "deals.no-show.call": "Contact patient after no-show",
+  "patients.scheduled.reminder": "Confirm next appointment", "patients.new.welcome": "First patient-care contact", "patients.returning.next-step": "Define the next step for a returning patient", "patients.treatment.review": "Review the next treatment-plan stage", "patients.control.schedule": "Schedule follow-up imaging",
 }
 
 const INITIAL_SOURCES = [
@@ -112,9 +117,9 @@ export function SettingsView() {
   const [sources, setSources] = useState(INITIAL_SOURCES)
   const [testQuery, setTestQuery] = useState("")
   const [testAnswer, setTestAnswer] = useState("")
-  const localizedPair = (pair: readonly [string, string] | undefined, fallback: string) => pair ? (language === "ru" ? pair[1] : pair[0]) : fallback
+  const localizedPair = (pair: readonly [string, string, string] | undefined, fallback: string) => pair ? (language === "ru" ? pair[1] : language === "en" ? pair[2] : pair[0]) : fallback
   const workflowLabel = (key: string) => localizedPair(WORKFLOW_LABEL[key], key.replaceAll("_", " "))
-  const workflowTaskTitle = (id: string, title: string) => language === "ru" ? WORKFLOW_TASK_TITLE_RU[id] ?? title : title
+  const workflowTaskTitle = (id: string, title: string) => language === "ru" ? WORKFLOW_TASK_TITLE_RU[id] ?? title : language === "en" ? WORKFLOW_TASK_TITLE_EN[id] ?? title : title
   const sourceText = (value: string) => {
     if (language !== "ru") return value
     return ({
@@ -250,7 +255,7 @@ export function SettingsView() {
                       key={proc.id}
                       className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs", tone.chip)}
                     >
-                      {proc.name}
+                      {procedureLabel(proc.id, language)}
                       <span className="text-[10px] opacity-70">{proc.durationMin} min</span>
                     </span>
                   ))}

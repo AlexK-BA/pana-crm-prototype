@@ -36,6 +36,18 @@ test('mobile shell exposes navigation, search and call controls', () => {
   assert.match(sidebar, /mobile \? "flex h-full w-full"/)
 })
 
+test('commercial UI is English-first and migrates the legacy language preference', () => {
+  const language = fs.readFileSync('lib/crm/language-context.tsx', 'utf8')
+  const topbar = fs.readFileSync('components/crm/app-topbar.tsx', 'utf8')
+  const format = fs.readFileSync('lib/crm/format.ts', 'utf8')
+  assert.match(language, /type Language = "en" \| "pl" \| "ru"/)
+  assert.match(language, /useState<Language>\("en"\)/)
+  assert.match(language, /smart-clinic-crm-language/)
+  assert.match(language, /removeItem\(LEGACY_STORAGE_KEY\)/)
+  assert.match(topbar, /\["en", "pl", "ru"\]/)
+  assert.match(format, /language: "en" \| "pl" \| "ru" = "en"/)
+})
+
 test('case workspace keeps context visible and offers stage-aware actions', () => {
   const drawer = fs.readFileSync('components/crm/engagement-case-drawer.tsx', 'utf8')
   const conversation = fs.readFileSync('components/crm/conversation-thread.tsx', 'utf8')
@@ -101,7 +113,7 @@ test('admin users, permissions and workflow settings follow the active PL/RU lan
   assert.match(permissions, /tr\("Role i uprawnienia", "Роли и разрешения"\)/)
   assert.match(settings, /WORKFLOW_TASK_TITLE_RU/)
   assert.match(settings, /tr\("Źródła wiedzy bota", "Источники знаний бота"\)/)
-  assert.match(settings, /complete: \["Zakończone", "Завершено"\]/)
+  assert.match(settings, /complete: \["Zakończone", "Завершено", "Completed"\]/)
 })
 
 test('admin home and audit log follow the active PL/RU language', () => {
