@@ -274,13 +274,13 @@ export default function InboxPage() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 max-md:w-9 max-md:px-0 md:h-8" onClick={() => openCase(active.case.id)} aria-label="Otwórz sprawę">
+                  <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 max-md:w-9 max-md:px-0 md:h-8" onClick={() => openCase(active.case.id)} aria-label={tr("Otwórz sprawę", "Открыть кейс")}>
                     <ExternalLink className="h-3.5 w-3.5" />
-                    <span className="max-md:sr-only">Otwórz sprawę</span>
+                    <span className="max-md:sr-only">{tr("Otwórz sprawę", "Открыть кейс")}</span>
                   </Button>
-                  <Button variant={profileOpen ? "secondary" : "outline"} size="sm" className="h-9 shrink-0 gap-1.5 max-md:w-9 max-md:px-0 md:h-8" aria-pressed={profileOpen} onClick={() => setProfileOpen((value) => !value)} aria-label="Dane kontaktu">
+                  <Button variant={profileOpen ? "secondary" : "outline"} size="sm" className="h-9 shrink-0 gap-1.5 max-md:w-9 max-md:px-0 md:h-8" aria-pressed={profileOpen} onClick={() => setProfileOpen((value) => !value)} aria-label={tr("Dane kontaktu", "Контактные данные")}>
                     <ContactRound className="h-3.5 w-3.5" />
-                    <span className="max-md:sr-only">Dane kontaktu</span>
+                    <span className="max-md:sr-only">{tr("Dane kontaktu", "Контактные данные")}</span>
                   </Button>
                 </div>
               </div>
@@ -295,8 +295,8 @@ export default function InboxPage() {
                 </div>
                 {profileOpen && (
                   <aside className="w-full min-w-0 shrink-0 overflow-y-auto bg-muted/20 p-4 md:w-[310px] md:border-l md:border-border">
-                  <h3 className="text-sm font-semibold">Profil rozmówcy</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">Skopiuj dane z rozmowy i uzupełnij profil bez opuszczania czatu.</p>
+                  <h3 className="text-sm font-semibold">{tr("Profil rozmówcy", "Профиль собеседника")}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">{tr("Skopiuj dane z rozmowy i uzupełnij profil bez opuszczania czatu.", "Перенесите данные из диалога и заполните профиль, не выходя из чата.")}</p>
                   <div className="mt-4 space-y-3">
                     {([[
                       "firstName", "Imię"

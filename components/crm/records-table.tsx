@@ -53,7 +53,7 @@ export function RecordsTable() {
   const { cases, tasks, broadcasts, sendBroadcast } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const { t } = useLanguage()
+  const { t, tr } = useLanguage()
   const meName = ROLE_PROFILES[role].user.name
   const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
 
@@ -175,10 +175,10 @@ export function RecordsTable() {
 
         <Select value={clinic} onValueChange={(v) => setClinic(v ?? "all")}>
           <SelectTrigger className="h-8 w-44 text-sm">
-            <SelectValue placeholder="Klinika">{clinic === "all" ? "Wszystkie kliniki" : clinics.find(([id]) => id === clinic)?.[1]}</SelectValue>
+            <SelectValue placeholder={tr("Klinika", "Клиника")}>{clinic === "all" ? tr("Wszystkie kliniki", "Все клиники") : clinics.find(([id]) => id === clinic)?.[1]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie kliniki</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie kliniki", "Все клиники")}</SelectItem>
             {clinics.map(([id, name]) => (
               <SelectItem key={id} value={id}>
                 {name}
@@ -189,10 +189,10 @@ export function RecordsTable() {
 
         <Select value={doctor} onValueChange={(v) => setDoctor(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Lekarz">{doctor === "all" ? "Wszyscy lekarze" : doctors.find((d) => d.id === doctor)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Lekarz", "Врач")}>{doctor === "all" ? tr("Wszyscy lekarze", "Все врачи") : doctors.find((d) => d.id === doctor)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy lekarze</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy lekarze", "Все врачи")}</SelectItem>
             {doctors.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}
@@ -203,10 +203,10 @@ export function RecordsTable() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Usługa">{service === "all" ? "Wszystkie usługi" : services.find((s) => s.id === service)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Usługa", "Услуга")}>{service === "all" ? tr("Wszystkie usługi", "Все услуги") : services.find((s) => s.id === service)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie usługi</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {services.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}
@@ -217,10 +217,10 @@ export function RecordsTable() {
 
         <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Właściciel">{assignee === "all" ? "Wszyscy właściciele" : assignees.find((o) => o.id === assignee)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Właściciel", "Ответственный")}>{assignee === "all" ? tr("Wszyscy właściciele", "Все ответственные") : assignees.find((o) => o.id === assignee)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy właściciele</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy właściciele", "Все ответственные")}</SelectItem>
             {assignees.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.name}
@@ -328,7 +328,7 @@ export function RecordsTable() {
           {rows.map((c) => {
             const patient = getPatient(c.patientId)
             const identity = getIdentity(c.contactIdentityId)
-            const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? "Nierozpoznany kontakt"
+            const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? tr("Nierozpoznany kontakt", "Неизвестный контакт")
             const clinicRecord = getClinic(c.clinicId)
             const tone = getClinicTone(c.clinicId)
             const procedure = getProcedure(c.serviceInterest)
@@ -347,13 +347,13 @@ export function RecordsTable() {
                   </span>
                   <span className="flex flex-wrap items-center gap-1.5">
                     <Badge variant="outline" className="text-[11px]">{statusLabel}</Badge>
-                    <Badge variant="outline" className={cn("text-[11px]", tone.chip)}>{clinicRecord?.name ?? "Nieprzypisano"}</Badge>
+                    <Badge variant="outline" className={cn("text-[11px]", tone.chip)}>{clinicRecord?.name ?? tr("Nieprzypisano", "Не назначено")}</Badge>
                     <span className="text-xs text-muted-foreground">{t(BOARD_LABEL_KEYS[c.board])}</span>
                   </span>
                   <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
                     <span>{procedure?.name ?? "—"}</span>
-                    <span>{owner?.name ?? "Nieprzypisane"}</span>
-                    <span className={openTasks > 0 ? "text-foreground" : undefined}>Zadania: {openTasks}</span>
+                    <span>{owner?.name ?? tr("Nieprzypisane", "Не назначено")}</span>
+                    <span className={openTasks > 0 ? "text-foreground" : undefined}>{tr("Zadania", "Задачи")}: {openTasks}</span>
                   </span>
                 </button>
               </li>

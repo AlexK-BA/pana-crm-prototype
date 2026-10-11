@@ -67,10 +67,10 @@ export function WaitlistView() {
 
         <Select value={clinic} onValueChange={(v) => setClinic(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Klinika">{clinic === "all" ? "Wszystkie kliniki" : CLINICS.find((c) => c.id === clinic)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Klinika", "Клиника")}>{clinic === "all" ? tr("Wszystkie kliniki", "Все клиники") : CLINICS.find((c) => c.id === clinic)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie kliniki</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie kliniki", "Все клиники")}</SelectItem>
             {CLINICS.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
@@ -81,10 +81,10 @@ export function WaitlistView() {
 
         <Select value={doctor} onValueChange={(v) => setDoctor(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Lekarz">{doctor === "all" ? "Wszyscy lekarze" : DOCTORS.find((d) => d.id === doctor)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Lekarz", "Врач")}>{doctor === "all" ? tr("Wszyscy lekarze", "Все врачи") : DOCTORS.find((d) => d.id === doctor)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy lekarze</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy lekarze", "Все врачи")}</SelectItem>
             {DOCTORS.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}
@@ -95,10 +95,10 @@ export function WaitlistView() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Usługa">{service === "all" ? "Wszystkie usługi" : PROCEDURES.find((p) => p.id === service)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Usługa", "Услуга")}>{service === "all" ? tr("Wszystkie usługi", "Все услуги") : PROCEDURES.find((p) => p.id === service)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszystkie usługi</SelectItem>
+            <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {PROCEDURES.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
@@ -109,10 +109,10 @@ export function WaitlistView() {
 
         <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder="Właściciel">{assignee === "all" ? "Wszyscy właściciele" : INITIAL_USERS.find((o) => o.id === assignee)?.name}</SelectValue>
+            <SelectValue placeholder={tr("Właściciel", "Ответственный")}>{assignee === "all" ? tr("Wszyscy właściciele", "Все ответственные") : INITIAL_USERS.find((o) => o.id === assignee)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Wszyscy właściciele</SelectItem>
+            <SelectItem value="all">{tr("Wszyscy właściciele", "Все ответственные")}</SelectItem>
             {INITIAL_USERS.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.name}
