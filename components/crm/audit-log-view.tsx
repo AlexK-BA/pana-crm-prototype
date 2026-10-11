@@ -123,6 +123,13 @@ const ACTION_LABELS_RU: Record<string, string> = {
   workflow_task_skipped: "Пропуск задачи процесса",
 }
 
+const ACTION_LABELS_EN: Record<string, string> = {
+  task_edit: "Task edited", task_reschedule: "Task rescheduled", task_reassign: "Task owner changed",
+  task_reprioritize: "Task priority changed", task_replace: "Task replaced", task_cancel: "Task cancelled",
+  task_complete: "Task completed", task_reopen: "Task reopened", task_created: "Task created",
+  workflow_task_skipped: "Workflow task skipped",
+}
+
 const TYPE_LABELS_RU: Record<AuditEventType, string> = {
   case_created: "Создание кейса", comment_added: "Комментарий сотрудника", patient_local_updated: "Локальные данные пациента",
   patient_match_searched: "Поиск пациента", patient_match_suggested: "Предложение совпадения", patient_auto_linked: "Автопривязка пациента",
@@ -139,6 +146,22 @@ const TYPE_LABELS_RU: Record<AuditEventType, string> = {
   merge: "Объединение", link: "Привязка", unlink: "Отвязка", sync: "Синхронизация",
 }
 
+const TYPE_LABELS_EN: Record<AuditEventType, string> = {
+  case_created: "Case created", comment_added: "Staff comment", patient_local_updated: "Local patient data",
+  patient_match_searched: "Patient search", patient_match_suggested: "Match suggested", patient_auto_linked: "Patient linked automatically",
+  patient_match_approved: "Match approved", patient_match_rejected: "Match rejected", patient_match_conflict: "Matching conflict",
+  contact_identity_linked: "Contact linked", contact_identity_reused: "Existing contact reused", user_invited: "User invited",
+  user_activated: "User activated", user_deactivated: "User deactivated", user_password_reset_requested: "Password reset requested",
+  user_sessions_revoked: "Sessions revoked", user_access_changed: "User access changed", role_permissions_changed: "Role permissions changed",
+  role_permissions_reset: "Role permissions reset", access_denied: "Access denied", conversation_handoff: "Conversation handed over",
+  ai_control_changed: "AI control changed", ai_policy_changed: "AI policy changed", ai_activation_scheduled: "AI activation scheduled",
+  ai_activation_cancelled: "AI activation cancelled", ai_activation_started: "AI activated", ai_response_recorded: "AI response recorded",
+  sms_send: "SMS sent", sms_failed: "SMS failed", sms_retry: "SMS retried", sms_provider_change: "SMS provider changed",
+  sms_provider_test: "SMS provider tested", sms_provider_config: "SMS configured", status_change: "Status changed",
+  assignment_change: "Assignment changed", task_change: "Task changed", priority_change: "Priority changed",
+  merge: "Merged", link: "Linked", unlink: "Unlinked", sync: "Synchronised",
+}
+
 const SUMMARY_RU: Record<string, string> = {
   "Sprawa z listy oczekujących przeniesiona do aktywnego callbacku": "Заявка из списка ожидания переведена в активный обратный звонок",
   "Team Leader zmienił przypisanie": "Тимлид изменил назначение", "Status zmieniony": "Статус изменён",
@@ -150,16 +173,32 @@ const SUMMARY_RU: Record<string, string> = {
   "Lead przekształcony w Deal": "Лид преобразован в визит",
 }
 
+const SUMMARY_EN: Record<string, string> = {
+  "Sprawa z listy oczekujących przeniesiona do aktywnego callbacku": "Waitlist case moved to an active callback",
+  "Team Leader zmienił przypisanie": "Team leader changed the assignment", "Status zmieniony": "Status changed",
+  "Wykryto konflikt danych z Medical CRM (nazwisko)": "Medical CRM data conflict detected (surname)",
+  "Eskalacja P0 utworzona ręcznie": "P0 escalation created manually", "Przypisano po rozpoczęciu obsługi": "Assigned after work started",
+  "Synchronizacja z Medical CRM nie powiodła się — dane lokalne pozostają dostępne": "Medical CRM synchronisation failed — local data remains available",
+  "Zaktualizowano kolejność kolumn kanban": "Kanban column order updated",
+  "Połączono kontakt e-mail z pacjentem po dopasowaniu numeru telefonu": "Email contact linked to the patient after matching the phone number",
+  "Lead przekształcony w Deal": "Lead converted to an appointment",
+}
+
 const AUDIT_VALUE_RU: Record<string, string> = {
   "Waiting List": "Список ожидания", Qualification: "Квалификация", "Call Later": "Перезвонить позже",
   Nieprzypisane: "Не назначено", "Converted to Deal": "Преобразован в визит", "Appointment Scheduled": "Визит запланирован",
   "ci-04b (niepowiązany)": "ci-04b (не связан)",
 }
 
+const AUDIT_VALUE_EN: Record<string, string> = {
+  Nieprzypisane: "Unassigned", "ci-04b (niepowiązany)": "ci-04b (unlinked)",
+}
+
 function readableSummary(event: AuditEvent, language: "en" | "pl" | "ru") {
   if (language === "ru" && SUMMARY_RU[event.summary]) return SUMMARY_RU[event.summary]
+  if (language === "en" && SUMMARY_EN[event.summary]) return SUMMARY_EN[event.summary]
   const actionId = event.action
-  const action = actionId ? (language === "ru" ? ACTION_LABELS_RU[actionId] : ACTION_LABELS[actionId]) : undefined
+  const action = actionId ? (language === "ru" ? ACTION_LABELS_RU[actionId] : language === "en" ? ACTION_LABELS_EN[actionId] : ACTION_LABELS[actionId]) : undefined
   if (!actionId || !action || !event.summary.startsWith(actionId)) return event.summary
   return `${action}${event.summary.slice(actionId.length)}`
 }
@@ -167,16 +206,17 @@ function readableSummary(event: AuditEvent, language: "en" | "pl" | "ru") {
 function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: "en" | "pl" | "ru") {
   if (!value) return undefined
   if (language === "ru" && AUDIT_VALUE_RU[value]) return AUDIT_VALUE_RU[value]
-  if (value === "no_task") return language === "ru" ? "Нет задачи" : "Brak zadania"
+  if (language === "en" && AUDIT_VALUE_EN[value]) return AUDIT_VALUE_EN[value]
+  if (value === "no_task") return language === "ru" ? "Нет задачи" : language === "en" ? "No task" : "Brak zadania"
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value
     if (event.action === "task_reprioritize") return String(parsed.priority ?? "—")
     if (event.action === "task_reassign") return actorName(String(parsed.ownerId ?? "—"), users)
-    if (event.action === "task_reschedule") return typeof parsed.dueAt === "string" ? formatDateTime(parsed.dueAt, undefined, language === "ru" ? "ru-RU" : "pl-PL") : language === "ru" ? "Без срока" : "Bez terminu"
+    if (event.action === "task_reschedule") return typeof parsed.dueAt === "string" ? formatDateTime(parsed.dueAt, undefined, language === "ru" ? "ru-RU" : language === "en" ? "en-GB" : "pl-PL") : language === "ru" ? "Без срока" : language === "en" ? "No due date" : "Bez terminu"
     if (["task_complete", "task_cancel", "task_reopen"].includes(event.action ?? "")) return [parsed.status, parsed.outcome].filter(Boolean).join(" · ") || "—"
     if (event.action === "task_replace") return String(parsed.replacementTaskId ?? parsed.status ?? "—")
-    return [parsed.title, parsed.status, parsed.priority].filter(Boolean).join(" · ") || (language === "ru" ? "Данные изменены" : "Zmieniono dane")
+    return [parsed.title, parsed.status, parsed.priority].filter(Boolean).join(" · ") || (language === "ru" ? "Данные изменены" : language === "en" ? "Data changed" : "Zmieniono dane")
   } catch {
     return value
   }
@@ -259,7 +299,7 @@ export function AuditLogView() {
           </FilterChip>
           {TYPE_ORDER.filter((t) => (typeCounts.get(t) ?? 0) > 0).map((t) => (
             <FilterChip key={t} active={activeType === t} onClick={() => setActiveType(t)}>
-              {language === "ru" ? TYPE_LABELS_RU[t] : TYPE_META[t].label} ({typeCounts.get(t) ?? 0})
+              {language === "ru" ? TYPE_LABELS_RU[t] : language === "en" ? TYPE_LABELS_EN[t] : TYPE_META[t].label} ({typeCounts.get(t) ?? 0})
             </FilterChip>
           ))}
         </div>
@@ -322,8 +362,8 @@ export function AuditLogView() {
                       {event.targetRole && <span>· {tr("rola", "роль")} {event.targetRole}</span>}
                       {event.caseId ? <span>· {tr("sprawa", "кейс")} {event.caseId}</span> : null}
                       {event.patientId ? <span>· {tr("pacjent", "пациент")} {event.patientId}</span> : null}
-                      <span title={formatDateTime(event.at, undefined, language === "ru" ? "ru-RU" : "pl-PL")}>
-                        · {mounted ? formatRelative(event.at, language) : formatDateTime(event.at, undefined, language === "ru" ? "ru-RU" : "pl-PL")}
+                      <span title={formatDateTime(event.at, undefined, language === "ru" ? "ru-RU" : language === "en" ? "en-GB" : "pl-PL")}>
+                        · {mounted ? formatRelative(event.at, language) : formatDateTime(event.at, undefined, language === "ru" ? "ru-RU" : language === "en" ? "en-GB" : "pl-PL")}
                       </span>
                     </div>
                   </div>
