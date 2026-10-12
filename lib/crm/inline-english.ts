@@ -348,6 +348,8 @@ export const INLINE_ENGLISH: Record<string, string> = {
   "Termin od": "Due from",
   "Termin do": "Due to",
   "Przeciągnij uchwyt przy zadaniu, aby zmienić kolejność w grupie. Priorytet pozostaje bez zmian.": "Drag the task handle to reorder it within the group. Priority does not change.",
+  "Przeciągnij uchwyt, aby zmienić kolejność kart. Priorytet i etap się nie zmieniają.": "Drag the handle to reorder cards. Priority and stage do not change.",
+  "Pozostałe aktywne zadania": "Other active tasks",
   "Sprawy bez następnego działania": "Cases without a next action",
   "Otwórz sprawę i zaplanuj następny krok, żeby pacjent nie wypadł z procesu.": "Open the case and schedule the next step so the patient does not fall out of the process.",
   "Edytuj": "Edit",
