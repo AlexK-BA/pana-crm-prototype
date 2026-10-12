@@ -8,13 +8,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import type { EngagementCase, Task } from "@/lib/crm/entities"
 import { useUserDirectory } from "@/lib/crm/user-directory"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
-import { getClinic, getClinicTone, getProcedure, getDoctor } from "@/lib/crm/catalog"
+import { getClinic, getClinicTone, procedureLabel, getDoctor } from "@/lib/crm/catalog"
 import { PRIORITY_TONE } from "@/lib/crm/entity-selectors"
 import { priorityText } from "@/lib/crm/display-labels"
 import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { getCaseWorkState, getNextTaskForCase } from "@/lib/crm/entity-queue"
 import { useLanguage } from "@/lib/crm/language-context"
+import { taskDisplayTitle } from "@/lib/crm/task-type-labels"
 
 const CHANNEL_ICON: Record<string, typeof Phone> = {
   phone: Phone,
@@ -67,7 +68,6 @@ export function EntityCaseCard({
   const identity = store.identities.find(item=>item.id===engagementCase.contactIdentityId)
   const clinic = getClinic(engagementCase.clinicId)
   const tone = getClinicTone(engagementCase.clinicId)
-  const procedure = getProcedure(engagementCase.serviceInterest)
   const doctor = getDoctor(engagementCase.doctorId)
   const caseTasks = tasks ?? store.tasks
   const work=getCaseWorkState(engagementCase,caseTasks)
@@ -76,7 +76,11 @@ export function EntityCaseCard({
   const overdue = useIsOverdue(openTask?.dueAt)
   const ChannelIcon = CHANNEL_ICON[identity?.channel ?? ""] ?? StickyNote
 
-  const name = patient ? `${patient.firstName} ${patient.lastName}` : tr("Nierozpoznany kontakt", "Неопознанный контакт")
+  const name = patient
+    ? patient.firstName === "Nierozpoznany"
+      ? tr("Nierozpoznany kontakt", "Неопознанный контакт")
+      : `${patient.firstName} ${patient.lastName}`
+    : tr("Nierozpoznany kontakt", "Неопознанный контакт")
 
   return (
     <button
@@ -100,7 +104,7 @@ export function EntityCaseCard({
         </div>
 
         <div className="space-y-0.5 text-xs">
-          {work.previousCompletedTask && <p className="truncate text-muted-foreground">{tr("Ostatnio", "Последнее действие")}: {work.previousCompletedTask.title}</p>}
+          {work.previousCompletedTask && <p className="truncate text-muted-foreground">{tr("Ostatnio", "Последнее действие")}: {taskDisplayTitle(work.previousCompletedTask, language)}</p>}
           {openTask?.currentWorkerId && <p className="truncate text-sky-700">{tr("Aktualnie pracuje", "Сейчас работает")}: {users.find(user=>user.id===openTask.currentWorkerId)?.name ?? tr("inny konsultant", "другой сотрудник")}</p>}
           {work.activeTaskCount > 1 && <p className="text-muted-foreground">{tr("Pozostałe aktywne zadania", "Другие активные задачи")}: {work.activeTaskCount - 1}</p>}
         </div>
@@ -115,7 +119,7 @@ export function EntityCaseCard({
               {tr("Klinika nieprzypisana", "Клиника не назначена")}
             </span>
           )}
-          {procedure?.name ?? tr("Brak usługi", "Без услуги")}
+          {procedureLabel(engagementCase.serviceInterest, language) ?? tr("Brak usługi", "Без услуги")}
           {doctor ? ` · ${doctor.name}` : ""}
         </p>
 
@@ -131,7 +135,7 @@ export function EntityCaseCard({
             {overdue
               ? <AlertCircle className="h-3 w-3 shrink-0 text-red-600" aria-hidden="true" suppressHydrationWarning />
               : <Clock className="h-3 w-3 shrink-0" aria-hidden="true" suppressHydrationWarning />}
-            <span className="min-w-0 truncate"><span className="text-muted-foreground">{tr("Dalej", "Далее")}:</span> {openTask.title}</span>
+            <span className="min-w-0 truncate"><span className="text-muted-foreground">{tr("Dalej", "Далее")}:</span> {taskDisplayTitle(openTask, language)}</span>
             {openTask.dueAt && (
               <span className={cn("shrink-0", overdue ? "font-medium text-red-600" : "text-muted-foreground")} suppressHydrationWarning>
                 {overdue && <span className="sr-only">{tr("Po terminie: ", "Просрочено: ")}</span>}
