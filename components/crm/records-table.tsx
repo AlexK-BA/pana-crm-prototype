@@ -124,7 +124,7 @@ export function RecordsTable() {
   const audienceLabel = [
     board === "all" ? tr("wszystkie tablice", "все доски") : BOARD_LABELS[board].split(" ·")[0],
     clinic === "all" ? tr("wszystkie kliniki", "все клиники") : clinics.find(([id]) => id === clinic)?.[1] ?? clinic,
-    query ? tr(`filtr "${query}"`, `фильтр «${query}»`) : null,
+    query ? tr(`filtr "${query}"`, `фильтр «${query}»`, `filter "${query}"`) : null,
   ]
     .filter(Boolean)
     .join(" · ")
@@ -297,7 +297,7 @@ export function RecordsTable() {
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("cancel")}</Button>} />
             <Button onClick={handleSendBroadcast} disabled={!broadcastName.trim() || !broadcastMessage.trim()}>
-              {tr(`Wyślij do ${rows.length} kontaktów`, `Отправить ${rows.length} контактам`)}
+              {tr(`Wyślij do ${rows.length} kontaktów`, `Отправить ${rows.length} контактам`, `Send to ${rows.length} contacts`)}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -314,7 +314,7 @@ export function RecordsTable() {
               <button
                 onClick={() => setSavedViews((prev) => prev.filter((sv) => sv.id !== v.id))}
                 className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label={tr(`Usuń widok ${v.name}`, `Удалить вид ${v.name}`)}
+                aria-label={tr(`Usuń widok ${v.name}`, `Удалить вид ${v.name}`, `Delete view ${v.name}`)}
               >
                 <X className="h-3 w-3" />
               </button>

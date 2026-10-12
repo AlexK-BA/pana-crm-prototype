@@ -36,6 +36,7 @@ export function ScheduleList(){
   const stageLabel=(boardId:keyof typeof BOARD_COLUMNS,statusId:string)=>{const column=BOARD_COLUMNS[boardId].find(col=>col.id===statusId);return column?t(column.labelKey):statusId}
   const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient ? (patient.firstName === "Nierozpoznany" ? t("unknown_contact") : `${patient.firstName} ${patient.lastName}`) : t("unknown_contact")}
   const ownerName=(ownerId?:string)=>users.find(user=>user.id===ownerId)?.name??tr("Brak właściciela","Без ответственного")
+  const teamName=(teamId:string)=>teamId==="system"?tr("System","Система"):users.find(user=>user.id===teamId)?.name??teamId
   const taskRanks=store.manualOrder.tasks
   const eligible=sortWithManualOrder(store.tasks.filter(task=>{
     const item=store.cases.find(item=>item.id===task.caseId)
@@ -58,7 +59,7 @@ export function ScheduleList(){
       {select(tr("Zakres","Охват"),mode,setMode,scopeOptions)}
       {select(tr("Klinika","Клиника"),clinic,setClinic,clinicIds.map(id=>[id,getClinic(id)?.name??id] as Option))}
       {select(tr("Właściciel","Ответственный"),owner,setOwner,[["unassigned",tr("Nieprzypisane","Не назначено")],...ownerIds.map(id=>[id,ownerName(id)] as Option)])}
-      {select(tr("Zespół","Команда"),team,setTeam,teamIds)}
+      {select(tr("Zespół","Команда"),team,setTeam,teamIds.map(id=>[id,teamName(id)] as Option))}
       {select(tr("Priorytet","Приоритет"),priority,setPriority,(["P0","P1","P2","P3","P4"] as const).map(id=>[id,`${id} · ${priorityText(id,language)}`] as Option))}
       {select(tr("Status","Статус"),status,setStatus,["planned","ready","assigned","in_progress","overdue","completed","cancelled","failed"].map(id=>[id,taskStatusText(id,language)] as Option))}
       {select(tr("Typ zadania","Тип задачи"),type,setType,TASK_TYPES.map(id=>[id,taskTypeLabel(id,language)] as Option))}
