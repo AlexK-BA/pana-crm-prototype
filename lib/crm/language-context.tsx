@@ -60,7 +60,7 @@ const DICTIONARY = {
   unassigned_owner: { pl: "Nieprzypisane", ru: "Не назначено" },
   skipped_prefix: { pl: "Pominięto", ru: "Пропущено" },
   skip: { pl: "Pomiń", ru: "Пропустить" },
-  skip_reason_placeholder: { pl: "Powód pominięcia...", ru: "Причина пропуска..." },
+  skip_reason_placeholder: { pl: "Powód pominięcia…", ru: "Причина пропуска…" },
   save: { pl: "Zapisz", ru: "Сохранить" },
   no_messages: { pl: "Brak wiadomości w tej sprawie.", ru: "Нет сообщений по этой заявке." },
   no_comments: { pl: "Brak komentarzy.", ru: "Нет комментариев." },
@@ -86,7 +86,7 @@ const DICTIONARY = {
   },
   page_docs_subtitle: { pl: "Stan migracji AS-IS → TO-BE", ru: "Статус миграции AS-IS → TO-BE" },
   workspace_suffix: { pl: "Obszar roboczy", ru: "Рабочая область" },
-  search_placeholder: { pl: "Szukaj spraw, pacjentów...", ru: "Поиск заявок, пациентов..." },
+  search_placeholder: { pl: "Szukaj spraw, pacjentów…", ru: "Поиск заявок, пациентов…" },
   simulate_call: { pl: "Symuluj połączenie", ru: "Симулировать звонок" },
   demo_incoming_call: { pl: "Demo: przychodzące połączenie", ru: "Демо: входящий звонок" },
   notifications: { pl: "Powiadomienia", ru: "Уведомления" },
@@ -107,7 +107,7 @@ const DICTIONARY = {
     ru: "Указание ID, телефона или e-mail существующего пациента сразу привяжет заявку к его профилю.",
   },
   first_note: { pl: "Pierwsza notatka / wiadomość", ru: "Первая заметка / сообщение" },
-  first_note_placeholder: { pl: "Krótki opis zapytania pacjenta...", ru: "Краткое описание запроса пациента..." },
+  first_note_placeholder: { pl: "Krótki opis zapytania pacjenta…", ru: "Краткое описание запроса пациента…" },
 
   // Role profiles
   role_operator_label: { pl: "Operator", ru: "Оператор" },
@@ -338,6 +338,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (!mounted) return
     window.localStorage.setItem(STORAGE_KEY, language)
   }, [language, mounted])
+
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
 
   const setLanguage = (lang: Language) => setLanguageState(lang)
   const t = (key: DictionaryKey) => language === "en"

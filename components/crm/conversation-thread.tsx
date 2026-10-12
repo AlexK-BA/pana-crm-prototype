@@ -123,7 +123,7 @@ export function ConversationThread({
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [attachments, setAttachments] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { tr, language } = useLanguage()
+  const { tr, language, locale } = useLanguage()
   const [channel, setChannel] = useState<ContactChannel>(threadChannel === "sms" ? "phone" : threadChannel ?? (patientSmsHistory ? "phone" : "website"))
   const [smsCaseId, setSmsCaseId] = useState("")
   const [chosenTaskId, setChosenTaskId] = useState<string | undefined>(taskId)
@@ -255,7 +255,7 @@ export function ConversationThread({
           const status = incoming ? undefined : deliveryStatus[m.id]
           return (
             <div key={m.id} className={cn("flex flex-col gap-1", incoming ? "items-start" : "items-end")}>
-              {(index === 0 || new Date(messages[index - 1].at).toDateString() !== new Date(m.at).toDateString()) && <p className="w-full py-2 text-center text-[10px] text-muted-foreground">{new Date(m.at).toLocaleDateString("pl-PL")}</p>}
+              {(index === 0 || new Date(messages[index - 1].at).toDateString() !== new Date(m.at).toDateString()) && <p className="w-full py-2 text-center text-[10px] text-muted-foreground">{new Date(m.at).toLocaleDateString(locale)}</p>}
               <div className={cn("flex items-end gap-2", incoming ? "justify-start" : "justify-end")}>
                 {incoming && (
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">

@@ -33,10 +33,16 @@ export function PageShell({
   const allowed = canAccessRoute(pathname)
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-3 focus-visible:top-3 focus-visible:z-[100] focus-visible:rounded-md focus-visible:bg-primary focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:text-primary-foreground"
+      >
+        {tr("Przejdź do treści", "Перейти к содержимому")}
+      </a>
       <AppSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppTopbar title={title} subtitle={subtitle} />
-        <main className={noPadding ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto p-4 md:p-6"}>
+        <main id="main-content" tabIndex={-1} className={noPadding ? "flex-1 overflow-hidden focus:outline-none" : "flex-1 overflow-y-auto p-4 focus:outline-none md:p-6"}>
           {allowed ? children : (
             <div className="flex h-full items-center justify-center p-6">
               <div className="max-w-md rounded-xl border border-border bg-card p-6 text-center">

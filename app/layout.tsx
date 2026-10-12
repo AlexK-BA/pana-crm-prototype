@@ -42,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" data-theme={BRAND_CONFIG.theme}>
+    <html lang="pl" data-theme={BRAND_CONFIG.theme}>
       <body className="antialiased">
         <CrmProviders>{children}</CrmProviders>
         <footer className="border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground">
