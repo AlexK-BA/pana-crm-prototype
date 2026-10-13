@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { useCall } from "@/lib/crm/call-context"
+import { useLanguage } from "@/lib/crm/language-context"
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useUserDirectory } from "@/lib/crm/user-directory"
 import type { CallDisposition } from "@/lib/crm/entities"
@@ -56,6 +58,7 @@ function defaultLocalDateTime(hoursFromNow: number) {
 }
 
 export function CallOverlay() {
+  const { language } = useLanguage()
   const { phase, call, elapsedSec, answer, decline, hangUp, submitWrapUp } = useCall()
   const { cases, identities, patients } = useScopedEntityStore()
   const { currentUser, users } = useUserDirectory()
@@ -77,7 +80,7 @@ export function CallOverlay() {
       .map((c) => {
         const identity = identities.find((i) => i.id === c.contactIdentityId)
         const patient = patients.find((p) => p.id === c.patientId)
-        const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.displayName ?? "Nierozpoznany kontakt"
+        const name = patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : localizeDemoText(identity?.displayName ?? "Nierozpoznany kontakt", language)
         const value = identity?.value ?? ""
         return { case: c, name, value }
       })

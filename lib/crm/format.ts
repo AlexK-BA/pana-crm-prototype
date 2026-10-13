@@ -1,20 +1,24 @@
-export function formatRelative(iso: string, language: "en" | "pl" | "ru" = "en") {
+import type { Language } from "./language-context"
+
+const RELATIVE_UNITS: Record<Language, { min: string; hour: string; day: string; past: (label: string) => string; future: (label: string) => string }> = {
+  en: { min: "min", hour: "h", day: "d", past: (label) => `${label} ago`, future: (label) => `in ${label}` },
+  pl: { min: "min", hour: "godz.", day: "dni", past: (label) => `${label} temu`, future: (label) => `za ${label}` },
+  ru: { min: "мин", hour: "ч", day: "дн.", past: (label) => `${label} назад`, future: (label) => `через ${label}` },
+  es: { min: "min", hour: "h", day: "d", past: (label) => `hace ${label}`, future: (label) => `en ${label}` },
+}
+
+export function formatRelative(iso: string, language: Language = "en") {
   const diffMs = new Date(iso).getTime() - Date.now()
   const diffMin = Math.round(diffMs / 60000)
   const abs = Math.abs(diffMin)
-
-  const past = diffMin <= 0
-  const ru = language === "ru"
-  const en = language === "en"
+  const units = RELATIVE_UNITS[language]
 
   let label: string
-  if (abs < 60) label = `${Math.max(abs, 1)} ${ru ? "мин" : "min"}`
-  else if (abs < 60 * 24) label = `${Math.round(abs / 60)} ${ru ? "ч" : en ? "hr" : "godz."}`
-  else label = `${Math.round(abs / (60 * 24))} ${ru ? "дн." : en ? "days" : "dni"}`
+  if (abs < 60) label = `${Math.max(abs, 1)} ${units.min}`
+  else if (abs < 60 * 24) label = `${Math.round(abs / 60)} ${units.hour}`
+  else label = `${Math.round(abs / (60 * 24))} ${units.day}`
 
-  if (ru) return past ? `${label} назад` : `через ${label}`
-  if (en) return past ? `${label} ago` : `in ${label}`
-  return past ? `${label} temu` : `za ${label}`
+  return diffMin <= 0 ? units.past(label) : units.future(label)
 }
 
 // Locale and timeZone are pinned explicitly (not `undefined`) so the server
@@ -48,8 +52,8 @@ export const QUALIFICATION_CLASS: Record<string, string> = {
   undefined: "bg-amber-100 text-amber-700 border-amber-200",
 }
 
-export const QUALIFICATION_LABEL: Record<string, string> = {
-  qualified: "Zakwalifikowany",
-  unqualified: "Niezakwalifikowany",
-  undefined: "Nieokreślony",
+export const QUALIFICATION_LABEL: Record<string, Record<Language, string>> = {
+  qualified: { en: "Qualified", pl: "Zakwalifikowany", ru: "Квалифицирован", es: "Calificado" },
+  unqualified: { en: "Not qualified", pl: "Niezakwalifikowany", ru: "Не квалифицирован", es: "No calificado" },
+  undefined: { en: "Undetermined", pl: "Nieokreślony", ru: "Не определено", es: "Sin determinar" },
 }

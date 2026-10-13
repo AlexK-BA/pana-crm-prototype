@@ -1,6 +1,7 @@
 import type { Task, TaskType } from "./entities"
-import type { Language } from "./language-context"
+import { translate, type Language } from "./language-context"
 import { inlineEnglish } from "./inline-english"
+import { localizeDemoText } from "./demo-text"
 
 const LABELS: Record<TaskType, Partial<Record<Language, string>>> = {
   call: { en: "Call", pl: "Zadzwoń", ru: "Позвонить" },
@@ -25,11 +26,14 @@ export const TASK_TYPE_LABELS = Object.fromEntries(
 
 /** UI label for a task type in the current UI language. Task titles stored on records are data and stay untouched. */
 export function taskTypeLabel(type: TaskType, language: Language) {
-  return LABELS[type][language] ?? type.replaceAll("_", " ").replace(/^./, char => char.toUpperCase())
+  const labels = LABELS[type]
+  return labels[language] ?? translate(language, labels.pl ?? type, labels.ru ?? type, labels.en)
 }
 
 /** Workflow titles are seeded data, so present their canonical localized type. Manual titles remain user content. */
 export function taskDisplayTitle(task: Pick<Task, "title" | "type" | "source" | "workflowRuleId">, language: Language) {
+  const localizedDemoTitle = localizeDemoText(task.title, language)
+  if (localizedDemoTitle !== task.title) return localizedDemoTitle
   if (language === "en" && inlineEnglish(task.title)) return inlineEnglish(task.title)!
   return (task.source === "workflow" || task.workflowRuleId) && task.type
     ? taskTypeLabel(task.type, language)

@@ -1,5 +1,6 @@
 "use client"
 
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -26,6 +27,7 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { getClinic, getProcedure, getDoctor, DOCTORS } from "@/lib/crm/catalog"
 import { getOperator, PRIORITY_TEXT_TONE, priorityLabel } from "@/lib/crm/entity-selectors"
 import { getNextTaskForCase } from "@/lib/crm/entity-queue"
+import { localizeAuditSummary } from "@/lib/crm/audit-summary"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import type { SmsMessage } from "@/lib/crm/entities"
 import { getSmsStatusLabel, isSmsMessage } from "@/lib/crm/sms-service"
@@ -73,7 +75,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
   const canWorkTasks = hasPermission("task:work")
   const { tasks, cases, patients, identities, interactions, comments: allComments, auditEvents, matchDecisions, retrySms, saveCaseContactProfile, addCaseComment } = useScopedEntityStore()
   const { startOutgoingCall, phase: callPhase } = useCall()
-  const { t, tr, language } = useLanguage()
+  const { t, tr, language, locale } = useLanguage()
   const engagementCase = cases.find((c) => c.id === caseId)!
   const patient = patients.find((item) => item.id === engagementCase.patientId)
   const patientLinkState = resolvePatientLinkState(engagementCase, patient, matchDecisions.filter((item) => item.caseId === caseId).at(-1))
@@ -96,7 +98,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
         id: `task-${task.id}`,
         at: task.createdAt,
         kind: "task",
-        title: `${isDone ? t("timeline_task_completed") : t("timeline_task_created")}: ${task.title}`,
+        title: `${isDone ? t("timeline_task_completed") : t("timeline_task_created")}: ${localizeDemoText(task.title, language)}`,
         actor: owner?.name,
       })
     }
@@ -105,14 +107,14 @@ function DrawerBody({ caseId }: { caseId: string }) {
       entries.push({ id: comment.id, at: comment.at, kind: "comment", title: comment.text, actor: author?.name })
     }
     if (canViewCommunication) {
-      for (const message of caseSms) entries.push({ id: message.id, at: message.at, kind: "sms", title: message.text ?? "",
+      for (const message of caseSms) entries.push({ id: message.id, at: message.at, kind: "sms", title: localizeDemoText(message.text, language),
         actor: users.find((user) => user.id === message.authorId)?.name ?? (message.direction === "incoming" ? "Pacjent (demo)" : message.authorId), sms: message })
     }
     if (canViewAudit) {
       for (const event of audit) {
         if (event.type.startsWith("sms_") && caseSms.some((message) => message.id === event.correlationId)) continue
         const actor = getOperator(event.actorId)
-        entries.push({ id: event.id, at: event.at, kind: "audit", title: event.summary, actor: actor?.name })
+        entries.push({ id: event.id, at: event.at, kind: "audit", title: localizeAuditSummary(event.summary, language), actor: actor?.name })
       }
     }
     return entries.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
@@ -180,7 +182,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <DialogTitle className="truncate text-lg">
-              {patient ? `${patient.firstName} ${patient.lastName}` : t("unknown_contact")}
+              {patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : t("unknown_contact")}
             </DialogTitle>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               {identity && <span>{identity.value}</span>}
@@ -208,7 +210,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
 
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{engagementCase.board === "leads" ? t("board_lead") : engagementCase.board === "deals" ? t("board_deal") : t("board_patient_care")}</Badge>
-          {procedure && <Badge variant="secondary">{procedure.name}</Badge>}
+          {procedure && <Badge variant="secondary">{localizeDemoText(procedure.name, language)}</Badge>}
           {doctor && <Badge variant="secondary">{doctor.name}</Badge>}
           <Badge variant="outline">{patientLinkLabel(patientLinkState, language)}</Badge>
           <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
@@ -224,10 +226,10 @@ function DrawerBody({ caseId }: { caseId: string }) {
                 {tr("Co zrobić teraz", "Что делать сейчас")}
               </p>
               {nextTask ? <>
-                <p className="truncate text-sm font-semibold">{nextTask.title}</p>
+                <p className="truncate text-sm font-semibold">{localizeDemoText(nextTask.title, language)}</p>
                 {nextTask.description && <p className="line-clamp-2 text-xs text-muted-foreground">{nextTask.description}</p>}
                 <p className={cn("text-xs", nextTaskOverdue ? "font-medium text-red-700" : "text-muted-foreground")}>
-                  {nextTask.dueAt ? `${tr("Termin", "Срок")}: ${formatDateTime(nextTask.dueAt)} · ${formatRelative(nextTask.dueAt)}` : tr("Brak terminu — wymaga zaplanowania", "Нет срока — требуется планирование")}
+                  {nextTask.dueAt ? `${tr("Termin", "Срок")}: ${formatDateTime(nextTask.dueAt, undefined, locale)} · ${formatRelative(nextTask.dueAt, language)}` : tr("Brak terminu — wymaga zaplanowania", "Нет срока — требуется планирование")}
                 </p>
               </> : <p className="text-sm font-medium text-amber-800">{tr("Brak następnego działania — utwórz zadanie przed zamknięciem sprawy.", "Нет следующего действия — создайте задачу до закрытия заявки.")}</p>}
             </div>
@@ -258,7 +260,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             caseId={caseId}
             taskId={nextTask?.id}
             patientId={patient?.id ?? engagementCase.patientId}
-            patientName={patient ? `${patient.firstName} ${patient.lastName}` : undefined}
+            patientName={patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : undefined}
             clinicId={engagementCase.clinicId}
             procedureId={engagementCase.serviceInterest}
             doctorId={engagementCase.doctorId}
@@ -330,7 +332,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
                         }}>{tr("Ponów SMS", "Повторить SMS")}</Button>}
                     </div>}
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {entry.actor ?? t("unassigned_owner")} · {formatDateTime(entry.at)}
+                      {entry.actor ?? t("unassigned_owner")} · {formatDateTime(entry.at, undefined, locale)}
                     </p>
                   </div>
                 </li>
@@ -341,7 +343,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
 
           <TabsContent value="tasks" className="mt-0 space-y-2"><CreateCaseTask caseId={caseId} terminal={isTerminalStage}/>
             {caseTasks.length === 0 && <p className="text-sm text-muted-foreground">{t("no_tasks")}</p>}
-            {caseTasks.map(task=><div key={task.id} className="space-y-2 rounded border p-3"><p className="font-medium">{task.title}</p><p className="text-sm text-muted-foreground">{task.description ?? tr("Brak opisu (dane historyczne)", "Нет описания (исторические данные)")}</p><p className="text-xs">{task.status} · {task.priority} · {task.dueAt ? formatDateTime(task.dueAt) : tr("Bez terminu", "Без срока")} · {tr("przeniesienia", "переносы")} {task.rescheduleCount??0}</p><TaskActions task={task}/></div>)}
+            {caseTasks.map(task=><div key={task.id} className="space-y-2 rounded border p-3"><p className="font-medium">{localizeDemoText(task.title, language)}</p><p className="text-sm text-muted-foreground">{task.description ?? tr("Brak opisu (dane historyczne)", "Нет описания (исторические данные)")}</p><p className="text-xs">{task.status} · {task.priority} · {task.dueAt ? formatDateTime(task.dueAt, undefined, locale) : tr("Bez terminu", "Без срока")} · {tr("przeniesienia", "переносы")} {task.rescheduleCount??0}</p><TaskActions task={task}/></div>)}
           </TabsContent>
 
           {canViewCommunication && <TabsContent value="history" className="-mx-5 -my-4 mt-0 h-full">
@@ -360,9 +362,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
               const author = getOperator(comment.authorId)
               return (
                 <div key={comment.id} className="rounded-md border border-border px-3 py-2.5">
-                  <p className="text-sm text-foreground">{comment.text}</p>
+                  <p className="text-sm text-foreground">{localizeDemoText(comment.text, language)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {author?.name ?? comment.authorId} · {formatDateTime(comment.at)}
+                    {author?.name ?? comment.authorId} · {formatDateTime(comment.at, undefined, locale)}
                   </p>
                 </div>
               )
@@ -379,9 +381,9 @@ function DrawerBody({ caseId }: { caseId: string }) {
                       <History className="h-3 w-3 text-muted-foreground" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-foreground">{event.summary}</p>
+                      <p className="text-sm text-foreground">{localizeAuditSummary(event.summary, language)}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {actor?.name ?? event.actorId} · {formatDateTime(event.at)}
+                        {actor?.name ?? event.actorId} · {formatDateTime(event.at, undefined, locale)}
                       </p>
                     </div>
                   </li>
@@ -411,7 +413,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
         </div>
         <aside className="hidden w-80 shrink-0 flex-col border-l bg-muted/10 lg:flex" aria-label={tr("Komentarze zespołu","Комментарии команды")}>
           <div className="border-b p-3"><h3 className="text-sm font-semibold">{tr("Komentarze zespołu","Комментарии команды")}</h3><p className="text-xs text-muted-foreground">{tr("Widoczne podczas pracy w każdej sekcji sprawy.","Видны при работе в любом разделе кейса.")}</p></div>
-          <div className="flex-1 space-y-2 overflow-y-auto p-3">{comments.length===0&&<p className="text-xs text-muted-foreground">{t("no_comments")}</p>}{comments.map(comment=>{const author=getOperator(comment.authorId);return <div key={comment.id} className="rounded-md border bg-background p-2.5"><p className="whitespace-pre-wrap text-sm">{comment.text}</p><p className="mt-1 text-[11px] text-muted-foreground">{author?.name??comment.authorId} · {formatDateTime(comment.at)}</p></div>})}</div>
+          <div className="flex-1 space-y-2 overflow-y-auto p-3">{comments.length===0&&<p className="text-xs text-muted-foreground">{t("no_comments")}</p>}{comments.map(comment=>{const author=getOperator(comment.authorId);return <div key={comment.id} className="rounded-md border bg-background p-2.5"><p className="whitespace-pre-wrap text-sm">{comment.text}</p><p className="mt-1 text-[11px] text-muted-foreground">{author?.name??comment.authorId} · {formatDateTime(comment.at, undefined, locale)}</p></div>})}</div>
           <div className="space-y-2 border-t p-3"><Textarea rows={3} value={commentDraft} onChange={event=>setCommentDraft(event.target.value)} placeholder={tr("Nowy komentarz…","Новый комментарий…")}/><Button className="w-full" size="sm" disabled={!commentDraft.trim()} onClick={handleAddComment}>{tr("Dodaj komentarz","Добавить комментарий")}</Button></div>
         </aside></div>
       </Tabs>

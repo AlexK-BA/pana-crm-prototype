@@ -16,6 +16,7 @@ import { getPatient, getIdentity } from "@/lib/crm/entity-data"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { StageTransitionDialog, type PendingStageTransition } from "@/components/crm/stage-transition-dialog"
 import { EntityCaseCard } from "@/components/crm/entity-case-card"
@@ -56,7 +57,7 @@ export function KanbanBoard() {
   const { openCase } = useCasePanel()
   const { role } = useRole()
   const { hasPermission } = useAuthorization()
-  const { t, tr } = useLanguage()
+  const { t, tr, language } = useLanguage()
   const actorId = currentUser.id
   const canMoveCase = hasPermission("case:move")
 
@@ -136,7 +137,7 @@ export function KanbanBoard() {
             render={
               <Button variant="outline" size="sm" className="h-8 gap-1.5">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filters
+                {tr("Filtry", "Фильтры", "Filters", "Filtros")}
                 {activeFilterCount > 0 && (
                   <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
                     {activeFilterCount}
@@ -185,10 +186,10 @@ export function KanbanBoard() {
                   <SelectValue placeholder="Usługa" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Wszystkie usługi</SelectItem>
+                  <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
                   {PROCEDURES.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                      {localizeDemoText(p.name, language)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -287,7 +288,7 @@ export function KanbanBoard() {
                   ))}
                   {columnCases.length === 0 && (
                     <div className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-                      No cases
+                      {tr("Brak spraw", "Нет заявок", "No cases", "No hay casos")}
                     </div>
                   )}
                 </div>

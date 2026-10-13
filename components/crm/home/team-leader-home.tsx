@@ -1,5 +1,7 @@
 "use client"
 
+import { useLanguage } from "@/lib/crm/language-context"
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useEffect, useMemo, useState } from "react"
 import { Phone, MessageSquare, CheckSquare, TrendingUp } from "lucide-react"
 import {
@@ -36,6 +38,7 @@ const PRIORITIES: TaskPriority[] = ["P0", "P1", "P2", "P3", "P4"]
  * shared `tasks` array, scoped to "team" (every task, not just mine).
  */
 export function TeamLeaderHome() {
+  const { language, locale } = useLanguage()
   const { openCase } = useCasePanel()
   const { tasks, cases, interactions, assignTask } = useScopedEntityStore()
 
@@ -106,9 +109,9 @@ export function TeamLeaderHome() {
                   <span className={cn("h-2 w-2 shrink-0 rounded-full", PRIORITY_TONE[item.task.priority])} />
                   <button onClick={() => openCase(item.case.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{item.patientName}</p>
+                      <p className="truncate text-sm font-medium text-foreground">{localizeDemoText(item.patientName, language)}</p>
                       <p className="truncate text-xs text-muted-foreground" suppressHydrationWarning>
-                        {item.clinicName} · {item.task.dueAt ? formatRelative(item.task.dueAt) : "—"}
+                        {item.clinicName} · {item.task.dueAt ? formatRelative(item.task.dueAt, language) : "—"}
                       </p>
                     </div>
                   </button>
@@ -117,7 +120,7 @@ export function TeamLeaderHome() {
               )
             })}
             {overdueItems.length === 0 && (
-              <p className="px-4 py-8 text-center text-sm text-muted-foreground">Brak przeterminowanych zadań zespołu.</p>
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">{language === "pl" ? "Brak przeterminowanych zadań zespołu." : language === "ru" ? "Нет просроченных задач команды." : "No overdue team tasks."}</p>
             )}
           </div>
         </section>
@@ -148,7 +151,7 @@ export function TeamLeaderHome() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">{op.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {status.label} · {load} zadań{currentItem ? ` · ${currentItem.patientName}` : ""}
+                    {status.label} · {load} zadań{currentItem ? ` · ${localizeDemoText(currentItem.patientName, language)}` : ""}
                   </p>
                 </div>
               </div>

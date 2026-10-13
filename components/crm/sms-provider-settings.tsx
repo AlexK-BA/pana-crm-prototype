@@ -1,5 +1,6 @@
 "use client"
 
+import { useLanguage } from "@/lib/crm/language-context"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,6 +34,7 @@ export function SmsProviderSettings() {
 }
 
 function ProviderCard({ config }: { config: SmsProviderConfiguration }) {
+  const { language, locale } = useLanguage()
   const { updateSmsProviderConfiguration, testSmsProviderConfiguration } = useScopedEntityStore()
   const [draft, setDraft] = useState({ name: config.name, providerType: config.providerType,
     senderValue: config.senderValue, enabled: config.enabled, defaultMessageText: config.defaultMessageText })
@@ -70,7 +72,7 @@ function ProviderCard({ config }: { config: SmsProviderConfiguration }) {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button size="sm" disabled={!dirty || !draft.name.trim() || !draft.senderValue.trim()} onClick={save}>Zapisz konfigurację</Button>
         <Button size="sm" variant="outline" disabled={dirty} onClick={test}>Testuj emulator</Button>
-        {config.lastTestAt && <span className="text-xs text-muted-foreground">Test: {formatDateTime(config.lastTestAt)} · {config.lastTestStatus}</span>}
+        {config.lastTestAt && <span className="text-xs text-muted-foreground">Test: {formatDateTime(config.lastTestAt, undefined, locale)} · {config.lastTestStatus}</span>}
       </div>
       {notice && <p role="status" className="mt-2 text-xs">{notice}</p>}
     </div>
