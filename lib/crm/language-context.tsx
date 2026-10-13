@@ -67,7 +67,7 @@ const DICTIONARY = {
   close: { pl: "Zamknij", ru: "Закрыть" },
   board_lead: { pl: "Lead", ru: "Лид" },
   board_deal: { pl: "Deal", ru: "Сделка" },
-  board_patient_care: { pl: "Patient care", ru: "Пациент" },
+  board_patient_care: { pl: "Opieka nad pacjentem", ru: "Работа с пациентами" },
   call: { pl: "Zadzwoń", ru: "Позвонить" },
   message: { pl: "Wiadomość", ru: "Сообщение" },
   book_appointment: { pl: "Umów wizytę", ru: "Записать на визит" },
