@@ -23,7 +23,7 @@ import {
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useUserDirectory, type AppUser } from "@/lib/crm/user-directory"
 import { useAuthorization } from "@/lib/crm/authorization-context"
-import { useLanguage } from "@/lib/crm/language-context"
+import { useLanguage, type Language } from "@/lib/crm/language-context"
 import type { AuditEvent, AuditEventType } from "@/lib/crm/entities"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
@@ -194,7 +194,7 @@ const AUDIT_VALUE_EN: Record<string, string> = {
   Nieprzypisane: "Unassigned", "ci-04b (niepowiązany)": "ci-04b (unlinked)",
 }
 
-function readableSummary(event: AuditEvent, language: "en" | "pl" | "ru") {
+function readableSummary(event: AuditEvent, language: Language) {
   if (language === "ru" && SUMMARY_RU[event.summary]) return SUMMARY_RU[event.summary]
   if (language === "en" && SUMMARY_EN[event.summary]) return SUMMARY_EN[event.summary]
   const actionId = event.action
@@ -203,7 +203,7 @@ function readableSummary(event: AuditEvent, language: "en" | "pl" | "ru") {
   return `${action}${event.summary.slice(actionId.length)}`
 }
 
-function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: "en" | "pl" | "ru") {
+function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: Language) {
   if (!value) return undefined
   if (language === "ru" && AUDIT_VALUE_RU[value]) return AUDIT_VALUE_RU[value]
   if (language === "en" && AUDIT_VALUE_EN[value]) return AUDIT_VALUE_EN[value]

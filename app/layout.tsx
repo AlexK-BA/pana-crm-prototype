@@ -36,13 +36,25 @@ export const viewport: Viewport = {
   ],
 }
 
+// Hides the server-rendered English markup only when a non-default language will be applied on hydration,
+// so ?lang= / saved-language visitors never see a flash of English. A timeout guarantees it is never stuck hidden.
+const PENDING_LANGUAGE_SCRIPT = `(function(){try{var d=document.documentElement,p=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('smart-clinic-crm-language')||localStorage.getItem('pana-crm-language')}catch(e){}var l=p!==null?p:s;if(l&&l!=='en'){d.setAttribute('data-i18n-pending','');setTimeout(function(){d.removeAttribute('data-i18n-pending')},3000)}}catch(e){}})()`
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" data-theme={BRAND_CONFIG.theme}>
+    <html lang="en" data-theme={BRAND_CONFIG.theme} suppressHydrationWarning>
+      <head>
+        <style>{'html[data-i18n-pending] body{visibility:hidden}'}</style>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: PENDING_LANGUAGE_SCRIPT,
+          }}
+        />
+      </head>
       <body className="antialiased">
         <CrmProviders>{children}</CrmProviders>
         <footer className="border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground">

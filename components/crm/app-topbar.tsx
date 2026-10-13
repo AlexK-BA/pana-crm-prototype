@@ -21,7 +21,7 @@ import {
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { useLanguage, type Language } from "@/lib/crm/language-context"
+import { LANGUAGES, LANGUAGE_LABELS, useLanguage } from "@/lib/crm/language-context"
 import { CLINICS, getClinicTone } from "@/lib/crm/catalog"
 import { getQueue } from "@/lib/crm/entity-queue"
 import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
@@ -177,9 +177,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           <DropdownMenuGroup>
             <DropdownMenuLabel className="text-xs text-muted-foreground">{t("language")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {(["en", "pl", "ru"] as Language[]).map((lang) => (
+            {LANGUAGES.map((lang) => (
               <DropdownMenuItem key={lang} onClick={() => setLanguage(lang)} className="justify-between">
-                {lang === "en" ? "English" : lang === "pl" ? "Polski" : "Русский"}
+                {LANGUAGE_LABELS[lang].name}
                 {language === lang && <span className="text-xs text-primary">✓</span>}
               </DropdownMenuItem>
             ))}

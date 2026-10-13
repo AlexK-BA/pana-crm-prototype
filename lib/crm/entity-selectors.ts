@@ -77,7 +77,7 @@ export const PRIORITY_TEXT_TONE: Record<TaskPriority, string> = {
 }
 
 /** Compatibility wrapper: the single label catalog lives in display-labels.ts. */
-export function priorityLabel(p: TaskPriority, language: Language = "pl") {
+export function priorityLabel(p: TaskPriority, language: Language = "en") {
   return priorityText(p, language)
 }
 

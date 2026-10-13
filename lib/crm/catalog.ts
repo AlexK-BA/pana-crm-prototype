@@ -54,7 +54,7 @@ export function getProcedure(id?: string) {
   return PROCEDURES.find((p) => p.id === id)
 }
 
-const PROCEDURE_LABELS: Record<string, Record<Language, string>> = {
+const PROCEDURE_LABELS: Record<string, Partial<Record<Language, string>>> = {
   "proc-implant": { en: "Implant dentistry", pl: "Implantologia", ru: "Имплантология" },
   "proc-ortho": { en: "Orthodontics", pl: "Ortodoncja", ru: "Ортодонтия" },
   "proc-endo": { en: "Endodontics", pl: "Endodoncja", ru: "Эндодонтия" },

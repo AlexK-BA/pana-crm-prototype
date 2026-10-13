@@ -14,6 +14,7 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { ChannelIcon, type ChannelPlatform } from "@/components/crm/channel-icon"
 import { useAuthorization } from "@/lib/crm/authorization-context"
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useLanguage } from "@/lib/crm/language-context"
 
 const ICON_CHANNELS: ChannelPlatform[] = ["instagram", "telegram", "whatsapp", "website", "phone"]
@@ -24,7 +25,7 @@ export function CommandPalette() {
   const { openCase } = useCasePanel()
   const { cases, patients, identities } = useScopedEntityStore()
   const { hasPermission, canAccessRoute } = useAuthorization()
-  const { tr } = useLanguage()
+  const { tr, language } = useLanguage()
   const canViewCases = hasPermission("case:view")
 
   useEffect(() => {
@@ -53,8 +54,8 @@ export function CommandPalette() {
             const patient = patients.find((item) => item.id === engagementCase.patientId)
             const identity = identities.find((item) => item.id === engagementCase.contactIdentityId)
             const displayName = patient
-              ? `${patient.firstName} ${patient.lastName}`
-              : identity?.displayName ?? tr("Nierozpoznany kontakt", "Неизвестный контакт")
+              ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language)
+              : localizeDemoText(identity?.displayName, language) || tr("Nierozpoznany kontakt", "Неизвестный контакт")
             const platform: ChannelPlatform = identity && ICON_CHANNELS.includes(identity.channel as ChannelPlatform)
               ? identity.channel as ChannelPlatform
               : "internal"
