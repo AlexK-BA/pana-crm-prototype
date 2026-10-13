@@ -8,6 +8,7 @@
  * requirement. Used standalone in Inbox, inside the case drawer, and
  * aggregated across all of a patient's cases in the Patient Profile.
  */
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useLanguage } from "@/lib/crm/language-context"
 import { potentialChannelText, sendChannelText } from "@/lib/crm/display-labels"
@@ -123,7 +124,7 @@ export function ConversationThread({
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [attachments, setAttachments] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { tr, language } = useLanguage()
+  const { tr, language, locale } = useLanguage()
   const [channel, setChannel] = useState<ContactChannel>(threadChannel === "sms" ? "phone" : threadChannel ?? (patientSmsHistory ? "phone" : "website"))
   const [smsCaseId, setSmsCaseId] = useState("")
   const [chosenTaskId, setChosenTaskId] = useState<string | undefined>(taskId)
@@ -270,9 +271,9 @@ export function ConversationThread({
                                       )}
                 >
                   {!incoming && isBotInteraction(m) && <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-80">Bot</p>}
-                  <p className="whitespace-pre-wrap"><Highlighted text={m.text ?? ""} term={highlight} /></p>
+                  <p className="whitespace-pre-wrap"><Highlighted text={localizeDemoText(m.text, language)} term={highlight} /></p>
                   <div className={cn("mt-1 flex flex-wrap items-center gap-1 text-[10px]", incoming ? "text-muted-foreground" : "text-primary-foreground/70")}>
-                    <span>{m.type === "sms" ? "SMS" : TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at)}</span>
+                    <span>{m.type === "sms" ? "SMS" : TYPE_LABEL[m.channel ?? m.type] ?? m.channel ?? m.type} · {formatDateTime(m.at, undefined, locale)}</span>
                     {m.type === "sms" && <span>· {incoming ? "Przychodzący" : "Wychodzący"} · {users.find((user) => user.id === m.authorId)?.name ?? (incoming ? "Pacjent (demo)" : m.authorId ?? "System")}</span>}
                     {isSmsMessage(m) ? (
                       <SmsStatus message={m} />
@@ -299,7 +300,7 @@ export function ConversationThread({
                     {m.aiTrace.citations.map((source, sourceIndex) => <div key={`${source.sourceId}/${source.sourceVersion}/${source.chunkId ?? sourceIndex}`} className="rounded bg-muted p-2">
                       <p className="font-medium">{source.sourceTitle} · v{source.sourceVersion}</p>
                       <p>{[source.section, source.page ? `s. ${source.page}` : undefined, source.chunkId].filter(Boolean).join(" · ") || source.sourceId}</p>
-                      <p className="text-muted-foreground">Pobrano: {formatDateTime(source.retrievedAt)}{source.relevance !== undefined ? ` · trafność ${Math.round(source.relevance * 100)}%` : ""}</p>
+                      <p className="text-muted-foreground">Pobrano: {formatDateTime(source.retrievedAt, undefined, locale)}{source.relevance !== undefined ? ` · trafność ${Math.round(source.relevance * 100)}%` : ""}</p>
                     </div>)}
                     {!m.aiTrace.citations.length && <p>Brak źródła: {m.aiTrace.noSourceReason}</p>}
                     {m.aiTrace.escalationReason && <p className="text-amber-700">Eskalacja: {m.aiTrace.escalationReason}</p>}
@@ -363,7 +364,7 @@ export function ConversationThread({
         <div className="flex flex-wrap gap-3 py-2 text-xs">
           {phoneIdentities.length > 1 && <label>Telefon <select value={phoneIdentity?.id} onChange={(event) => setRecipientId(event.target.value)}>{phoneIdentities.map((identity) => <option key={identity.id} value={identity.id}>{identity.value}</option>)}</select></label>}
           {targetCaseId && <label>Zadanie SMS <select className="ml-2 max-w-xs rounded border bg-background p-1" value={selectedTaskId ?? ""} onChange={(event) => setChosenTaskId(event.target.value)}>
-            <option value="">Bez zadania</option>{openTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
+            <option value="">{tr("Bez zadania", "Без задачи")}</option>{openTasks.map((task) => <option key={task.id} value={task.id}>{localizeDemoText(task.title, language)}</option>)}
           </select></label>}
           <span className="text-muted-foreground">SMS nie kończy zadania. Następne działanie pozostaje w kolejce.</span>
         </div>
@@ -379,7 +380,7 @@ export function ConversationThread({
           className="h-3 w-3 accent-destructive"
         />
         <label htmlFor={toggleId} className="cursor-pointer select-none">
-          Symuluj błąd wysyłki (test UAT)
+          {tr("Symuluj błąd wysyłki (test UAT)", "Симулировать ошибку отправки (тест UAT)", "Simulate a send failure (UAT test)")}
         </label>
       </div>
       {attachments.length > 0 && (

@@ -1,5 +1,6 @@
 "use client"
 
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useMemo, useState } from "react"
 import { Search, Bell, Plus, PhoneIncoming, Loader2, Languages, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,7 @@ import {
 import { useCall } from "@/lib/crm/call-context"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
-import { useLanguage, type Language } from "@/lib/crm/language-context"
+import { LANGUAGES, LANGUAGE_LABELS, useLanguage } from "@/lib/crm/language-context"
 import { CLINICS, getClinicTone } from "@/lib/crm/catalog"
 import { getQueue } from "@/lib/crm/entity-queue"
 import { buildQueueItem, PRIORITY_TONE } from "@/lib/crm/entity-selectors"
@@ -168,7 +169,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           render={
             <Button variant="outline" size="sm" className="gap-1.5" aria-label={t("language")}>
               <Languages className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{language === "pl" ? "PL" : "RU"}</span>
+              <span className="hidden sm:inline">{LANGUAGE_LABELS[language].short}</span>
             </Button>
           }
         />
@@ -176,9 +177,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
           <DropdownMenuGroup>
             <DropdownMenuLabel className="text-xs text-muted-foreground">{t("language")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {(["pl", "ru"] as Language[]).map((lang) => (
+            {LANGUAGES.map((lang) => (
               <DropdownMenuItem key={lang} onClick={() => setLanguage(lang)} className="justify-between">
-                {lang === "pl" ? "Polski" : "Русский"}
+                {LANGUAGE_LABELS[lang].name}
                 {language === lang && <span className="text-xs text-primary">✓</span>}
               </DropdownMenuItem>
             ))}
@@ -251,9 +252,9 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
                     {item.task.priority}
                   </Badge>
                 </div>
-                <span className="truncate text-xs text-muted-foreground">{item.task.title}</span>
+                <span className="truncate text-xs text-muted-foreground">{localizeDemoText(item.task.title, language)}</span>
                 <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>
-                  {item.clinicName} · {item.task.dueAt ? formatRelative(item.task.dueAt) : "—"}
+                  {item.clinicName} · {item.task.dueAt ? formatRelative(item.task.dueAt, language) : "—"}
                 </span>
               </DropdownMenuItem>
             ))}

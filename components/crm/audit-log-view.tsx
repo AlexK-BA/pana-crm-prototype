@@ -7,6 +7,7 @@
  * drawer actions) shows up here immediately, in one searchable place.
  */
 
+import { useLanguage, type Language } from "@/lib/crm/language-context"
 import { useEffect, useMemo, useState } from "react"
 import {
   ArrowRight,
@@ -25,51 +26,96 @@ import { useUserDirectory, type AppUser } from "@/lib/crm/user-directory"
 import { useAuthorization } from "@/lib/crm/authorization-context"
 import type { AuditEvent, AuditEventType } from "@/lib/crm/entities"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
+import { localizeAuditSummary } from "@/lib/crm/audit-summary"
 import { cn } from "@/lib/utils"
 
-const TYPE_META: Record<AuditEventType, { label: string; icon: typeof ShieldCheck; className: string }> = {
-  case_created: { label: "Utworzenie sprawy", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  comment_added: { label: "Komentarz pracownika", icon: UserCog, className: "bg-slate-100 text-slate-700" },
-  patient_local_updated: { label: "Lokalne dane pacjenta", icon: UserCog, className: "bg-teal-100 text-teal-700" },
-  patient_match_searched: { label: "Wyszukanie pacjenta", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  patient_match_suggested: { label: "Propozycja dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  patient_auto_linked: { label: "Automatyczne powiązanie pacjenta", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  patient_match_approved: { label: "Zatwierdzenie dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  patient_match_rejected: { label: "Odrzucenie dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  patient_match_conflict: { label: "Konflikt dopasowania", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  contact_identity_linked: { label: "Powiązanie kontaktu", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  contact_identity_reused: { label: "Użycie istniejącego kontaktu", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  user_invited: { label: "Zaproszenie użytkownika", icon: UserCog, className: "bg-amber-100 text-amber-700" },
-  user_activated: { label: "Aktywacja użytkownika", icon: UserCog, className: "bg-emerald-100 text-emerald-700" },
-  user_deactivated: { label: "Dezaktywacja użytkownika", icon: UserCog, className: "bg-red-100 text-red-700" },
-  user_password_reset_requested: { label: "Prośba o reset hasła", icon: UserCog, className: "bg-amber-100 text-amber-700" },
-  user_sessions_revoked: { label: "Odwołanie sesji", icon: UserCog, className: "bg-amber-100 text-amber-700" },
-  user_access_changed: { label: "Zmiana dostępu użytkownika", icon: UserCog, className: "bg-amber-100 text-amber-700" },
-  role_permissions_changed: { label: "Zmiana uprawnień roli", icon: UserCog, className: "bg-amber-100 text-amber-700" },
-  role_permissions_reset: { label: "Reset uprawnień roli", icon: UserCog, className: "bg-amber-100 text-amber-700" },
-  access_denied: { label: "Odmowa dostępu", icon: ShieldCheck, className: "bg-red-100 text-red-700" },
-  conversation_handoff: { label: "Przekazanie rozmowy", icon: UserCog, className: "bg-violet-100 text-violet-700" },
-  ai_control_changed: { label: "Sterowanie AI", icon: ShieldCheck, className: "bg-violet-100 text-violet-700" },
-  ai_policy_changed: { label: "Polityka AI", icon: SlidersHorizontal, className: "bg-violet-100 text-violet-700" },
-  ai_activation_scheduled: { label: "Zaplanowanie AI", icon: ShieldCheck, className: "bg-violet-100 text-violet-700" },
-  ai_activation_cancelled: { label: "Anulowanie AI", icon: ShieldCheck, className: "bg-amber-100 text-amber-700" },
-  ai_activation_started: { label: "Aktywacja AI", icon: ShieldCheck, className: "bg-violet-100 text-violet-700" },
-  ai_response_recorded: { label: "Odpowiedź AI", icon: ShieldCheck, className: "bg-violet-100 text-violet-700" },
+const TYPE_META: Record<AuditEventType, { icon: typeof ShieldCheck; className: string }> = {
+  case_created: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  comment_added: { icon: UserCog, className: "bg-slate-100 text-slate-700" },
+  patient_local_updated: { icon: UserCog, className: "bg-teal-100 text-teal-700" },
+  patient_match_searched: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_match_suggested: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_auto_linked: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_match_approved: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_match_rejected: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  patient_match_conflict: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  contact_identity_linked: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  contact_identity_reused: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  user_invited: { icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  user_activated: { icon: UserCog, className: "bg-emerald-100 text-emerald-700" },
+  user_deactivated: { icon: UserCog, className: "bg-red-100 text-red-700" },
+  user_password_reset_requested: { icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  user_sessions_revoked: { icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  user_access_changed: { icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  role_permissions_changed: { icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  role_permissions_reset: { icon: UserCog, className: "bg-amber-100 text-amber-700" },
+  access_denied: { icon: ShieldCheck, className: "bg-red-100 text-red-700" },
+  conversation_handoff: { icon: UserCog, className: "bg-violet-100 text-violet-700" },
+  ai_control_changed: { icon: ShieldCheck, className: "bg-violet-100 text-violet-700" },
+  ai_policy_changed: { icon: SlidersHorizontal, className: "bg-violet-100 text-violet-700" },
+  ai_activation_scheduled: { icon: ShieldCheck, className: "bg-violet-100 text-violet-700" },
+  ai_activation_cancelled: { icon: ShieldCheck, className: "bg-amber-100 text-amber-700" },
+  ai_activation_started: { icon: ShieldCheck, className: "bg-violet-100 text-violet-700" },
+  ai_response_recorded: { icon: ShieldCheck, className: "bg-violet-100 text-violet-700" },
 
-  sms_send: { label: "Wysyłka SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
-  sms_failed: { label: "Błąd SMS", icon: ShieldCheck, className: "bg-red-100 text-red-700" },
-  sms_retry: { label: "Ponowienie SMS", icon: ShieldCheck, className: "bg-amber-100 text-amber-700" },
-  sms_provider_change: { label: "Zmiana dostawcy SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
-  sms_provider_test: { label: "Test dostawcy SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
-  sms_provider_config: { label: "Konfiguracja SMS", icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
-  status_change: { label: "Zmiana statusu", icon: ArrowRight, className: "bg-sky-100 text-sky-700" },
-  assignment_change: { label: "Zmiana przypisania", icon: UserCog, className: "bg-violet-100 text-violet-700" },
-  task_change: { label: "Zmiana zadania", icon: ListChecks, className: "bg-emerald-100 text-emerald-700" },
-  priority_change: { label: "Zmiana priorytetu", icon: SlidersHorizontal, className: "bg-amber-100 text-amber-700" },
-  merge: { label: "Scalenie", icon: GitMerge, className: "bg-fuchsia-100 text-fuchsia-700" },
-  link: { label: "Powiązanie", icon: Link2, className: "bg-teal-100 text-teal-700" },
-  unlink: { label: "Odłączenie", icon: Unlink, className: "bg-slate-200 text-slate-700" },
-  sync: { label: "Synchronizacja", icon: RefreshCw, className: "bg-red-100 text-red-700" },
+  sms_send: { icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
+  sms_failed: { icon: ShieldCheck, className: "bg-red-100 text-red-700" },
+  sms_retry: { icon: ShieldCheck, className: "bg-amber-100 text-amber-700" },
+  sms_provider_change: { icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
+  sms_provider_test: { icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
+  sms_provider_config: { icon: ShieldCheck, className: "bg-sky-100 text-sky-700" },
+  status_change: { icon: ArrowRight, className: "bg-sky-100 text-sky-700" },
+  assignment_change: { icon: UserCog, className: "bg-violet-100 text-violet-700" },
+  task_change: { icon: ListChecks, className: "bg-emerald-100 text-emerald-700" },
+  priority_change: { icon: SlidersHorizontal, className: "bg-amber-100 text-amber-700" },
+  merge: { icon: GitMerge, className: "bg-fuchsia-100 text-fuchsia-700" },
+  link: { icon: Link2, className: "bg-teal-100 text-teal-700" },
+  unlink: { icon: Unlink, className: "bg-slate-200 text-slate-700" },
+  sync: { icon: RefreshCw, className: "bg-red-100 text-red-700" },
+}
+
+const TYPE_LABELS: Record<AuditEventType, Record<Language, string>> = {
+  case_created: { en: "Case created", pl: "Utworzenie sprawy", ru: "Создание кейса" },
+  comment_added: { en: "Staff comment", pl: "Komentarz pracownika", ru: "Комментарий сотрудника" },
+  patient_local_updated: { en: "Local patient data", pl: "Lokalne dane pacjenta", ru: "Локальные данные пациента" },
+  patient_match_searched: { en: "Patient search", pl: "Wyszukanie pacjenta", ru: "Поиск пациента" },
+  patient_match_suggested: { en: "Match suggestion", pl: "Propozycja dopasowania", ru: "Предложение совпадения" },
+  patient_auto_linked: { en: "Automatic patient link", pl: "Automatyczne powiązanie pacjenta", ru: "Автоматическая привязка пациента" },
+  patient_match_approved: { en: "Match approved", pl: "Zatwierdzenie dopasowania", ru: "Подтверждение совпадения" },
+  patient_match_rejected: { en: "Match rejected", pl: "Odrzucenie dopasowania", ru: "Отклонение совпадения" },
+  patient_match_conflict: { en: "Match conflict", pl: "Konflikt dopasowania", ru: "Конфликт совпадения" },
+  contact_identity_linked: { en: "Contact linked", pl: "Powiązanie kontaktu", ru: "Привязка контакта" },
+  contact_identity_reused: { en: "Existing contact reused", pl: "Użycie istniejącego kontaktu", ru: "Использован существующий контакт" },
+  user_invited: { en: "User invited", pl: "Zaproszenie użytkownika", ru: "Приглашение пользователя" },
+  user_activated: { en: "User activated", pl: "Aktywacja użytkownika", ru: "Активация пользователя" },
+  user_deactivated: { en: "User deactivated", pl: "Dezaktywacja użytkownika", ru: "Деактивация пользователя" },
+  user_password_reset_requested: { en: "Password reset requested", pl: "Prośba o reset hasła", ru: "Запрос сброса пароля" },
+  user_sessions_revoked: { en: "Sessions revoked", pl: "Odwołanie sesji", ru: "Отзыв сессий" },
+  user_access_changed: { en: "User access changed", pl: "Zmiana dostępu użytkownika", ru: "Изменение доступа пользователя" },
+  role_permissions_changed: { en: "Role permissions changed", pl: "Zmiana uprawnień roli", ru: "Изменение прав роли" },
+  role_permissions_reset: { en: "Role permissions reset", pl: "Reset uprawnień roli", ru: "Сброс прав роли" },
+  access_denied: { en: "Access denied", pl: "Odmowa dostępu", ru: "Отказ в доступе" },
+  conversation_handoff: { en: "Conversation handoff", pl: "Przekazanie rozmowy", ru: "Передача диалога" },
+  ai_control_changed: { en: "AI control", pl: "Sterowanie AI", ru: "Управление AI" },
+  ai_policy_changed: { en: "AI policy", pl: "Polityka AI", ru: "Политика AI" },
+  ai_activation_scheduled: { en: "AI scheduled", pl: "Zaplanowanie AI", ru: "Запланирована активация AI" },
+  ai_activation_cancelled: { en: "AI cancelled", pl: "Anulowanie AI", ru: "Отмена активации AI" },
+  ai_activation_started: { en: "AI activated", pl: "Aktywacja AI", ru: "Активация AI" },
+  ai_response_recorded: { en: "AI response", pl: "Odpowiedź AI", ru: "Ответ AI" },
+  sms_send: { en: "SMS sent", pl: "Wysyłka SMS", ru: "Отправка SMS" },
+  sms_failed: { en: "SMS error", pl: "Błąd SMS", ru: "Ошибка SMS" },
+  sms_retry: { en: "SMS retry", pl: "Ponowienie SMS", ru: "Повтор SMS" },
+  sms_provider_change: { en: "SMS provider change", pl: "Zmiana dostawcy SMS", ru: "Смена SMS-провайдера" },
+  sms_provider_test: { en: "SMS provider test", pl: "Test dostawcy SMS", ru: "Тест SMS-провайдера" },
+  sms_provider_config: { en: "SMS configuration", pl: "Konfiguracja SMS", ru: "Настройка SMS" },
+  status_change: { en: "Status change", pl: "Zmiana statusu", ru: "Смена статуса" },
+  assignment_change: { en: "Assignment change", pl: "Zmiana przypisania", ru: "Смена назначения" },
+  task_change: { en: "Task change", pl: "Zmiana zadania", ru: "Изменение задачи" },
+  priority_change: { en: "Priority change", pl: "Zmiana priorytetu", ru: "Смена приоритета" },
+  merge: { en: "Merge", pl: "Scalenie", ru: "Объединение" },
+  link: { en: "Link", pl: "Powiązanie", ru: "Связывание" },
+  unlink: { en: "Unlink", pl: "Odłączenie", ru: "Отвязка" },
+  sync: { en: "Synchronization", pl: "Synchronizacja", ru: "Синхронизация" },
 }
 
 const TYPE_ORDER: AuditEventType[] = [
@@ -102,38 +148,41 @@ function actorColor(actorId: string, users: AppUser[]) {
   return users.find((o) => o.id === actorId)?.color ?? "bg-slate-400"
 }
 
-const ACTION_LABELS: Record<string, string> = {
-  task_edit: "Edycja zadania",
-  task_reschedule: "Zmiana terminu zadania",
-  task_reassign: "Zmiana właściciela zadania",
-  task_reprioritize: "Zmiana priorytetu zadania",
-  task_replace: "Zastąpienie zadania",
-  task_cancel: "Anulowanie zadania",
-  task_complete: "Zakończenie zadania",
-  task_reopen: "Ponowne otwarcie zadania",
-  task_created: "Utworzenie zadania",
-  workflow_task_skipped: "Pominięcie zadania workflow",
+const ACTION_LABELS: Record<string, Record<Language, string>> = {
+  task_edit: { en: "Task edited", pl: "Edycja zadania", ru: "Редактирование задачи" },
+  task_reschedule: { en: "Task rescheduled", pl: "Zmiana terminu zadania", ru: "Перенос срока задачи" },
+  task_reassign: { en: "Task owner changed", pl: "Zmiana właściciela zadania", ru: "Смена владельца задачи" },
+  task_reprioritize: { en: "Task priority changed", pl: "Zmiana priorytetu zadania", ru: "Смена приоритета задачи" },
+  task_replace: { en: "Task replaced", pl: "Zastąpienie zadania", ru: "Замена задачи" },
+  task_cancel: { en: "Task cancelled", pl: "Anulowanie zadania", ru: "Отмена задачи" },
+  task_complete: { en: "Task completed", pl: "Zakończenie zadania", ru: "Завершение задачи" },
+  task_reopen: { en: "Task reopened", pl: "Ponowne otwarcie zadania", ru: "Повторное открытие задачи" },
+  task_created: { en: "Task created", pl: "Utworzenie zadania", ru: "Создание задачи" },
+  workflow_task_skipped: { en: "Workflow task skipped", pl: "Pominięcie zadania workflow", ru: "Пропуск задачи workflow" },
 }
 
-function readableSummary(event: AuditEvent) {
+function readableSummary(event: AuditEvent, language: Language) {
   const actionId = event.action
-  const action = actionId ? ACTION_LABELS[actionId] : undefined
-  if (!actionId || !action || !event.summary.startsWith(actionId)) return event.summary
+  const action = actionId ? ACTION_LABELS[actionId]?.[language] : undefined
+  if (!actionId || !action || !event.summary.startsWith(actionId)) return localizeAuditSummary(event.summary, language)
   return `${action}${event.summary.slice(actionId.length)}`
 }
 
-function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[]) {
+function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: Language, locale: string) {
+  const noTask = { en: "No task", pl: "Brak zadania", ru: "Нет задачи" }[language]
+  const noDueDate = { en: "No due date", pl: "Bez terminu", ru: "Без срока" }[language]
+  const dataChanged = { en: "Data changed", pl: "Zmieniono dane", ru: "Данные изменены" }[language]
   if (!value) return undefined
-  if (value === "no_task") return "Brak zadania"
+  if (value === "no_task") return noTask
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value
     if (event.action === "task_reprioritize") return String(parsed.priority ?? "—")
     if (event.action === "task_reassign") return actorName(String(parsed.ownerId ?? "—"), users)
-    if (event.action === "task_reschedule") return typeof parsed.dueAt === "string" ? formatDateTime(parsed.dueAt) : "Bez terminu"
+    if (event.action === "task_reschedule") return typeof parsed.dueAt === "string" ? formatDateTime(parsed.dueAt, undefined, locale) : noDueDate
     if (["task_complete", "task_cancel", "task_reopen"].includes(event.action ?? "")) return [parsed.status, parsed.outcome].filter(Boolean).join(" · ") || "—"
     if (event.action === "task_replace") return String(parsed.replacementTaskId ?? parsed.status ?? "—")
-    return [parsed.title, parsed.status, parsed.priority].filter(Boolean).join(" · ") || "Zmieniono dane"
+    return [parsed.title, parsed.status, parsed.priority].filter(Boolean).join(" · ") || dataChanged
   } catch {
     return value
   }
@@ -149,6 +198,8 @@ function matchesQuery(event: AuditEvent, query: string, users: AppUser[]) {
 }
 
 export function AuditLogView() {
+  const { language, locale } = useLanguage()
+  const tl = (en: string, pl: string, ru: string) => ({ en, pl, ru }[language])
   const { auditEvents } = useScopedEntityStore()
   const { users } = useUserDirectory()
   const { hasPermission } = useAuthorization()
@@ -178,7 +229,7 @@ export function AuditLogView() {
   )
 
   const conflicts = useMemo(
-    () => sorted.filter((e) => e.type === "sync" && e.summary.toLowerCase().includes("konflikt")).length,
+    () => sorted.filter((e) => e.type === "sync" && /konflikt|conflict|конфликт/i.test(e.summary)).length,
     [sorted],
   )
 
@@ -188,15 +239,15 @@ export function AuditLogView() {
     return counts
   }, [sorted])
 
-  if (!hasPermission("audit:view")) return <p role="alert">Brak dostępu do Audit Log.</p>
+  if (!hasPermission("audit:view")) return <p role="alert">{tl("No access to the audit log.", "Brak dostępu do Audit Log.", "Нет доступа к журналу изменений.")}</p>
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Zdarzenia w systemie" value={sorted.length} />
-        <Stat label="Ostatnie 24h" value={last24h} />
-        <Stat label="Konflikty synchronizacji" value={conflicts} accent={conflicts > 0} />
-        <Stat label="Typy zdarzeń" value={typeCounts.size} />
+        <Stat label={tl("Events in the system", "Zdarzenia w systemie", "События в системе")} value={sorted.length} />
+        <Stat label={tl("Last 24h", "Ostatnie 24h", "Последние 24 ч")} value={last24h} />
+        <Stat label={tl("Sync conflicts", "Konflikty synchronizacji", "Конфликты синхронизации")} value={conflicts} accent={conflicts > 0} />
+        <Stat label={tl("Event types", "Typy zdarzeń", "Типы событий")} value={typeCounts.size} />
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -205,17 +256,17 @@ export function AuditLogView() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Szukaj po sprawie, aktorze, treści…"
+            placeholder={tl("Search by case, actor, content…", "Szukaj po sprawie, aktorze, treści…", "Поиск по кейсу, автору, содержимому…")}
             className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
           <FilterChip active={activeType === "all"} onClick={() => setActiveType("all")}>
-            Wszystkie ({sorted.length})
+            {tl("All", "Wszystkie", "Все")} ({sorted.length})
           </FilterChip>
           {TYPE_ORDER.filter((t) => (typeCounts.get(t) ?? 0) > 0).map((t) => (
             <FilterChip key={t} active={activeType === t} onClick={() => setActiveType(t)}>
-              {TYPE_META[t].label} ({typeCounts.get(t) ?? 0})
+              {TYPE_LABELS[t][language]} ({typeCounts.get(t) ?? 0})
             </FilterChip>
           ))}
         </div>
@@ -225,20 +276,20 @@ export function AuditLogView() {
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium text-foreground">
-            Dziennik zdarzeń
+            {tl("Event log", "Dziennik zdarzeń", "Журнал событий")}
             <span className="ml-2 text-xs font-normal text-muted-foreground">({filtered.length})</span>
           </h3>
         </div>
         {filtered.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            Brak zdarzeń spełniających kryteria filtrowania.
+            {tl("No events match the filters.", "Brak zdarzeń spełniających kryteria filtrowania.", "Нет событий, соответствующих фильтрам.")}
           </p>
         ) : (
           <ul className="divide-y divide-border">
             {filtered.map((event) => {
               const meta = TYPE_META[event.type]
-              const before = readableAuditValue(event.before, event, users)
-              const after = readableAuditValue(event.after, event, users)
+              const before = readableAuditValue(event.before, event, users, language, locale)
+              const after = readableAuditValue(event.after, event, users, language, locale)
               return (
                 <li key={event.id} className="flex items-start gap-3 px-4 py-3">
                   <span
@@ -248,7 +299,7 @@ export function AuditLogView() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{readableSummary(event)}</span>
+                      <span className="text-sm font-medium text-foreground">{readableSummary(event, language)}</span>
                       {event.occurrences && event.occurrences > 1 ? (
                         <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
                           ×{event.occurrences}
@@ -274,12 +325,12 @@ export function AuditLogView() {
                         {actorInitials(event.actorId, users)}
                       </span>
                       <span>{actorName(event.actorId, users)}</span>
-                      {event.targetUserId && <span>· użytkownik {actorName(event.targetUserId, users)}</span>}
-                      {event.targetRole && <span>· rola {event.targetRole}</span>}
-                      {event.caseId ? <span>· sprawa {event.caseId}</span> : null}
-                      {event.patientId ? <span>· pacjent {event.patientId}</span> : null}
-                      <span title={formatDateTime(event.at)}>
-                        · {mounted ? formatRelative(event.at) : formatDateTime(event.at)}
+                      {event.targetUserId && <span>· {tl("user", "użytkownik", "пользователь")} {actorName(event.targetUserId, users)}</span>}
+                      {event.targetRole && <span>· {tl("role", "rola", "роль")} {event.targetRole}</span>}
+                      {event.caseId ? <span>· {tl("case", "sprawa", "кейс")} {event.caseId}</span> : null}
+                      {event.patientId ? <span>· {tl("patient", "pacjent", "пациент")} {event.patientId}</span> : null}
+                      <span title={formatDateTime(event.at, undefined, locale)}>
+                        · {mounted ? formatRelative(event.at, language) : formatDateTime(event.at, undefined, locale)}
                       </span>
                     </div>
                   </div>

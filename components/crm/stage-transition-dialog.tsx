@@ -1,5 +1,6 @@
 "use client"
 
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -123,7 +124,7 @@ function TransitionForm({ pending, onClose }: { pending: PendingStageTransition;
       {activeTasks.length > 0 && (
         <fieldset className="space-y-2 rounded-md border p-3 text-sm">
           <legend className="px-1 text-xs text-muted-foreground">{tr("Aktywne zadania w sprawie", "Активные задачи по делу")}</legend>
-          <ul className="space-y-1">{activeTasks.map(task => <li key={task.id} className="flex justify-between gap-2"><span className="truncate">{task.title}</span><span className="shrink-0 text-xs text-muted-foreground">{task.dueAt ? formatDateTime(task.dueAt, "Europe/Warsaw", locale) : tr("bez terminu", "без срока")}</span></li>)}</ul>
+          <ul className="space-y-1">{activeTasks.map(task => <li key={task.id} className="flex justify-between gap-2"><span className="truncate">{localizeDemoText(task.title, language)}</span><span className="shrink-0 text-xs text-muted-foreground">{task.dueAt ? formatDateTime(task.dueAt, "Europe/Warsaw", locale) : tr("bez terminu", "без срока")}</span></li>)}</ul>
           <label className="flex items-center gap-2"><input type="radio" name="active-decision" checked={activeDecision === "keep"} onChange={() => setActiveDecision("keep")} />{tr("Zostaw aktywne zadania", "Оставить активные задачи")}</label>
           {canAssign && <label className="flex items-center gap-2"><input type="radio" name="active-decision" checked={activeDecision === "cancel"} onChange={() => setActiveDecision("cancel")} />{tr("Anuluj aktywne zadania (wymaga powodu)", "Отменить активные задачи (нужна причина)")}</label>}
         </fieldset>

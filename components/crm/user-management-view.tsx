@@ -1,5 +1,6 @@
 "use client"
 
+import { useLanguage } from "@/lib/crm/language-context"
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react"
 import { KeyRound, Laptop2, Plus, Search, ShieldCheck, UserCheck, UserX } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +22,7 @@ const STATUS_LABEL = { invited: "Zaproszony", active: "Aktywny", inactive: "Niea
 const STATUS_TONE = { invited: "border-sky-200 bg-sky-50 text-sky-700", active: "border-emerald-200 bg-emerald-50 text-emerald-700", inactive: "border-slate-200 bg-slate-50 text-slate-600", locked: "border-red-200 bg-red-50 text-red-700" }
 
 export function UserManagementView() {
+  const { language, locale } = useLanguage()
   const { users, currentUser, createUser, setActive, requestPasswordReset, revokeSessions, updateAccess } = useUserDirectory()
   const { hasPermission } = useAuthorization()
   const [query, setQuery] = useState("")
@@ -119,7 +121,7 @@ export function UserManagementView() {
                   <td className="px-3 py-3"><div className="flex flex-wrap gap-1">{user.roles.map((role) => <Badge key={role} variant="secondary" className="text-[10px]">{ROLE_PROFILES[role].id}</Badge>)}</div></td>
                   <td className="px-3 py-3 text-xs text-muted-foreground">{user.clinicIds.length ? user.clinicIds.map((id) => CLINICS.find((clinic) => clinic.id === id)?.name).join(", ") : "Dane zagregowane"}</td>
                   <td className="px-3 py-3"><Badge variant="outline" className={STATUS_TONE[user.status]}>{STATUS_LABEL[user.status]}</Badge></td>
-                  <td className="px-3 py-3 text-xs text-muted-foreground">{user.lastLoginAt ? formatRelative(user.lastLoginAt) : "Nigdy"}</td>
+                  <td className="px-3 py-3 text-xs text-muted-foreground">{user.lastLoginAt ? formatRelative(user.lastLoginAt, language) : "Nigdy"}</td>
                   <td className="px-4 py-3"><div className="flex justify-end gap-1">
                   <Tooltip>
                     <TooltipTrigger render={<Button size="icon" variant="ghost" disabled={user.id === currentUser.id} aria-label="Edytuj role i kliniki" onClick={() => { setError(""); setEditing(user); setDraft({ name: user.name, email: user.email, roles: [...user.roles], clinics: user.clinicIds }) }}><ShieldCheck className="h-3.5 w-3.5" /></Button>} />

@@ -1,10 +1,39 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { EN_BY_PL, EN_DICTIONARY } from "./locale-en"
 
-export type Language = "pl" | "ru"
+export const LANGUAGES = ["en", "pl", "ru"] as const
+export type Language = (typeof LANGUAGES)[number]
+
+export const DEFAULT_LANGUAGE: Language = "en"
+
+/** Switcher labels are endonyms on purpose: they must stay readable whatever the current UI language is. */
+export const LANGUAGE_LABELS: Record<Language, { short: string; name: string }> = {
+  en: { short: "EN", name: "English" },
+  pl: { short: "PL", name: "Polski" },
+  ru: { short: "RU", name: "Русский" },
+}
 
 const STORAGE_KEY = "pana-crm-language"
+const URL_PARAM = "lang"
+
+export function isLanguage(value: unknown): value is Language {
+  return typeof value === "string" && (LANGUAGES as readonly string[]).includes(value)
+}
+
+/**
+ * Language precedence: a `?lang=` URL parameter wins over localStorage. A parameter that is present
+ * but unsupported falls back to English; with no parameter the stored choice is used, then English.
+ */
+export function resolveLanguage(search: string, stored: string | null): Language {
+  const params = new URLSearchParams(search)
+  if (params.has(URL_PARAM)) {
+    const requested = (params.get(URL_PARAM) ?? "").trim().toLowerCase()
+    return isLanguage(requested) ? requested : DEFAULT_LANGUAGE
+  }
+  return isLanguage(stored) ? stored : DEFAULT_LANGUAGE
+}
 
 const DICTIONARY = {
   next_action: { pl: "Następne działanie", ru: "Следующее действие" },
@@ -218,40 +247,74 @@ const DICTIONARY = {
 export type DictionaryKey = keyof typeof DICTIONARY
 
 /** UI language only. Patient preferred language and content language are separate concepts. */
-export const UI_LOCALES: Record<Language, string> = { pl: "pl-PL", ru: "ru-RU" }
+export const UI_LOCALES: Record<Language, string> = { en: "en-GB", pl: "pl-PL", ru: "ru-RU" }
 
 interface LanguageContextValue {
   language: Language
   setLanguage: (lang: Language) => void
   t: (key: DictionaryKey) => string
-  /** Picks a system label for the current UI language. Never use it for user data. */
-  tr: (pl: string, ru: string) => string
+  /**
+   * Picks a system label for the current UI language. Never use it for user data.
+   * The English text comes from the third argument, or from the shared Polish→English table.
+   */
+  tr: (pl: string, ru: string, en?: string) => string
   locale: string
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null)
 
+export function translate(language: Language, pl: string, ru: string, en?: string) {
+  if (language === "ru") return ru
+  if (language === "en") return en ?? EN_BY_PL[pl] ?? pl
+  return pl
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("pl")
-  const [mounted, setMounted] = useState(false)
+  const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE)
+  const [resolved, setResolved] = useState(false)
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === "pl" || stored === "ru") setLanguageState(stored)
-    setMounted(true)
+    let stored: string | null = null
+    try {
+      stored = window.localStorage.getItem(STORAGE_KEY)
+    } catch {
+      stored = null
+    }
+    setLanguageState(resolveLanguage(window.location.search, stored))
+    setResolved(true)
   }, [])
 
   useEffect(() => {
-    if (!mounted) return
-    window.localStorage.setItem(STORAGE_KEY, language)
-  }, [language, mounted])
+    if (!resolved) return
+    document.documentElement.lang = language
+    try {
+      window.localStorage.setItem(STORAGE_KEY, language)
+    } catch {
+      // Storage can be unavailable (private mode); the language still applies for this session.
+    }
+  }, [language, resolved])
 
-  const setLanguage = (lang: Language) => setLanguageState(lang)
-  const t = (key: DictionaryKey) => DICTIONARY[key][language]
+  const setLanguage = useCallback((lang: Language) => {
+    setLanguageState(lang)
+    const url = new URL(window.location.href)
+    if (url.searchParams.has(URL_PARAM)) {
+      url.searchParams.set(URL_PARAM, lang)
+      window.history.replaceState(window.history.state, "", url)
+    }
+  }, [])
 
-  const tr = (pl: string, ru: string) => (language === "ru" ? ru : pl)
+  const value = useMemo<LanguageContextValue>(
+    () => ({
+      language,
+      setLanguage,
+      t: (key) => (language === "en" ? EN_DICTIONARY[key] : DICTIONARY[key][language]),
+      tr: (pl, ru, en) => translate(language, pl, ru, en),
+      locale: UI_LOCALES[language],
+    }),
+    [language, setLanguage],
+  )
 
-  return <LanguageContext.Provider value={{ language, setLanguage, t, tr, locale: UI_LOCALES[language] }}>{children}</LanguageContext.Provider>
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
 }
 
 export function useLanguage() {

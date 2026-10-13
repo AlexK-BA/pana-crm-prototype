@@ -1,5 +1,6 @@
 "use client"
 
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { ArrowRight, ListTodo, Phone, PlayCircle } from "lucide-react"
@@ -119,11 +120,11 @@ export function OperatorHome() {
                 {nextItem.clinicName} · {nextItem.serviceName ?? t("no_service")} · {nextItem.identityLabel}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground" suppressHydrationWarning>
-                {t("last_action")}: {nextItem.lastAction ?? "—"}
+                {t("last_action")}: {localizeDemoText(nextItem.lastAction, language) || "—"}
                 {nextItem.lastActionAt && <> · {formatRelative(nextItem.lastActionAt, language)}</>}
               </p>
               <p className="text-xs font-medium text-foreground" suppressHydrationWarning>
-                {t("next_step")}: {nextItem.task.title}
+                {t("next_step")}: {localizeDemoText(nextItem.task.title, language)}
                 {nextItem.task.dueAt && <> · {formatRelative(nextItem.task.dueAt, language)}</>}
               </p>
             </div>
@@ -278,7 +279,7 @@ export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void
             {item.doctorName ? ` · ${item.doctorName}` : ""}
           </p>
         </div>
-        <div className="hidden w-44 shrink-0 truncate text-xs text-muted-foreground md:block">{item.task.title}</div>
+        <div className="hidden w-44 shrink-0 truncate text-xs text-muted-foreground md:block">{localizeDemoText(item.task.title, language)}</div>
         <div
           className={cn("w-24 shrink-0 text-right text-xs font-medium", item.overdue ? "text-red-600" : "text-foreground")}
           suppressHydrationWarning

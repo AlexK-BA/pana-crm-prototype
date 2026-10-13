@@ -7,15 +7,16 @@ import { useUserDirectory } from "@/lib/crm/user-directory"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { CLINICS } from "@/lib/crm/catalog"
 import { useLanguage } from "@/lib/crm/language-context"
+import { localizeAuditSummary } from "@/lib/crm/audit-summary"
 import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 
 export function AdminHome() {
   const { auditEvents, cases, identities } = useScopedEntityStore()
   const { users } = useUserDirectory()
-  const { t, tr } = useLanguage()
+  const { t, tr, language, locale } = useLanguage()
   const adminSections = [
-    { icon: Building2, title: tr("Kliniki i lekarze", "Клиники и врачи"), detail: tr(`${CLINICS.length} kliniki`, `Клиник: ${CLINICS.length}`) },
+    { icon: Building2, title: tr("Kliniki i lekarze", "Клиники и врачи"), detail: tr(`${CLINICS.length} kliniki`, `Клиник: ${CLINICS.length}`, `${CLINICS.length} clinics`) },
     { icon: ListChecks, title: tr("Reguły kolejek P0–P4", "Правила очередей P0–P4"), detail: tr("SLA i auto-przejścia", "SLA и автопереходы") },
     { icon: Plug, title: tr("Integracje", "Интеграции"), detail: "Yeastar, Instagram, WhatsApp, Medical CRM" },
     { icon: ShieldCheck, title: tr("Dziennik zmian", "Журнал изменений"), detail: tr("Zmiany danych i statusów", "Изменения данных и статусов") },
@@ -102,8 +103,8 @@ export function AdminHome() {
           ) : (
             recentAudit.map((e) => (
               <div key={e.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                <span className="truncate text-foreground">{e.summary}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(e.at)}</span>
+                <span className="truncate text-foreground">{localizeAuditSummary(e.summary, language)}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(e.at, language)}</span>
               </div>
             ))
           )}

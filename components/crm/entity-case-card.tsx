@@ -15,6 +15,7 @@ import { formatRelative } from "@/lib/crm/format"
 import { cn } from "@/lib/utils"
 import { getCaseWorkState, getNextTaskForCase } from "@/lib/crm/entity-queue"
 import { useLanguage } from "@/lib/crm/language-context"
+import { localizeDemoText } from "@/lib/crm/demo-text"
 
 const CHANNEL_ICON: Record<string, typeof Phone> = {
   phone: Phone,
@@ -100,7 +101,7 @@ export function EntityCaseCard({
         </div>
 
         <div className="space-y-0.5 text-xs">
-          {work.previousCompletedTask && <p className="truncate text-muted-foreground">{tr("Ostatnio", "Последнее действие")}: {work.previousCompletedTask.title}</p>}
+          {work.previousCompletedTask && <p className="truncate text-muted-foreground">{tr("Ostatnio", "Последнее действие")}: {localizeDemoText(work.previousCompletedTask.title, language)}</p>}
           {openTask?.currentWorkerId && <p className="truncate text-sky-700">{tr("Aktualnie pracuje", "Сейчас работает")}: {users.find(user=>user.id===openTask.currentWorkerId)?.name ?? tr("inny konsultant", "другой сотрудник")}</p>}
           {work.activeTaskCount > 1 && <p className="text-muted-foreground">{tr("Pozostałe aktywne zadania", "Другие активные задачи")}: {work.activeTaskCount - 1}</p>}
         </div>
@@ -131,7 +132,7 @@ export function EntityCaseCard({
             {overdue
               ? <AlertCircle className="h-3 w-3 shrink-0 text-red-600" aria-hidden="true" suppressHydrationWarning />
               : <Clock className="h-3 w-3 shrink-0" aria-hidden="true" suppressHydrationWarning />}
-            <span className="min-w-0 truncate"><span className="text-muted-foreground">{tr("Dalej", "Далее")}:</span> {openTask.title}</span>
+            <span className="min-w-0 truncate"><span className="text-muted-foreground">{tr("Dalej", "Далее")}:</span> {localizeDemoText(openTask.title, language)}</span>
             {openTask.dueAt && (
               <span className={cn("shrink-0", overdue ? "font-medium text-red-600" : "text-muted-foreground")} suppressHydrationWarning>
                 {overdue && <span className="sr-only">{tr("Po terminie: ", "Просрочено: ")}</span>}

@@ -53,7 +53,7 @@ export function RecordsTable() {
   const { cases, tasks, broadcasts, sendBroadcast } = useScopedEntityStore()
   const { openCase } = useCasePanel()
   const { role } = useRole()
-  const { t, tr } = useLanguage()
+  const { t, tr, language, locale } = useLanguage()
   const meName = ROLE_PROFILES[role].user.name
   const actorId = INITIAL_USERS.find((o) => o.name === meName)?.id ?? "system"
 
@@ -124,7 +124,7 @@ export function RecordsTable() {
   const audienceLabel = [
     board === "all" ? tr("wszystkie tablice", "все доски") : BOARD_LABELS[board].split(" ·")[0],
     clinic === "all" ? tr("wszystkie kliniki", "все клиники") : clinics.find(([id]) => id === clinic)?.[1] ?? clinic,
-    query ? tr(`filtr "${query}"`, `фильтр «${query}»`) : null,
+    query ? tr(`filtr "${query}"`, `фильтр «${query}»`, `filter "${query}"`) : null,
   ]
     .filter(Boolean)
     .join(" · ")
@@ -261,7 +261,7 @@ export function RecordsTable() {
           {justSent ? tr("Wysłano", "Отправлено") : tr("Kampania SMS", "SMS-кампания")}
         </Button>
 
-        <span className="ml-auto text-xs text-muted-foreground">{tr(`${rows.length} rekordów`, `Записей: ${rows.length}`)}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{tr(`${rows.length} rekordów`, `Записей: ${rows.length}`, `${rows.length} records`)}</span>
       </div>
 
       <Dialog open={broadcastOpen} onOpenChange={setBroadcastOpen}>
@@ -297,7 +297,7 @@ export function RecordsTable() {
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("cancel")}</Button>} />
             <Button onClick={handleSendBroadcast} disabled={!broadcastName.trim() || !broadcastMessage.trim()}>
-              {tr(`Wyślij do ${rows.length} kontaktów`, `Отправить ${rows.length} контактам`)}
+              {tr(`Wyślij do ${rows.length} kontaktów`, `Отправить ${rows.length} контактам`, `Send to ${rows.length} contacts`)}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -314,7 +314,7 @@ export function RecordsTable() {
               <button
                 onClick={() => setSavedViews((prev) => prev.filter((sv) => sv.id !== v.id))}
                 className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label={tr(`Usuń widok ${v.name}`, `Удалить вид ${v.name}`)}
+                aria-label={tr(`Usuń widok ${v.name}`, `Удалить вид ${v.name}`, `Delete view ${v.name}`)}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -374,7 +374,7 @@ export function RecordsTable() {
                   <td className="px-3 py-2.5 text-muted-foreground">{procedure?.name ?? "—"}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{owner?.name ?? t("unassigned_owner")}</td>
                   <td className={cn("px-3 py-2.5", openTasks > 0 ? "text-foreground" : "text-muted-foreground")}>{openTasks}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{formatDateTime(c.createdAt)}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{formatDateTime(c.createdAt, undefined, locale)}</td>
                 </tr>
               )
             })}

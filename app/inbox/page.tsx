@@ -41,6 +41,7 @@ import { useRole } from "@/lib/crm/role-context"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
 import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { formatRelative } from "@/lib/crm/format"
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import type { ContactChannel } from "@/lib/crm/entities"
 import { cn } from "@/lib/utils"
 
@@ -166,11 +167,11 @@ export default function InboxPage() {
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Szukaj rozmów..."
+                  placeholder={tr("Szukaj rozmów...", "Поиск диалогов...", "Search conversations...")}
                   className="h-8 pl-8 text-sm"
                 />
               </div>
-              <Button size="icon" className="h-8 w-8 shrink-0" onClick={() => setSimulateOpen(true)} aria-label="Symuluj nową rozmowę">
+              <Button size="icon" className="h-8 w-8 shrink-0" onClick={() => setSimulateOpen(true)} aria-label={tr("Symuluj nową rozmowę", "Симулировать новый диалог", "Simulate a new conversation")}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -224,13 +225,13 @@ export default function InboxPage() {
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-medium text-foreground">{c.displayName}</p>
                       <span className="shrink-0 text-[11px] text-muted-foreground" suppressHydrationWarning>
-                        {formatRelative(c.lastAt)}
+                        {formatRelative(c.lastAt, language)}
                       </span>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{c.lastMessage || "Brak treści"}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{localizeDemoText(c.lastMessage, language) || tr("Brak treści", "Нет текста", "No content")}</p>
                     {!c.case.clinicId && (
                       <Badge variant="outline" className="mt-1 border-slate-200 bg-white text-[10px] text-slate-500">
-                        Do przypisania kliniki
+                        {tr("Do przypisania kliniki", "Нужно назначить клинику", "Clinic to be assigned")}
                       </Badge>
                     )}
                   </div>
@@ -243,7 +244,7 @@ export default function InboxPage() {
               )
             })}
             {conversations.length === 0 && (
-              <p className="px-4 py-10 text-center text-sm text-muted-foreground">Brak rozmów spełniających filtry.</p>
+              <p className="px-4 py-10 text-center text-sm text-muted-foreground">{tr("Brak rozmów spełniających filtry.", "Нет диалогов, подходящих под фильтры.", "No conversations match the filters.")}</p>
             )}
           </div>
         </div>
@@ -256,7 +257,7 @@ export default function InboxPage() {
                   <p className="truncate text-sm font-semibold text-foreground">{active.displayName}</p>
                   <div className="mt-0.5 flex items-center gap-1.5">
                     <Badge variant="outline" className={cn("text-[11px]", activeClinicTone.chip)}>
-                      {activeClinic?.name ?? "Nieprzypisano kliniki"}
+                      {activeClinic?.name ?? tr("Nieprzypisano kliniki", "Клиника не назначена", "No clinic assigned")}
                     </Badge>
                     {active.identity && <span className="text-xs text-muted-foreground">{active.identity.value}</span>}
                   </div>
@@ -264,11 +265,11 @@ export default function InboxPage() {
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => openCase(active.case.id)}>
                     <ExternalLink className="h-3.5 w-3.5" />
-                    Otwórz sprawę
+                    {tr("Otwórz sprawę", "Открыть дело", "Open case")}
                   </Button>
                   <Button variant={profileOpen ? "secondary" : "outline"} size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => setProfileOpen((value) => !value)}>
                     <ContactRound className="h-3.5 w-3.5" />
-                    Dane kontaktu
+                    {tr("Dane kontaktu", "Данные контакта", "Contact details")}
                   </Button>
                 </div>
               </div>
@@ -283,12 +284,16 @@ export default function InboxPage() {
                 </div>
                 {profileOpen && (
                   <aside className="w-[310px] shrink-0 overflow-y-auto border-l border-border bg-muted/20 p-4">
-                  <h3 className="text-sm font-semibold">Profil rozmówcy</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">Skopiuj dane z rozmowy i uzupełnij profil bez opuszczania czatu.</p>
+                  <h3 className="text-sm font-semibold">{tr("Profil rozmówcy", "Профиль собеседника", "Contact profile")}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">{tr("Skopiuj dane z rozmowy i uzupełnij profil bez opuszczania czatu.", "Скопируйте данные из диалога и заполните профиль, не выходя из чата.", "Copy details from the conversation and complete the profile without leaving the chat.")}</p>
                   <div className="mt-4 space-y-3">
-                    {([[
-                      "firstName", "Imię"
-                    ], ["lastName", "Nazwisko"], ["pesel", "PESEL"], ["phone", "Telefon"], ["email", "E-mail"]] as const).map(([field, label]) => (
+                    {([
+                      ["firstName", tr("Imię", "Имя", "First name")],
+                      ["lastName", tr("Nazwisko", "Фамилия", "Last name")],
+                      ["pesel", "PESEL"],
+                      ["phone", tr("Telefon", "Телефон", "Phone")],
+                      ["email", "E-mail"],
+                    ] as const).map(([field, label]) => (
                       <div key={field} className="space-y-1.5">
                         <Label htmlFor={`inbox-${field}`} className="text-xs text-muted-foreground">{label}</Label>
                         <Input id={`inbox-${field}`} value={profileDraft[field]} onChange={(event) => setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }))} placeholder={label} />
@@ -296,16 +301,16 @@ export default function InboxPage() {
                     ))}
                   </div>
                   <Button className="mt-4 w-full gap-1.5" disabled={!profileDraft.firstName.trim() || !profileDraft.lastName.trim()} onClick={handleSaveProfile}>
-                    <Save className="h-3.5 w-3.5" />{profileSaved ? "Zapisano" : active.patient ? "Zapisz zmiany" : "Utwórz profil"}
+                    <Save className="h-3.5 w-3.5" />{profileSaved ? tr("Zapisano", "Сохранено", "Saved") : active.patient ? tr("Zapisz zmiany", "Сохранить изменения", "Save changes") : tr("Utwórz profil", "Создать профиль", "Create profile")}
                   </Button>
-                  <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">Profil lokalny można później dopasować lub zsynchronizować z Medical CRM. Historia zapisu pozostaje w audycie sprawy.</p>
+                  <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">{tr("Profil lokalny można później dopasować lub zsynchronizować z Medical CRM. Historia zapisu pozostaje w audycie sprawy.", "Локальный профиль можно позже сопоставить или синхронизировать с Medical CRM. История сохранения остаётся в аудите дела.", "The local profile can later be matched or synced with Medical CRM. The save history stays in the case audit.")}</p>
                   </aside>
                 )}
               </div>
             </>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Wybierz rozmowę z listy po lewej.
+              {tr("Wybierz rozmowę z listy po lewej.", "Выберите диалог в списке слева.", "Select a conversation from the list on the left.")}
             </div>
           )}
         </div>
@@ -314,16 +319,19 @@ export default function InboxPage() {
       <Dialog open={simulateOpen} onOpenChange={setSimulateOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Symuluj nową wiadomość</DialogTitle>
+            <DialogTitle>{tr("Symuluj nową wiadomość", "Симулировать новое сообщение", "Simulate a new message")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Demonstracja scenariusza &quot;chat jako źródło leadów&quot;: wiadomość od nieznanego kontaktu automatycznie tworzy
-              szkic sprawy i zadanie &quot;odpowiedz i przypisz klinikę&quot;, widoczne od razu w kolejce operatora.
+              {tr(
+                "Demonstracja scenariusza \"chat jako źródło leadów\": wiadomość od nieznanego kontaktu automatycznie tworzy szkic sprawy i zadanie \"odpowiedz i przypisz klinikę\", widoczne od razu w kolejce operatora.",
+                "Демонстрация сценария «чат как источник лидов»: сообщение от неизвестного контакта автоматически создаёт черновик дела и задачу «ответить и назначить клинику», которые сразу видны в очереди оператора.",
+                "Demo of the \"chat as a lead source\" scenario: a message from an unknown contact automatically creates a draft case and a \"reply and assign a clinic\" task, visible right away in the operator queue.",
+              )}
             </p>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground">Kanał</label>
+                <label className="text-xs font-medium text-foreground">{tr("Kanał", "Канал", "Channel")}</label>
                 <Select value={simChannel} onValueChange={(v) => setSimChannel(v as ContactChannel)}>
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue>{channelText(simChannel, language)}</SelectValue>
@@ -338,25 +346,25 @@ export default function InboxPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground">Identyfikator kontaktu</label>
-                <Input value={simValue} onChange={(e) => setSimValue(e.target.value)} placeholder="@nowy_kontakt" className="h-9 text-sm" />
+                <label className="text-xs font-medium text-foreground">{tr("Identyfikator kontaktu", "Идентификатор контакта", "Contact identifier")}</label>
+                <Input value={simValue} onChange={(e) => setSimValue(e.target.value)} placeholder={tr("@nowy_kontakt", "@novyj_kontakt", "@new_contact")} className="h-9 text-sm" />
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Treść wiadomości</label>
+              <label className="text-xs font-medium text-foreground">{tr("Treść wiadomości", "Текст сообщения", "Message text")}</label>
               <Textarea
                 value={simText}
                 onChange={(e) => setSimText(e.target.value)}
-                placeholder="Dzień dobry, chciałabym zapytać o..."
+                placeholder={tr("Dzień dobry, chciałabym zapytać o...", "Здравствуйте, хотела бы узнать о...", "Hello, I would like to ask about...")}
                 rows={3}
                 className="text-sm"
               />
             </div>
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline">Anuluj</Button>} />
+            <DialogClose render={<Button variant="outline">{tr("Anuluj", "Отмена", "Cancel")}</Button>} />
             <Button onClick={handleSimulate} disabled={!simValue.trim() || !simText.trim()}>
-              Wyślij wiadomość
+              {tr("Wyślij wiadomość", "Отправить сообщение", "Send message")}
             </Button>
           </DialogFooter>
         </DialogContent>

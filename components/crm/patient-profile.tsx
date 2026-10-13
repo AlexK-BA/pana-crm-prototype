@@ -1,5 +1,6 @@
 "use client"
 
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -47,7 +48,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 }
 function PatientWorkspace({ patientId }: { patientId: string }) {
   const { t, tr, language } = useLanguage()
-  const locale = language === "ru" ? "ru-RU" : "pl-PL"
+  const { locale } = useLanguage()
   const dateTime = (iso: string) => formatDateTime(iso, CLINIC_TIME_ZONE, locale)
   const store = useScopedEntityStore()
   const view = selectPatient360(patientId, store)
@@ -76,7 +77,7 @@ function PatientWorkspace({ patientId }: { patientId: string }) {
   const nextMedicalVisit = [...medicalVisits].filter(item => ["scheduled", "confirmed"].includes(item.status) && new Date(item.startsAt) >= new Date()).sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0]
   const address = patient.address ? [patient.address.line1, patient.address.line2, `${patient.address.postalCode} ${patient.address.city}`, patient.address.countryCode].filter(Boolean).join(", ") : tr("Brak danych", "Нет данных")
   const currentMatches = view.matches.filter(item => ["pending", "conflict"].includes(item.status))
-  const taskTitle = (task: typeof view.tasks[number]) => task.source === "workflow" || task.workflowRuleId ? taskTypeLabel(taskType(task), language) : task.title
+  const taskTitle = (task: typeof view.tasks[number]) => task.source === "workflow" || task.workflowRuleId ? taskTypeLabel(taskType(task), language) : localizeDemoText(task.title, language)
   const taskDescription = (task: typeof view.tasks[number]) => task.source === "workflow" || task.workflowRuleId ? taskTypeLabel(taskType(task), language) : task.description
   function command(work: () => void) { try { setError(""); setNotice(""); work() } catch (error) { setError(error instanceof Error ? error.message : tr("Nie udało się wykonać operacji.", "Не удалось выполнить операцию.")) } }
   function communication(caseId = primaryCase?.id ?? "", sms = false) { setCommunicationCase(caseId); setCommunicationSms(sms); setSection("communications") }

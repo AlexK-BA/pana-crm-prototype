@@ -35,7 +35,7 @@ function readText(read: () => string | undefined, fallback: string) {
   return trimmed ? trimmed : fallback
 }
 
-const appName = readText(() => process.env.NEXT_PUBLIC_BRAND_NAME, "Clinic CRM")
+const appName = readText(() => process.env.NEXT_PUBLIC_BRAND_NAME, "Smart Clinic CRM")
 
 export const BRAND_CONFIG = {
   /** Product name shown in the sidebar, browser tab and metadata. */
@@ -44,13 +44,13 @@ export const BRAND_CONFIG = {
   /** Colour theme id; one of BRAND_THEME_IDS. */
   theme: resolveBrandTheme(readEnv(() => process.env.NEXT_PUBLIC_BRAND_THEME)),
   /** Default name of the AI assistant shown to patients. */
-  botName: readText(() => process.env.NEXT_PUBLIC_BRAND_BOT_NAME, "Asystent AI"),
+  botName: readText(() => process.env.NEXT_PUBLIC_BRAND_BOT_NAME, "AI Assistant"),
   /** Alphanumeric SMS sender name (max 11 characters for most providers). */
-  smsSenderName: readText(() => process.env.NEXT_PUBLIC_BRAND_SMS_SENDER, "Clinic"),
+  smsSenderName: readText(() => process.env.NEXT_PUBLIC_BRAND_SMS_SENDER, "SmartClinic"),
   /** Host used for demo user e-mails and the website knowledge source. */
   contactDomain: readText(() => process.env.NEXT_PUBLIC_BRAND_DOMAIN, "clinic.example"),
   /** Legal controller label shown in AI compliance drafts. */
-  controllerName: readText(() => process.env.NEXT_PUBLIC_BRAND_CONTROLLER, "Administrator danych — do zatwierdzenia przez DPO"),
+  controllerName: readText(() => process.env.NEXT_PUBLIC_BRAND_CONTROLLER, "Data controller — pending DPO approval"),
   privacyNoticeUrl: readText(() => process.env.NEXT_PUBLIC_BRAND_PRIVACY_URL, "https://clinic.example/privacy"),
   /** Display names per clinic id. Ids are internal and stay stable. */
   clinicNames: {

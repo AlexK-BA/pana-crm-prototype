@@ -1,5 +1,6 @@
 "use client"
 
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { AlertCircle, Phone } from "lucide-react"
@@ -97,7 +98,7 @@ export function ScheduleList(){
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {handle}
               <Badge className={cn("border-0 text-white",PRIORITY_TONE[task.priority])}>{task.priority}</Badge>
-              <strong className="text-sm">{task.title}</strong>
+              <strong className="text-sm">{localizeDemoText(task.title, language)}</strong>
               <span className={cn("ml-auto flex items-center gap-1 text-xs",overdue?"font-medium text-red-700":"text-muted-foreground")}>
                 {overdue&&<AlertCircle className="h-3 w-3" aria-hidden="true"/>}
                 {taskStatusText(effectiveStatus(task,now),language)} · {task.dueAt?formatDateTime(task.dueAt,timeZone):tr("Bez terminu","Без срока")}
