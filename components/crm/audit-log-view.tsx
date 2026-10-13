@@ -75,47 +75,47 @@ const TYPE_META: Record<AuditEventType, { icon: typeof ShieldCheck; className: s
 }
 
 const TYPE_LABELS: Record<AuditEventType, Record<Language, string>> = {
-  case_created: { en: "Case created", pl: "Utworzenie sprawy", ru: "Создание кейса" },
-  comment_added: { en: "Staff comment", pl: "Komentarz pracownika", ru: "Комментарий сотрудника" },
-  patient_local_updated: { en: "Local patient data", pl: "Lokalne dane pacjenta", ru: "Локальные данные пациента" },
-  patient_match_searched: { en: "Patient search", pl: "Wyszukanie pacjenta", ru: "Поиск пациента" },
-  patient_match_suggested: { en: "Match suggestion", pl: "Propozycja dopasowania", ru: "Предложение совпадения" },
-  patient_auto_linked: { en: "Automatic patient link", pl: "Automatyczne powiązanie pacjenta", ru: "Автоматическая привязка пациента" },
-  patient_match_approved: { en: "Match approved", pl: "Zatwierdzenie dopasowania", ru: "Подтверждение совпадения" },
-  patient_match_rejected: { en: "Match rejected", pl: "Odrzucenie dopasowania", ru: "Отклонение совпадения" },
-  patient_match_conflict: { en: "Match conflict", pl: "Konflikt dopasowania", ru: "Конфликт совпадения" },
-  contact_identity_linked: { en: "Contact linked", pl: "Powiązanie kontaktu", ru: "Привязка контакта" },
-  contact_identity_reused: { en: "Existing contact reused", pl: "Użycie istniejącego kontaktu", ru: "Использован существующий контакт" },
-  user_invited: { en: "User invited", pl: "Zaproszenie użytkownika", ru: "Приглашение пользователя" },
-  user_activated: { en: "User activated", pl: "Aktywacja użytkownika", ru: "Активация пользователя" },
-  user_deactivated: { en: "User deactivated", pl: "Dezaktywacja użytkownika", ru: "Деактивация пользователя" },
-  user_password_reset_requested: { en: "Password reset requested", pl: "Prośba o reset hasła", ru: "Запрос сброса пароля" },
-  user_sessions_revoked: { en: "Sessions revoked", pl: "Odwołanie sesji", ru: "Отзыв сессий" },
-  user_access_changed: { en: "User access changed", pl: "Zmiana dostępu użytkownika", ru: "Изменение доступа пользователя" },
-  role_permissions_changed: { en: "Role permissions changed", pl: "Zmiana uprawnień roli", ru: "Изменение прав роли" },
-  role_permissions_reset: { en: "Role permissions reset", pl: "Reset uprawnień roli", ru: "Сброс прав роли" },
-  access_denied: { en: "Access denied", pl: "Odmowa dostępu", ru: "Отказ в доступе" },
-  conversation_handoff: { en: "Conversation handoff", pl: "Przekazanie rozmowy", ru: "Передача диалога" },
-  ai_control_changed: { en: "AI control", pl: "Sterowanie AI", ru: "Управление AI" },
-  ai_policy_changed: { en: "AI policy", pl: "Polityka AI", ru: "Политика AI" },
-  ai_activation_scheduled: { en: "AI scheduled", pl: "Zaplanowanie AI", ru: "Запланирована активация AI" },
-  ai_activation_cancelled: { en: "AI cancelled", pl: "Anulowanie AI", ru: "Отмена активации AI" },
-  ai_activation_started: { en: "AI activated", pl: "Aktywacja AI", ru: "Активация AI" },
-  ai_response_recorded: { en: "AI response", pl: "Odpowiedź AI", ru: "Ответ AI" },
-  sms_send: { en: "SMS sent", pl: "Wysyłka SMS", ru: "Отправка SMS" },
-  sms_failed: { en: "SMS error", pl: "Błąd SMS", ru: "Ошибка SMS" },
-  sms_retry: { en: "SMS retry", pl: "Ponowienie SMS", ru: "Повтор SMS" },
-  sms_provider_change: { en: "SMS provider change", pl: "Zmiana dostawcy SMS", ru: "Смена SMS-провайдера" },
-  sms_provider_test: { en: "SMS provider test", pl: "Test dostawcy SMS", ru: "Тест SMS-провайдера" },
-  sms_provider_config: { en: "SMS configuration", pl: "Konfiguracja SMS", ru: "Настройка SMS" },
-  status_change: { en: "Status change", pl: "Zmiana statusu", ru: "Смена статуса" },
-  assignment_change: { en: "Assignment change", pl: "Zmiana przypisania", ru: "Смена назначения" },
-  task_change: { en: "Task change", pl: "Zmiana zadania", ru: "Изменение задачи" },
-  priority_change: { en: "Priority change", pl: "Zmiana priorytetu", ru: "Смена приоритета" },
-  merge: { en: "Merge", pl: "Scalenie", ru: "Объединение" },
-  link: { en: "Link", pl: "Powiązanie", ru: "Связывание" },
-  unlink: { en: "Unlink", pl: "Odłączenie", ru: "Отвязка" },
-  sync: { en: "Synchronization", pl: "Synchronizacja", ru: "Синхронизация" },
+  case_created: { en: "Case created", pl: "Utworzenie sprawy", ru: "Создание кейса", es: "Creación del caso" },
+  comment_added: { en: "Staff comment", pl: "Komentarz pracownika", ru: "Комментарий сотрудника", es: "Comentario del personal" },
+  patient_local_updated: { en: "Local patient data", pl: "Lokalne dane pacjenta", ru: "Локальные данные пациента", es: "Datos locales del paciente" },
+  patient_match_searched: { en: "Patient search", pl: "Wyszukanie pacjenta", ru: "Поиск пациента", es: "Búsqueda de paciente" },
+  patient_match_suggested: { en: "Match suggestion", pl: "Propozycja dopasowania", ru: "Предложение совпадения", es: "Propuesta de coincidencia" },
+  patient_auto_linked: { en: "Automatic patient link", pl: "Automatyczne powiązanie pacjenta", ru: "Автоматическая привязка пациента", es: "Vinculación automática del paciente" },
+  patient_match_approved: { en: "Match approved", pl: "Zatwierdzenie dopasowania", ru: "Подтверждение совпадения", es: "Aprobación de la coincidencia" },
+  patient_match_rejected: { en: "Match rejected", pl: "Odrzucenie dopasowania", ru: "Отклонение совпадения", es: "Rechazo de la coincidencia" },
+  patient_match_conflict: { en: "Match conflict", pl: "Konflikt dopasowania", ru: "Конфликт совпадения", es: "Conflicto de coincidencia" },
+  contact_identity_linked: { en: "Contact linked", pl: "Powiązanie kontaktu", ru: "Привязка контакта", es: "Vinculación del contacto" },
+  contact_identity_reused: { en: "Existing contact reused", pl: "Użycie istniejącego kontaktu", ru: "Использован существующий контакт", es: "Uso de un contacto existente" },
+  user_invited: { en: "User invited", pl: "Zaproszenie użytkownika", ru: "Приглашение пользователя", es: "Invitación de usuario" },
+  user_activated: { en: "User activated", pl: "Aktywacja użytkownika", ru: "Активация пользователя", es: "Activación de usuario" },
+  user_deactivated: { en: "User deactivated", pl: "Dezaktywacja użytkownika", ru: "Деактивация пользователя", es: "Desactivación de usuario" },
+  user_password_reset_requested: { en: "Password reset requested", pl: "Prośba o reset hasła", ru: "Запрос сброса пароля", es: "Solicitud de restablecimiento de contraseña" },
+  user_sessions_revoked: { en: "Sessions revoked", pl: "Odwołanie sesji", ru: "Отзыв сессий", es: "Revocación de sesiones" },
+  user_access_changed: { en: "User access changed", pl: "Zmiana dostępu użytkownika", ru: "Изменение доступа пользователя", es: "Cambio de acceso del usuario" },
+  role_permissions_changed: { en: "Role permissions changed", pl: "Zmiana uprawnień roli", ru: "Изменение прав роли", es: "Cambio de permisos del rol" },
+  role_permissions_reset: { en: "Role permissions reset", pl: "Reset uprawnień roli", ru: "Сброс прав роли", es: "Restablecimiento de permisos del rol" },
+  access_denied: { en: "Access denied", pl: "Odmowa dostępu", ru: "Отказ в доступе", es: "Acceso denegado" },
+  conversation_handoff: { en: "Conversation handoff", pl: "Przekazanie rozmowy", ru: "Передача диалога", es: "Traspaso de la conversación" },
+  ai_control_changed: { en: "AI control", pl: "Sterowanie AI", ru: "Управление AI", es: "Control de IA" },
+  ai_policy_changed: { en: "AI policy", pl: "Polityka AI", ru: "Политика AI", es: "Política de IA" },
+  ai_activation_scheduled: { en: "AI scheduled", pl: "Zaplanowanie AI", ru: "Запланирована активация AI", es: "Programación de IA" },
+  ai_activation_cancelled: { en: "AI cancelled", pl: "Anulowanie AI", ru: "Отмена активации AI", es: "Cancelación de IA" },
+  ai_activation_started: { en: "AI activated", pl: "Aktywacja AI", ru: "Активация AI", es: "Activación de IA" },
+  ai_response_recorded: { en: "AI response", pl: "Odpowiedź AI", ru: "Ответ AI", es: "Respuesta de IA" },
+  sms_send: { en: "SMS sent", pl: "Wysyłka SMS", ru: "Отправка SMS", es: "Envío de SMS" },
+  sms_failed: { en: "SMS error", pl: "Błąd SMS", ru: "Ошибка SMS", es: "Error de SMS" },
+  sms_retry: { en: "SMS retry", pl: "Ponowienie SMS", ru: "Повтор SMS", es: "Reintento de SMS" },
+  sms_provider_change: { en: "SMS provider change", pl: "Zmiana dostawcy SMS", ru: "Смена SMS-провайдера", es: "Cambio de proveedor de SMS" },
+  sms_provider_test: { en: "SMS provider test", pl: "Test dostawcy SMS", ru: "Тест SMS-провайдера", es: "Prueba del proveedor de SMS" },
+  sms_provider_config: { en: "SMS configuration", pl: "Konfiguracja SMS", ru: "Настройка SMS", es: "Configuración de SMS" },
+  status_change: { en: "Status change", pl: "Zmiana statusu", ru: "Смена статуса", es: "Cambio de estado" },
+  assignment_change: { en: "Assignment change", pl: "Zmiana przypisania", ru: "Смена назначения", es: "Cambio de asignación" },
+  task_change: { en: "Task change", pl: "Zmiana zadania", ru: "Изменение задачи", es: "Cambio de tarea" },
+  priority_change: { en: "Priority change", pl: "Zmiana priorytetu", ru: "Смена приоритета", es: "Cambio de prioridad" },
+  merge: { en: "Merge", pl: "Scalenie", ru: "Объединение", es: "Fusión" },
+  link: { en: "Link", pl: "Powiązanie", ru: "Связывание", es: "Vinculación" },
+  unlink: { en: "Unlink", pl: "Odłączenie", ru: "Отвязка", es: "Desvinculación" },
+  sync: { en: "Synchronization", pl: "Synchronizacja", ru: "Синхронизация", es: "Sincronización" },
 }
 
 const TYPE_ORDER: AuditEventType[] = [
@@ -149,16 +149,16 @@ function actorColor(actorId: string, users: AppUser[]) {
 }
 
 const ACTION_LABELS: Record<string, Record<Language, string>> = {
-  task_edit: { en: "Task edited", pl: "Edycja zadania", ru: "Редактирование задачи" },
-  task_reschedule: { en: "Task rescheduled", pl: "Zmiana terminu zadania", ru: "Перенос срока задачи" },
-  task_reassign: { en: "Task owner changed", pl: "Zmiana właściciela zadania", ru: "Смена владельца задачи" },
-  task_reprioritize: { en: "Task priority changed", pl: "Zmiana priorytetu zadania", ru: "Смена приоритета задачи" },
-  task_replace: { en: "Task replaced", pl: "Zastąpienie zadania", ru: "Замена задачи" },
-  task_cancel: { en: "Task cancelled", pl: "Anulowanie zadania", ru: "Отмена задачи" },
-  task_complete: { en: "Task completed", pl: "Zakończenie zadania", ru: "Завершение задачи" },
-  task_reopen: { en: "Task reopened", pl: "Ponowne otwarcie zadania", ru: "Повторное открытие задачи" },
-  task_created: { en: "Task created", pl: "Utworzenie zadania", ru: "Создание задачи" },
-  workflow_task_skipped: { en: "Workflow task skipped", pl: "Pominięcie zadania workflow", ru: "Пропуск задачи workflow" },
+  task_edit: { en: "Task edited", pl: "Edycja zadania", ru: "Редактирование задачи", es: "Edición de la tarea" },
+  task_reschedule: { en: "Task rescheduled", pl: "Zmiana terminu zadania", ru: "Перенос срока задачи", es: "Cambio de fecha de la tarea" },
+  task_reassign: { en: "Task owner changed", pl: "Zmiana właściciela zadania", ru: "Смена владельца задачи", es: "Cambio de responsable de la tarea" },
+  task_reprioritize: { en: "Task priority changed", pl: "Zmiana priorytetu zadania", ru: "Смена приоритета задачи", es: "Cambio de prioridad de la tarea" },
+  task_replace: { en: "Task replaced", pl: "Zastąpienie zadania", ru: "Замена задачи", es: "Reemplazo de la tarea" },
+  task_cancel: { en: "Task cancelled", pl: "Anulowanie zadania", ru: "Отмена задачи", es: "Cancelación de la tarea" },
+  task_complete: { en: "Task completed", pl: "Zakończenie zadania", ru: "Завершение задачи", es: "Finalización de la tarea" },
+  task_reopen: { en: "Task reopened", pl: "Ponowne otwarcie zadania", ru: "Повторное открытие задачи", es: "Reapertura de la tarea" },
+  task_created: { en: "Task created", pl: "Utworzenie zadania", ru: "Создание задачи", es: "Creación de la tarea" },
+  workflow_task_skipped: { en: "Workflow task skipped", pl: "Pominięcie zadania workflow", ru: "Пропуск задачи workflow", es: "Omisión de la tarea del workflow" },
 }
 
 function readableSummary(event: AuditEvent, language: Language) {
@@ -169,9 +169,9 @@ function readableSummary(event: AuditEvent, language: Language) {
 }
 
 function readableAuditValue(value: string | undefined, event: AuditEvent, users: AppUser[], language: Language, locale: string) {
-  const noTask = { en: "No task", pl: "Brak zadania", ru: "Нет задачи" }[language]
-  const noDueDate = { en: "No due date", pl: "Bez terminu", ru: "Без срока" }[language]
-  const dataChanged = { en: "Data changed", pl: "Zmieniono dane", ru: "Данные изменены" }[language]
+  const noTask = { en: "No task", pl: "Brak zadania", ru: "Нет задачи", es: "Sin tarea" }[language]
+  const noDueDate = { en: "No due date", pl: "Bez terminu", ru: "Без срока", es: "Sin fecha límite" }[language]
+  const dataChanged = { en: "Data changed", pl: "Zmieniono dane", ru: "Данные изменены", es: "Datos modificados" }[language]
   if (!value) return undefined
   if (value === "no_task") return noTask
   try {
@@ -199,7 +199,7 @@ function matchesQuery(event: AuditEvent, query: string, users: AppUser[]) {
 
 export function AuditLogView() {
   const { language, locale } = useLanguage()
-  const tl = (en: string, pl: string, ru: string) => ({ en, pl, ru }[language])
+  const tl = (en: string, pl: string, ru: string, es: string) => ({ en, pl, ru, es }[language])
   const { auditEvents } = useScopedEntityStore()
   const { users } = useUserDirectory()
   const { hasPermission } = useAuthorization()
@@ -239,15 +239,15 @@ export function AuditLogView() {
     return counts
   }, [sorted])
 
-  if (!hasPermission("audit:view")) return <p role="alert">{tl("No access to the audit log.", "Brak dostępu do Audit Log.", "Нет доступа к журналу изменений.")}</p>
+  if (!hasPermission("audit:view")) return <p role="alert">{tl("No access to the audit log.", "Brak dostępu do Audit Log.", "Нет доступа к журналу изменений.", "Sin acceso al registro de auditoría.")}</p>
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label={tl("Events in the system", "Zdarzenia w systemie", "События в системе")} value={sorted.length} />
-        <Stat label={tl("Last 24h", "Ostatnie 24h", "Последние 24 ч")} value={last24h} />
-        <Stat label={tl("Sync conflicts", "Konflikty synchronizacji", "Конфликты синхронизации")} value={conflicts} accent={conflicts > 0} />
-        <Stat label={tl("Event types", "Typy zdarzeń", "Типы событий")} value={typeCounts.size} />
+        <Stat label={tl("Events in the system", "Zdarzenia w systemie", "События в системе", "Eventos en el sistema")} value={sorted.length} />
+        <Stat label={tl("Last 24h", "Ostatnie 24h", "Последние 24 ч", "Últimas 24 h")} value={last24h} />
+        <Stat label={tl("Sync conflicts", "Konflikty synchronizacji", "Конфликты синхронизации", "Conflictos de sincronización")} value={conflicts} accent={conflicts > 0} />
+        <Stat label={tl("Event types", "Typy zdarzeń", "Типы событий", "Tipos de eventos")} value={typeCounts.size} />
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -256,13 +256,13 @@ export function AuditLogView() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={tl("Search by case, actor, content…", "Szukaj po sprawie, aktorze, treści…", "Поиск по кейсу, автору, содержимому…")}
+            placeholder={tl("Search by case, actor, content…", "Szukaj po sprawie, aktorze, treści…", "Поиск по кейсу, автору, содержимому…", "Buscar por caso, autor, contenido…")}
             className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
           <FilterChip active={activeType === "all"} onClick={() => setActiveType("all")}>
-            {tl("All", "Wszystkie", "Все")} ({sorted.length})
+            {tl("All", "Wszystkie", "Все", "Todos")} ({sorted.length})
           </FilterChip>
           {TYPE_ORDER.filter((t) => (typeCounts.get(t) ?? 0) > 0).map((t) => (
             <FilterChip key={t} active={activeType === t} onClick={() => setActiveType(t)}>
@@ -276,13 +276,13 @@ export function AuditLogView() {
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium text-foreground">
-            {tl("Event log", "Dziennik zdarzeń", "Журнал событий")}
+            {tl("Event log", "Dziennik zdarzeń", "Журнал событий", "Registro de eventos")}
             <span className="ml-2 text-xs font-normal text-muted-foreground">({filtered.length})</span>
           </h3>
         </div>
         {filtered.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            {tl("No events match the filters.", "Brak zdarzeń spełniających kryteria filtrowania.", "Нет событий, соответствующих фильтрам.")}
+            {tl("No events match the filters.", "Brak zdarzeń spełniających kryteria filtrowania.", "Нет событий, соответствующих фильтрам.", "No hay eventos que coincidan con los filtros.")}
           </p>
         ) : (
           <ul className="divide-y divide-border">
@@ -325,10 +325,10 @@ export function AuditLogView() {
                         {actorInitials(event.actorId, users)}
                       </span>
                       <span>{actorName(event.actorId, users)}</span>
-                      {event.targetUserId && <span>· {tl("user", "użytkownik", "пользователь")} {actorName(event.targetUserId, users)}</span>}
-                      {event.targetRole && <span>· {tl("role", "rola", "роль")} {event.targetRole}</span>}
-                      {event.caseId ? <span>· {tl("case", "sprawa", "кейс")} {event.caseId}</span> : null}
-                      {event.patientId ? <span>· {tl("patient", "pacjent", "пациент")} {event.patientId}</span> : null}
+                      {event.targetUserId && <span>· {tl("user", "użytkownik", "пользователь", "usuario")} {actorName(event.targetUserId, users)}</span>}
+                      {event.targetRole && <span>· {tl("role", "rola", "роль", "rol")} {event.targetRole}</span>}
+                      {event.caseId ? <span>· {tl("case", "sprawa", "кейс", "caso")} {event.caseId}</span> : null}
+                      {event.patientId ? <span>· {tl("patient", "pacjent", "пациент", "paciente")} {event.patientId}</span> : null}
                       <span title={formatDateTime(event.at, undefined, locale)}>
                         · {mounted ? formatRelative(event.at, language) : formatDateTime(event.at, undefined, locale)}
                       </span>

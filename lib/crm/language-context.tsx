@@ -2,8 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { EN_BY_PL, EN_DICTIONARY } from "./locale-en"
+import { ES_BY_PL, ES_DICTIONARY } from "./locale-es"
 
-export const LANGUAGES = ["en", "pl", "ru"] as const
+export const LANGUAGES = ["en", "pl", "ru", "es"] as const
 export type Language = (typeof LANGUAGES)[number]
 
 export const DEFAULT_LANGUAGE: Language = "en"
@@ -13,6 +14,7 @@ export const LANGUAGE_LABELS: Record<Language, { short: string; name: string }> 
   en: { short: "EN", name: "English" },
   pl: { short: "PL", name: "Polski" },
   ru: { short: "RU", name: "Русский" },
+  es: { short: "ES", name: "Español" },
 }
 
 const STORAGE_KEY = "pana-crm-language"
@@ -247,7 +249,7 @@ const DICTIONARY = {
 export type DictionaryKey = keyof typeof DICTIONARY
 
 /** UI language only. Patient preferred language and content language are separate concepts. */
-export const UI_LOCALES: Record<Language, string> = { en: "en-GB", pl: "pl-PL", ru: "ru-RU" }
+export const UI_LOCALES: Record<Language, string> = { en: "en", pl: "pl-PL", ru: "ru-RU", es: "es-AR" }
 
 interface LanguageContextValue {
   language: Language
@@ -255,17 +257,18 @@ interface LanguageContextValue {
   t: (key: DictionaryKey) => string
   /**
    * Picks a system label for the current UI language. Never use it for user data.
-   * The English text comes from the third argument, or from the shared Polish→English table.
+   * English and Spanish come from the third and fourth arguments, or from the shared Polish→English/Spanish tables.
    */
-  tr: (pl: string, ru: string, en?: string) => string
+  tr: (pl: string, ru: string, en?: string, es?: string) => string
   locale: string
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null)
 
-export function translate(language: Language, pl: string, ru: string, en?: string) {
+export function translate(language: Language, pl: string, ru: string, en?: string, es?: string) {
   if (language === "ru") return ru
   if (language === "en") return en ?? EN_BY_PL[pl] ?? pl
+  if (language === "es") return es ?? ES_BY_PL[pl] ?? en ?? EN_BY_PL[pl] ?? pl
   return pl
 }
 
@@ -307,8 +310,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     () => ({
       language,
       setLanguage,
-      t: (key) => (language === "en" ? EN_DICTIONARY[key] : DICTIONARY[key][language]),
-      tr: (pl, ru, en) => translate(language, pl, ru, en),
+      t: (key) =>
+        language === "en" ? EN_DICTIONARY[key] : language === "es" ? ES_DICTIONARY[key] : DICTIONARY[key][language],
+      tr: (pl, ru, en, es) => translate(language, pl, ru, en, es),
       locale: UI_LOCALES[language],
     }),
     [language, setLanguage],

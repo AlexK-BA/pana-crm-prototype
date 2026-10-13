@@ -247,7 +247,7 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle?: strin
                 onClick={() => openCase(item.case.id)}
               >
                 <div className="flex w-full items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-foreground">{item.patientName}</span>
+                  <span className="truncate text-sm font-medium text-foreground">{localizeDemoText(item.patientName, language)}</span>
                   <Badge className={cn("shrink-0 border-0 text-[10px] text-white", PRIORITY_TONE[item.task.priority])}>
                     {item.task.priority}
                   </Badge>

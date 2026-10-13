@@ -17,6 +17,7 @@ import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
 import { useLanguage } from "@/lib/crm/language-context"
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { ROLE_PROFILES } from "@/lib/crm/roles"
 import { INITIAL_USERS } from "@/lib/crm/user-catalog"
 import { formatDateTime, formatRelative } from "@/lib/crm/format"
@@ -358,7 +359,7 @@ export function RecordsTable() {
                 >
                   <td className="px-4 py-2.5 font-medium text-foreground md:px-6">
                     <span className={cn("mr-2 inline-block h-2 w-2 rounded-full align-middle", tone.dot)} aria-hidden="true" />
-                    {name}
+                    {localizeDemoText(name, language)}
                   </td>
                   <td className="px-3 py-2.5 text-muted-foreground">{t(BOARD_LABEL_KEYS[c.board])}</td>
                   <td className="px-3 py-2.5">

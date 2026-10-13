@@ -115,7 +115,7 @@ export function OperatorHome() {
           </div>
           <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
-              <p className="text-base font-semibold text-foreground">{nextItem.patientName}</p>
+              <p className="text-base font-semibold text-foreground">{localizeDemoText(nextItem.patientName, language)}</p>
               <p className="text-xs text-muted-foreground">
                 {nextItem.clinicName} · {nextItem.serviceName ?? t("no_service")} · {nextItem.identityLabel}
               </p>
@@ -270,7 +270,7 @@ export function QueueRow({ item, onOpen }: { item: QueueItem; onOpen: () => void
           <span className="sr-only">{item.task.priority}</span>
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{item.patientName}</p>
+          <p className="truncate text-sm font-medium text-foreground">{localizeDemoText(item.patientName, language)}</p>
           <p className="truncate text-xs text-muted-foreground">
             <span className={cn("mr-1 inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium", tone.chip)}>
               {item.clinicAssigned ? item.clinicName : t("no_clinic")}

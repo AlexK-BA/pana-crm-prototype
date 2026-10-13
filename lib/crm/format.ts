@@ -4,6 +4,7 @@ const RELATIVE_UNITS: Record<Language, { min: string; hour: string; day: string;
   en: { min: "min", hour: "h", day: "d", past: (label) => `${label} ago`, future: (label) => `in ${label}` },
   pl: { min: "min", hour: "godz.", day: "dni", past: (label) => `${label} temu`, future: (label) => `za ${label}` },
   ru: { min: "мин", hour: "ч", day: "дн.", past: (label) => `${label} назад`, future: (label) => `через ${label}` },
+  es: { min: "min", hour: "h", day: "d", past: (label) => `hace ${label}`, future: (label) => `en ${label}` },
 }
 
 export function formatRelative(iso: string, language: Language = "en") {
@@ -52,7 +53,7 @@ export const QUALIFICATION_CLASS: Record<string, string> = {
 }
 
 export const QUALIFICATION_LABEL: Record<string, Record<Language, string>> = {
-  qualified: { en: "Qualified", pl: "Zakwalifikowany", ru: "Квалифицирован" },
-  unqualified: { en: "Not qualified", pl: "Niezakwalifikowany", ru: "Не квалифицирован" },
-  undefined: { en: "Undetermined", pl: "Nieokreślony", ru: "Не определено" },
+  qualified: { en: "Qualified", pl: "Zakwalifikowany", ru: "Квалифицирован", es: "Calificado" },
+  unqualified: { en: "Not qualified", pl: "Niezakwalifikowany", ru: "Не квалифицирован", es: "No calificado" },
+  undefined: { en: "Undetermined", pl: "Nieokreślony", ru: "Не определено", es: "Sin determinar" },
 }

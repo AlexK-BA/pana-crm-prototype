@@ -21,7 +21,7 @@ import { hasManualOrder, sortWithManualOrder } from "@/lib/crm/manual-order"
 import { TaskActions } from "./task-actions"
 import { SortableColumn, SortableColumns, SortableItem } from "./sortable-columns"
 
-const LOCALES = { en: "en-GB", pl: "pl-PL", ru: "ru-RU" } as const
+const LOCALES = { en: "en-GB", pl: "pl-PL", ru: "ru-RU", es: "es-AR" } as const
 
 export function TaskCalendar(){
   const store=useScopedEntityStore(),{openCase}=useCasePanel(),{hasPermission}=useAuthorization(),{users}=useUserDirectory(),{tr,language}=useLanguage()

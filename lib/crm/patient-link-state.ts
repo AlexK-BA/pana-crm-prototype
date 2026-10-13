@@ -12,19 +12,19 @@ export type PatientLinkViewState =
   | "no_match"
 
 const PATIENT_LINK_LABELS: Record<PatientLinkViewState, Record<Language, string>> = {
-  auto_link: { en: "Linked automatically", pl: "Powiązano automatycznie", ru: "Связано автоматически" },
-  auto_linked: { en: "Linked automatically", pl: "Powiązano automatycznie", ru: "Связано автоматически" },
-  linked: { en: "Linked", pl: "Powiązano", ru: "Связано" },
-  match_suggested: { en: "Suggested match", pl: "Sugerowane dopasowanie", ru: "Предложено сопоставление" },
-  suggested_match: { en: "Suggested match", pl: "Sugerowane dopasowanie", ru: "Предложено сопоставление" },
-  ambiguous: { en: "Ambiguous match", pl: "Niejednoznaczne dopasowanie", ru: "Неоднозначное сопоставление" },
-  conflict: { en: "Match conflict", pl: "Konflikt dopasowania", ru: "Конфликт сопоставления" },
-  no_match: { en: "Not linked", pl: "Niepowiązano", ru: "Не связано" },
-  approved: { en: "Linked", pl: "Powiązano", ru: "Связано" },
-  rejected: { en: "Not linked · rejected", pl: "Niepowiązano · odrzucono", ru: "Не связано · отклонено" },
-  sync_pending: { en: "Linked · syncing", pl: "Powiązano · synchronizacja", ru: "Связано · синхронизация" },
-  sync_failed: { en: "Linked · sync error", pl: "Powiązano · błąd synchronizacji", ru: "Связано · ошибка синхронизации" },
-  unlinked: { en: "Not linked", pl: "Niepowiązano", ru: "Не связано" },
+  auto_link: { en: "Linked automatically", pl: "Powiązano automatycznie", ru: "Связано автоматически", es: "Vinculado automáticamente" },
+  auto_linked: { en: "Linked automatically", pl: "Powiązano automatycznie", ru: "Связано автоматически", es: "Vinculado automáticamente" },
+  linked: { en: "Linked", pl: "Powiązano", ru: "Связано", es: "Vinculado" },
+  match_suggested: { en: "Suggested match", pl: "Sugerowane dopasowanie", ru: "Предложено сопоставление", es: "Coincidencia sugerida" },
+  suggested_match: { en: "Suggested match", pl: "Sugerowane dopasowanie", ru: "Предложено сопоставление", es: "Coincidencia sugerida" },
+  ambiguous: { en: "Ambiguous match", pl: "Niejednoznaczne dopasowanie", ru: "Неоднозначное сопоставление", es: "Coincidencia ambigua" },
+  conflict: { en: "Match conflict", pl: "Konflikt dopasowania", ru: "Конфликт сопоставления", es: "Conflicto de coincidencia" },
+  no_match: { en: "Not linked", pl: "Niepowiązano", ru: "Не связано", es: "No vinculado" },
+  approved: { en: "Linked", pl: "Powiązano", ru: "Связано", es: "Vinculado" },
+  rejected: { en: "Not linked · rejected", pl: "Niepowiązano · odrzucono", ru: "Не связано · отклонено", es: "No vinculado · rechazado" },
+  sync_pending: { en: "Linked · syncing", pl: "Powiązano · synchronizacja", ru: "Связано · синхронизация", es: "Vinculado · sincronizando" },
+  sync_failed: { en: "Linked · sync error", pl: "Powiązano · błąd synchronizacji", ru: "Связано · ошибка синхронизации", es: "Vinculado · error de sincronización" },
+  unlinked: { en: "Not linked", pl: "Niepowiązano", ru: "Не связано", es: "No vinculado" },
 }
 
 export function patientLinkLabel(state: PatientLinkViewState, language: Language = "en") {
