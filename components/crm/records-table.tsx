@@ -162,7 +162,11 @@ export function RecordsTable() {
 
         <Select value={board} onValueChange={(v) => setBoard(v as CaseBoard | "all")}>
           <SelectTrigger className="h-8 w-44 text-sm">
-            <SelectValue placeholder={t("board")} />
+            <SelectValue placeholder={t("board")}>
+              {(value: string | null) =>
+                !value || value === "all" ? t("all_boards") : t(BOARD_LABEL_KEYS[value as keyof typeof BOARD_LABEL_KEYS])
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("all_boards")}</SelectItem>
@@ -176,7 +180,13 @@ export function RecordsTable() {
 
         <Select value={clinic} onValueChange={(v) => setClinic(v ?? "all")}>
           <SelectTrigger className="h-8 w-44 text-sm">
-            <SelectValue placeholder={tr("Klinika", "Клиника")} />
+            <SelectValue placeholder={tr("Klinika", "Клиника")}>
+              {(value: string | null) =>
+                !value || value === "all"
+                  ? tr("Wszystkie kliniki", "Все клиники")
+                  : (clinics.find(([id]) => id === value)?.[1] ?? value)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszystkie kliniki", "Все клиники")}</SelectItem>
@@ -190,7 +200,13 @@ export function RecordsTable() {
 
         <Select value={doctor} onValueChange={(v) => setDoctor(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Lekarz", "Врач")} />
+            <SelectValue placeholder={tr("Lekarz", "Врач")}>
+              {(value: string | null) =>
+                !value || value === "all"
+                  ? tr("Wszyscy lekarze", "Все врачи")
+                  : (doctors.find((d) => d.id === value)?.name ?? value)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszyscy lekarze", "Все врачи")}</SelectItem>
@@ -204,13 +220,19 @@ export function RecordsTable() {
 
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Usługa", "Услуга")} />
+            <SelectValue placeholder={tr("Usługa", "Услуга")}>
+              {(value: string | null) =>
+                !value || value === "all"
+                  ? tr("Wszystkie usługi", "Все услуги")
+                  : localizeDemoText(services.find((s) => s.id === value)?.name ?? value, language)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {services.map((s) => (
               <SelectItem key={s.id} value={s.id}>
-                {s.name}
+                {localizeDemoText(s.name, language)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -218,7 +240,13 @@ export function RecordsTable() {
 
         <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
-            <SelectValue placeholder={tr("Właściciel", "Ответственный")} />
+            <SelectValue placeholder={tr("Właściciel", "Ответственный")}>
+              {(value: string | null) =>
+                !value || value === "all"
+                  ? tr("Wszyscy właściciele", "Все ответственные")
+                  : (assignees.find((o) => o.id === value)?.name ?? value)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszyscy właściciele", "Все ответственные")}</SelectItem>
@@ -262,7 +290,7 @@ export function RecordsTable() {
           {justSent ? tr("Wysłano", "Отправлено") : tr("Kampania SMS", "SMS-кампания")}
         </Button>
 
-        <span className="ml-auto text-xs text-muted-foreground">{tr(`${rows.length} rekordów`, `Записей: ${rows.length}`, `${rows.length} records`)}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{tr(`${rows.length} rekordów`, `Записей: ${rows.length}`, `${rows.length} records`, `${rows.length} registros`)}</span>
       </div>
 
       <Dialog open={broadcastOpen} onOpenChange={setBroadcastOpen}>
@@ -342,7 +370,7 @@ export function RecordsTable() {
             {rows.map((c) => {
               const patient = getPatient(c.patientId)
               const identity = getIdentity(c.contactIdentityId)
-              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? t("unknown_contact")
+              const name = patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : identity?.value ?? t("unknown_contact")
               const clinicRecord = getClinic(c.clinicId)
               const tone = getClinicTone(c.clinicId)
               const procedure = getProcedure(c.serviceInterest)
@@ -372,7 +400,7 @@ export function RecordsTable() {
                       {clinicRecord?.name ?? t("unassigned_owner")}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{procedure?.name ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{procedure ? localizeDemoText(procedure.name, language) : "—"}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{owner?.name ?? t("unassigned_owner")}</td>
                   <td className={cn("px-3 py-2.5", openTasks > 0 ? "text-foreground" : "text-muted-foreground")}>{openTasks}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{formatDateTime(c.createdAt, undefined, locale)}</td>

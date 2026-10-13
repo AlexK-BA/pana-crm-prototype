@@ -8,6 +8,7 @@
  * confirmation message to the case conversation (CRM emulation, not delivered
  * through a real channel and not sent to Medical CRM).
  */
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -59,7 +60,7 @@ export function AppointmentBookingDialog({
   onBooked?: () => void
 }) {
   const { bookAppointment } = useScopedEntityStore()
-  const { tr, locale } = useLanguage()
+  const { tr, locale, language } = useLanguage()
   const [selectedClinicId, setSelectedClinicId] = useState<ClinicId | "">(clinicId ?? "")
   const [selectedProcedureId, setSelectedProcedureId] = useState(procedureId ?? "")
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId ?? "")
@@ -127,7 +128,7 @@ export function AppointmentBookingDialog({
         <DialogHeader>
           <DialogTitle>{confirmed ? tr("Wizyta zapisana w CRM", "Визит записан в CRM") : tr("Umów wizytę", "Записать на визит")}</DialogTitle>
           <DialogDescription>
-            {[patientName, clinic?.name, procedure?.name ?? tr("Dowolna usługa", "Любая услуга")].filter(Boolean).join(" · ")}
+            {[patientName, clinic?.name, localizeDemoText(procedure?.name, language) || tr("Dowolna usługa", "Любая услуга")].filter(Boolean).join(" · ")}
           </DialogDescription>
         </DialogHeader>
         <Badge variant="outline" className="w-fit">{tr("DEMO — terminy przykładowe, bez Medical CRM", "DEMO — примерные слоты, без Medical CRM")}</Badge>

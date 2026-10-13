@@ -182,7 +182,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <DialogTitle className="truncate text-lg">
-              {patient ? `${patient.firstName} ${patient.lastName}` : t("unknown_contact")}
+              {patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : t("unknown_contact")}
             </DialogTitle>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               {identity && <span>{identity.value}</span>}
@@ -210,7 +210,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
 
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{engagementCase.board === "leads" ? t("board_lead") : engagementCase.board === "deals" ? t("board_deal") : t("board_patient_care")}</Badge>
-          {procedure && <Badge variant="secondary">{procedure.name}</Badge>}
+          {procedure && <Badge variant="secondary">{localizeDemoText(procedure.name, language)}</Badge>}
           {doctor && <Badge variant="secondary">{doctor.name}</Badge>}
           <Badge variant="outline">{patientLinkLabel(patientLinkState, language)}</Badge>
           <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>
@@ -260,7 +260,7 @@ function DrawerBody({ caseId }: { caseId: string }) {
             caseId={caseId}
             taskId={nextTask?.id}
             patientId={patient?.id ?? engagementCase.patientId}
-            patientName={patient ? `${patient.firstName} ${patient.lastName}` : undefined}
+            patientName={patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : undefined}
             clinicId={engagementCase.clinicId}
             procedureId={engagementCase.serviceInterest}
             doctorId={engagementCase.doctorId}

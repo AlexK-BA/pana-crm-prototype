@@ -9,6 +9,7 @@ import { Search, PhoneCall, Clock } from "lucide-react"
 import { getPatient, getIdentity } from "@/lib/crm/entity-data"
 import { getClinic, getDoctor, getProcedure, CLINICS, DOCTORS, PROCEDURES } from "@/lib/crm/catalog"
 import { getOperator } from "@/lib/crm/entity-selectors"
+import { localizeDemoText } from "@/lib/crm/demo-text"
 import { useScopedEntityStore } from "@/lib/crm/scoped-entity-store"
 import { useCasePanel } from "@/lib/crm/panel-context"
 import { useRole } from "@/lib/crm/role-context"
@@ -100,14 +101,14 @@ export function WaitlistView() {
         <Select value={service} onValueChange={(v) => setService(v ?? "all")}>
           <SelectTrigger className="h-8 w-40 text-sm">
             <SelectValue placeholder={tr("Usługa", "Услуга")}>
-              {(value: string | null) => (!value || value === "all" ? tr("Wszystkie usługi", "Все услуги") : PROCEDURES.find((p) => p.id === value)?.name)}
+              {(value: string | null) => (!value || value === "all" ? tr("Wszystkie usługi", "Все услуги") : localizeDemoText(PROCEDURES.find((p) => p.id === value)?.name, language))}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tr("Wszystkie usługi", "Все услуги")}</SelectItem>
             {PROCEDURES.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.name}
+                {localizeDemoText(p.name, language)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -134,7 +135,7 @@ export function WaitlistView() {
             {tr("Przywróć kolejność automatyczną", "Вернуть автоматический порядок")}
           </Button>
         )}
-        <span className={cn("text-xs text-muted-foreground", !hasManualOrder(manualOrder, WAITLIST_KEY) && "ml-auto")}>{tr(`${waitlisted.length} na liście oczekujących`, `В листе ожидания: ${waitlisted.length}`, `${waitlisted.length} on the waitlist`)}</span>
+        <span className={cn("text-xs text-muted-foreground", !hasManualOrder(manualOrder, WAITLIST_KEY) && "ml-auto")}>{tr(`${waitlisted.length} na liście oczekujących`, `В листе ожидания: ${waitlisted.length}`, `${waitlisted.length} on the waitlist`, `${waitlisted.length} en la lista de espera`)}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -158,7 +159,7 @@ export function WaitlistView() {
               const procedure = getProcedure(c.serviceInterest)
               const doctor = getDoctor(c.doctorId)
               const owner = getOperator(c.responsibleTeamId)
-              const name = patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? tr("Nierozpoznany kontakt", "Неопознанный контакт")
+              const name = patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : identity?.value ?? tr("Nierozpoznany kontakt", "Неопознанный контакт")
 
               return (
                 <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
@@ -171,7 +172,7 @@ export function WaitlistView() {
                       </Badge>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {procedure?.name ?? tr("Bez określonej usługi", "Услуга не указана")}
+                      {procedure ? localizeDemoText(procedure.name, language) : tr("Bez określonej usługi", "Услуга не указана")}
                       {doctor ? ` · ${doctor.name}` : ""}
                     </p>
                   </button>

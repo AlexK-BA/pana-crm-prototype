@@ -96,7 +96,7 @@ export default function InboxPage() {
           case: c,
           identity,
           patient,
-          displayName: patient ? `${patient.firstName} ${patient.lastName}` : identity?.value ?? localizeDemoText("Nierozpoznany kontakt", language),
+          displayName: patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : identity?.value ?? localizeDemoText("Nierozpoznany kontakt", language),
           lastMessage: last?.text ?? "",
           lastAt: last?.at ?? c.createdAt,
           unread,

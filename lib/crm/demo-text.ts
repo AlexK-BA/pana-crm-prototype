@@ -4,6 +4,9 @@ type Localized = { en: string; ru: string; es: string }
 
 const DEMO_TEXT: Record<string, Localized> = {
   "Nierozpoznany kontakt": { en: "Unrecognized contact", ru: "Неизвестный контакт", es: "Contacto no identificado" },
+  "Implantologia": { en: "Implantology", ru: "Имплантология", es: "Implantología" },
+  "Endodoncja": { en: "Endodontics", ru: "Эндодонтия", es: "Endodoncia" },
+  "Ortodoncja": { en: "Orthodontics", ru: "Ортодонтия", es: "Ortodoncia" },
   "Zaproponuj termin z listy oczekujących": { en: "Offer a slot from the waitlist", ru: "Предложить время из листа ожидания", es: "Proponer un horario de la lista de espera" },
   "Eskalacja: pacjentka zgłosiła reklamację": { en: "Escalation: patient filed a complaint", ru: "Эскалация: пациентка подала жалобу", es: "Escalamiento: la paciente presentó un reclamo" },
   "Follow-up po wizycie — kontrola za tydzień": { en: "Post-visit follow-up — check-up in a week", ru: "Фоллоу-ап после визита — контроль через неделю", es: "Seguimiento posterior a la cita: control en una semana" },

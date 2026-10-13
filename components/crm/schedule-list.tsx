@@ -35,7 +35,7 @@ export function ScheduleList(){
   if(!now)return <div role="status" className="h-40 animate-pulse rounded bg-muted"><span className="sr-only">{tr("Ładowanie kolejki…","Загрузка очереди…")}</span></div>
   const timeZone=Intl.DateTimeFormat().resolvedOptions().timeZone
   const stageLabel=(boardId:keyof typeof BOARD_COLUMNS,statusId:string)=>{const column=BOARD_COLUMNS[boardId].find(col=>col.id===statusId);return column?t(column.labelKey):statusId}
-  const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient?`${patient.firstName} ${patient.lastName}`:tr("Nierozpoznany kontakt","Неопознанный контакт")}
+  const patientName=(patientId?:string)=>{const patient=store.patients.find(item=>item.id===patientId);return patient?localizeDemoText(`${patient.firstName} ${patient.lastName}`,language):tr("Nierozpoznany kontakt","Неопознанный контакт")}
   const ownerName=(ownerId?:string)=>users.find(user=>user.id===ownerId)?.name??tr("Brak właściciela","Без ответственного")
   const taskRanks=store.manualOrder.tasks
   const eligible=sortWithManualOrder(store.tasks.filter(task=>{

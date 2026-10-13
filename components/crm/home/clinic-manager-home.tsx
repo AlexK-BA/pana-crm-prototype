@@ -24,7 +24,7 @@ export function ClinicManagerHome() {
   const serviceLoad = new Map<string, number>()
   clinicCases.forEach((c) => { if (c.doctorId) doctorLoad.set(c.doctorId, (doctorLoad.get(c.doctorId) ?? 0) + 1); if (c.serviceInterest) serviceLoad.set(c.serviceInterest, (serviceLoad.get(c.serviceInterest) ?? 0) + 1) })
   const stages = BOARD_COLUMNS.patients.map((stage) => ({ ...stage, count: clinicCases.filter((c) => c.board === "patients" && c.status === stage.id).length }))
-  const caseName = (caseId: string) => { const c = cases.find((item) => item.id === caseId); const p = patients.find((item) => item.id === c?.patientId); const i = identities.find((item) => item.id === c?.contactIdentityId); return p ? `${p.firstName} ${p.lastName}` : i?.displayName ?? "Nierozpoznany kontakt" }
+  const caseName = (caseId: string) => { const c = cases.find((item) => item.id === caseId); const p = patients.find((item) => item.id === c?.patientId); const i = identities.find((item) => item.id === c?.contactIdentityId); return localizeDemoText(p ? `${p.firstName} ${p.lastName}` : i?.displayName ?? "Nierozpoznany kontakt", language) }
 
   return <div className="mx-auto max-w-6xl space-y-6">
     <Tabs value={clinicId} onValueChange={(value) => setClinicId(value as ClinicId)}><TabsList>{CLINICS.map((clinic) => <TabsTrigger key={clinic.id} value={clinic.id}>{clinic.name}</TabsTrigger>)}</TabsList></Tabs>

@@ -77,7 +77,7 @@ export function EntityCaseCard({
   const overdue = useIsOverdue(openTask?.dueAt)
   const ChannelIcon = CHANNEL_ICON[identity?.channel ?? ""] ?? StickyNote
 
-  const name = patient ? `${patient.firstName} ${patient.lastName}` : tr("Nierozpoznany kontakt", "Неопознанный контакт")
+  const name = patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : tr("Nierozpoznany kontakt", "Неопознанный контакт")
 
   return (
     <button
@@ -116,7 +116,7 @@ export function EntityCaseCard({
               {tr("Klinika nieprzypisana", "Клиника не назначена")}
             </span>
           )}
-          {procedure?.name ?? tr("Brak usługi", "Без услуги")}
+          {procedure ? localizeDemoText(procedure.name, language) : tr("Brak usługi", "Без услуги")}
           {doctor ? ` · ${doctor.name}` : ""}
         </p>
 

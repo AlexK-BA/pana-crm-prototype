@@ -80,7 +80,7 @@ export function CallOverlay() {
       .map((c) => {
         const identity = identities.find((i) => i.id === c.contactIdentityId)
         const patient = patients.find((p) => p.id === c.patientId)
-        const name = patient ? `${patient.firstName} ${patient.lastName}` : localizeDemoText(identity?.displayName ?? "Nierozpoznany kontakt", language)
+        const name = patient ? localizeDemoText(`${patient.firstName} ${patient.lastName}`, language) : localizeDemoText(identity?.displayName ?? "Nierozpoznany kontakt", language)
         const value = identity?.value ?? ""
         return { case: c, name, value }
       })

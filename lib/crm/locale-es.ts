@@ -7,6 +7,8 @@ import type { DictionaryKey } from "./language-context"
  */
 export const ES_BY_PL: Record<string, string> = {
   "Nieprzeczytane": "No leídos",
+  "Zadania w widoku tygodniowym": "Tareas en vista semanal",
+  "Task Queue · następne działania, terminy i historia (zadania ≠ wizyty)": "Cola de tareas · próximas acciones, vencimientos e historial (tareas ≠ citas)",
   "Telefon": "Teléfono",
   "Kanał": "Canal",
   "Anuluj": "Cancelar",
@@ -499,7 +501,7 @@ export const ES_DICTIONARY: Record<DictionaryKey, string> = {
   next_step: "Próximo paso",
   no_service: "Sin servicio",
   tile_p0: "P0 Urgente",
-  tile_p1: "P1 Perdidas",
+  tile_p1: "P1 Llamadas perdidas",
   tile_p2: "P2 Para hoy",
   tile_p3: "P3 Nuevos leads",
   tile_overdue: "Vencido",

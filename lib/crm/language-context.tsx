@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react"
 import { EN_BY_PL, EN_DICTIONARY } from "./locale-en"
 import { ES_BY_PL, ES_DICTIONARY } from "./locale-es"
 
@@ -276,7 +276,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE)
   const [resolved, setResolved] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let stored: string | null = null
     try {
       stored = window.localStorage.getItem(STORAGE_KEY)
@@ -285,6 +285,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
     setLanguageState(resolveLanguage(window.location.search, stored))
     setResolved(true)
+    document.documentElement.removeAttribute("data-i18n-pending")
   }, [])
 
   useEffect(() => {
