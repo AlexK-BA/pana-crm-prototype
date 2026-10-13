@@ -55,16 +55,16 @@ export function getProcedure(id?: string) {
 }
 
 const PROCEDURE_LABELS: Record<string, Partial<Record<Language, string>>> = {
-  "proc-implant": { en: "Implant dentistry", pl: "Implantologia", ru: "Имплантология" },
-  "proc-ortho": { en: "Orthodontics", pl: "Ortodoncja", ru: "Ортодонтия" },
-  "proc-endo": { en: "Endodontics", pl: "Endodoncja", ru: "Эндодонтия" },
-  "proc-prosth": { en: "Prosthodontics", pl: "Protetyka", ru: "Протезирование" },
-  "proc-restor": { en: "Restorative dentistry", pl: "Stomatologia zachowawcza", ru: "Терапевтическая стоматология" },
-  "proc-perio": { en: "Periodontics", pl: "Periodontologia", ru: "Пародонтология" },
-  "proc-hygiene": { en: "Dental hygiene", pl: "Higienizacja", ru: "Профессиональная гигиена" },
-  "proc-consult": { en: "General consultation", pl: "Konsultacja ogólna", ru: "Общая консультация" },
-  "proc-whitening": { en: "Teeth whitening", pl: "Wybielanie", ru: "Отбеливание" },
-  "proc-xray": { en: "Follow-up X-ray", pl: "Kontrolne RTG", ru: "Контрольный рентген" },
+  "proc-implant": { en: "Implant dentistry", pl: "Implantologia", ru: "Имплантология", es: "Implantología" },
+  "proc-ortho": { en: "Orthodontics", pl: "Ortodoncja", ru: "Ортодонтия", es: "Ortodoncia" },
+  "proc-endo": { en: "Endodontics", pl: "Endodoncja", ru: "Эндодонтия", es: "Endodoncia" },
+  "proc-prosth": { en: "Prosthodontics", pl: "Protetyka", ru: "Протезирование", es: "Prostodoncia" },
+  "proc-restor": { en: "Restorative dentistry", pl: "Stomatologia zachowawcza", ru: "Терапевтическая стоматология", es: "Odontología restauradora" },
+  "proc-perio": { en: "Periodontics", pl: "Periodontologia", ru: "Пародонтология", es: "Periodoncia" },
+  "proc-hygiene": { en: "Dental hygiene", pl: "Higienizacja", ru: "Профессиональная гигиена", es: "Higiene dental" },
+  "proc-consult": { en: "General consultation", pl: "Konsultacja ogólna", ru: "Общая консультация", es: "Consulta general" },
+  "proc-whitening": { en: "Teeth whitening", pl: "Wybielanie", ru: "Отбеливание", es: "Blanqueamiento dental" },
+  "proc-xray": { en: "Follow-up X-ray", pl: "Kontrolne RTG", ru: "Контрольный рентген", es: "Radiografía de control" },
 }
 
 export function procedureLabel(id: string | undefined, language: Language) {
