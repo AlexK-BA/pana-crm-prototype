@@ -1,7 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import Link from 'next/link'
 import { CrmProviders } from '@/components/crm/providers'
+import { PrivacyFooter } from '@/components/crm/privacy-footer'
 import { BRAND_CONFIG } from '@/lib/crm/brand-config'
 import './globals.css'
 
@@ -56,12 +56,10 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <CrmProviders>{children}</CrmProviders>
-        <footer className="border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground">
-          <Link className="underline underline-offset-4 hover:text-foreground" href="/privacy">
-            Demo Privacy Notice
-          </Link>
-        </footer>
+        <CrmProviders>
+          {children}
+          <PrivacyFooter />
+        </CrmProviders>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
